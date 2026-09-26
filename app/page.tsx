@@ -63,17 +63,18 @@ function shortAddress(address: string) {
 }
 
 function ListedCollectionCard({collection,rank}:{collection:ListedCollection;rank:number}) {
-  const [metadata,setMetadata]=useState<{collection?:string;imageUrl?:string}|null>(null);
+  const [metadata,setMetadata]=useState<{collection?:string}|null>(null);
   const [failed,setFailed]=useState(false);
   const chain = getMarketplaceChain(collection.chainId);
+  const artworkUrl = `/api/nft-image?chainId=${collection.chainId}&contract=${collection.address}&tokenId=${collection.sampleTokenId}`;
   useEffect(()=>{
     const controller=new AbortController();
     void fetch(`/api/nft?chainId=${collection.chainId}&contract=${collection.address}&tokenId=${collection.sampleTokenId}`,{signal:controller.signal})
-      .then(response=>response.ok?response.json() as Promise<{collection?:string;imageUrl?:string}>:null).then(data=>{setMetadata(data);setFailed(false);}).catch(()=>{});
+      .then(response=>response.ok?response.json() as Promise<{collection?:string}>:null).then(data=>setMetadata(data)).catch(()=>{});
     return()=>controller.abort();
   },[collection.chainId,collection.address,collection.sampleTokenId]);
   return <Link href={`/collection/${collection.chainId}/${collection.address}`} className="hoj-listed-collection">
-    <div className="hoj-listed-art">{metadata?.imageUrl&&!failed?<Image src={metadata.imageUrl} alt={metadata.collection??"Collection artwork"} width={112} height={112} unoptimized onError={()=>setFailed(true)}/>:<ImageIcon size={30} aria-label="Artwork unavailable"/>}</div>
+    <div className="hoj-listed-art">{!failed?<Image src={artworkUrl} alt={metadata?.collection??"Collection artwork"} width={112} height={112} unoptimized onError={()=>setFailed(true)}/>:<ImageIcon size={30} aria-label="Artwork unavailable"/>}</div>
     <div className="hoj-listed-content">
       <div className="hoj-listed-heading"><span className="hoj-trending-badge"><TrendingUp size={14}/> #{String(rank).padStart(2,"0")}</span><span>{chain.name}</span><ArrowUpRight size={17} aria-hidden="true"/></div>
       <h3>{metadata?.collection??shortAddress(collection.address)}</h3>
@@ -88,17 +89,9 @@ function ListedCollectionCard({collection,rank}:{collection:ListedCollection;ran
 }
 
 function FeaturedArtwork({ listing, onExpand }: { listing: IndexedListing; onExpand: (url: string) => void }) {
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(`/api/nft?chainId=${listing.chainId}&contract=${listing.nftAddress}&tokenId=${listing.tokenId}`, { signal: controller.signal })
-      .then(response => response.ok ? response.json() as Promise<{ imageUrl?: string | null }> : null)
-      .then(data => setImageUrl(data?.imageUrl ?? null))
-      .catch(() => {});
-    return () => controller.abort();
-  }, [listing.chainId, listing.nftAddress, listing.tokenId]);
-  return imageUrl && !failed
+  const imageUrl = `/api/nft-image?chainId=${listing.chainId}&contract=${listing.nftAddress}&tokenId=${listing.tokenId}`;
+  return !failed
     ? (
       <>
         <img 
@@ -139,25 +132,17 @@ export default function Home() {
 
   useEffect(() => {
     let mounted = true;
-    
-    async function loadMarketplaceData() {
-      try {
-        const responses = await Promise.allSettled(
-          (Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).map(async chainId => {
-            const res = await fetch(`/api/indexer?chainId=${chainId}`, { cache: "no-store" });
-            return res.ok ? (await res.json()) as IndexerResponse : null;
-          })
-        );
+    const responses = new Map<MarketplaceChainId, IndexerResponse>();
+    const liveChains = (Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[])
+      .filter(chainId => marketplaceChains[chainId].marketplaceStatus === "live");
 
+    function renderMarketplaceData() {
         if (!mounted) return;
-
         const allListings: IndexedListing[] = [];
         const allActivity: IndexedActivity[] = [];
 
         const collections: ListedCollection[] = [];
-        responses.forEach((result) => {
-          if (result.status === "fulfilled" && result.value) {
-            const data = result.value as IndexerResponse;
+        responses.forEach((data) => {
             if (!data.configured) return;
             allListings.push(...data.listings);
             allActivity.push(...data.activity);
@@ -173,7 +158,6 @@ export default function Home() {
                 salesCount: 0,
               });
             }
-          }
         });
         
         // Calculate sales volume and count for each collection
@@ -201,21 +185,11 @@ export default function Home() {
         
         const activityTimes = new Map(allActivity.map(event => [`${event.chainId}:${event.transactionHash.toLowerCase()}`, event.timestamp ?? 0]));
         
-        // Debug: Log activity times
-        console.log('Activity times sample:', Array.from(activityTimes).slice(0, 5));
-        
         const sortedListings = allListings.sort((a,b) => {
           const aTime = activityTimes.get(`${a.chainId}:${a.transactionHash.toLowerCase()}`) ?? 0;
           const bTime = activityTimes.get(`${b.chainId}:${b.transactionHash.toLowerCase()}`) ?? 0;
           return bTime-aTime || (a.chainId===b.chainId ? b.updatedBlock-a.updatedBlock : 0);
         });
-        
-        console.log('Sorted listings sample:', sortedListings.slice(0, 5).map(l => ({
-          chainId: l.chainId,
-          tokenId: l.tokenId,
-          price: l.price,
-          chain: getMarketplaceChain(l.chainId).name
-        })));
         
         setFeaturedNFTs(sortedListings.slice(0, 12)); // Increased from 8 to 12 to show more NFTs
         const sales = allActivity.filter(a => (["sold","offer_accepted"].includes(a.eventType)));
@@ -226,17 +200,29 @@ export default function Home() {
         // Sort collections by sales count (trending)
         setListedCollections(collections.sort((a, b) => Number(b.salesCount - a.salesCount) || Number(b.salesVolume - a.salesVolume)));
         
-        // Debug: Log all listings to see what's available
-        console.log('Total listings across all chains:', allListings.length);
-        console.log('Listings by chain:', allListings.reduce((acc, listing) => {
-          acc[listing.chainId] = (acc[listing.chainId] || 0) + 1;
-          return acc;
-        }, {} as Record<number, number>));
-      } catch (error) {
-        console.error("Failed to load marketplace data:", error);
-      } finally {
-        if (mounted) setLoading(false);
+        if (allListings.length || collections.length) setLoading(false);
+    }
+
+    try {
+      const cached = JSON.parse(window.sessionStorage.getItem("hoj-discover-listings") ?? "null") as {at:number;data:IndexerResponse[]}|null;
+      if (cached && Date.now() - cached.at < 60_000 && Array.isArray(cached.data)) {
+        cached.data.forEach(data => { if (liveChains.includes(data.chainId)) responses.set(data.chainId, data); });
+        if (responses.size) renderMarketplaceData();
       }
+    } catch { /* A fresh network read will replace an unavailable snapshot. */ }
+
+    async function loadMarketplaceData() {
+      await Promise.allSettled(liveChains.map(async chainId => {
+        const res = await fetch(`/api/indexer?chainId=${chainId}`, { cache: "no-store" });
+        if (!res.ok || !mounted) return;
+        const data = await res.json() as IndexerResponse;
+        if (!mounted) return;
+        responses.set(chainId, data);
+        renderMarketplaceData();
+        try { window.sessionStorage.setItem("hoj-discover-listings", JSON.stringify({at:Date.now(),data:[...responses.values()]})); }
+        catch { /* Keep the current view when storage is unavailable. */ }
+      }));
+      if (mounted) setLoading(false);
     }
 
     loadMarketplaceData();
