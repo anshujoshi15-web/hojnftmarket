@@ -34,8 +34,6 @@ export type RuntimeEnv = {
   ARC_RPC_URL?: string;
 };
 
-const DEFAULT_MARKETPLACE_ADDRESS = "0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875";
-const DEFAULT_MARKETPLACE_DEPLOY_BLOCK = "19143354";
 export function chainConfig(runtime: RuntimeEnv, chainId: MarketplaceChainId) {
   const chain = getMarketplaceChain(chainId);
   const alchemyNetwork:Partial<Record<MarketplaceChainId,string>>={1:"eth-mainnet",137:"polygon-mainnet",8453:"base-mainnet"};
@@ -57,8 +55,8 @@ export function chainConfig(runtime: RuntimeEnv, chainId: MarketplaceChainId) {
   if (chainId === 109) return {
     fallbackRpcUrl,
     chain,
-    address: runtime.SHIBARIUM_MARKETPLACE_ADDRESS ?? runtime.MARKETPLACE_ADDRESS ?? DEFAULT_MARKETPLACE_ADDRESS,
-    deployBlock: runtime.SHIBARIUM_MARKETPLACE_DEPLOY_BLOCK ?? runtime.MARKETPLACE_DEPLOY_BLOCK ?? DEFAULT_MARKETPLACE_DEPLOY_BLOCK,
+    address: runtime.SHIBARIUM_MARKETPLACE_ADDRESS ?? runtime.MARKETPLACE_ADDRESS ?? chain.marketplaceAddress,
+    deployBlock: runtime.SHIBARIUM_MARKETPLACE_DEPLOY_BLOCK ?? runtime.MARKETPLACE_DEPLOY_BLOCK ?? String(chain.marketplaceDeployBlock),
     rpcUrl: runtime.SHIBARIUM_RPC_URL ?? chain.rpcUrl,
   };
   if (chainId === 137) return {

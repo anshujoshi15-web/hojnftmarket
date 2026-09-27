@@ -8,32 +8,37 @@ test("configured chains resolve independently with the correct native currencies
   const base=chainConfig({},8453);
   assert.equal(polygon.chain.currency,"POL");assert.equal(base.chain.currency,"ETH");
   assert.notEqual(polygon.address,base.address);
-  assert.equal(base.address,"0xCb54f70B0eb580a8ec22a0e67C05293206C358F2");
-  assert.equal(base.deployBlock,"51733550");
+  assert.equal(base.address,"0x50489Fdc2352917595359667b34b384b33184b91");
+  assert.equal(base.deployBlock,"51813478");
   assert.equal(base.rpcUrl,"https://mainnet.base.org");
   assert.equal(polygon.chain.marketplaceStatus,"live");
-  assert.equal(chainConfig({},137).address,"0xfb985d4eDd4C1F909899389C217aEC9D6895B72d");
-  assert.equal(chainConfig({},137).deployBlock,"94404469");
+  assert.equal(chainConfig({},137).address,"0x3C626ff68e9a69526117B22D288ab71bdA2B377a");
+  assert.equal(chainConfig({},137).deployBlock,"94475428");
   const cronos=chainConfig({},25);
   assert.equal(cronos.chain.currency,"CRO");
-  assert.equal(cronos.address,"0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875");
-  assert.equal(cronos.deployBlock,"95919348");
+  assert.equal(cronos.address,"0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab");
+  assert.equal(cronos.deployBlock,"96267649");
   assert.equal(chainConfig({},109).chain.currency,"BONE");assert.equal(chainConfig({},33139).chain.currency,"APE");
-  assert.equal(chainConfig({},109).address,"0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875");
-  assert.equal(chainConfig({},109).deployBlock,"19143354");
+  assert.equal(chainConfig({},109).address,"0x455DaD76334a67660D61bb319d8CfF1010e33049");
+  assert.equal(chainConfig({},109).deployBlock,"19169320");
   const zora=chainConfig({},7777777);
   assert.equal(zora.chain.marketplaceStatus,"live");
-  assert.equal(zora.address,"0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875");
-  assert.equal(zora.deployBlock,"51793532");
+  assert.equal(zora.address,"0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab");
+  assert.equal(zora.deployBlock,"51861519");
   const arc=chainConfig({},5042);
   assert.equal(arc.chain.currency,"USDC");
-  assert.equal(arc.chain.marketplaceStatus,"coming-soon");
-  assert.equal(arc.address,"");
+  assert.equal(arc.chain.marketplaceStatus,"live");
+  assert.equal(arc.address,"0xD9883fDdf57Ca58f775Bdab96C0e7c3F1c918af3");
+  assert.equal(arc.deployBlock,"22840359");
   assert.equal(arc.rpcUrl,"https://rpc.mainnet.arc.io");
+  const apechain=chainConfig({},33139);
+  assert.equal(apechain.chain.marketplaceStatus,"live");
+  assert.equal(apechain.address,"0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875");
+  assert.equal(apechain.deployBlock,"50360444");
 });
 test("coming-soon networks expose no live marketplace listings",async()=>{
   const {GET}=await loadModule("app/api/indexer/route.ts");
-  for(const chainId of [1,5042,4663,33139]){
+  for(const chainId of [1,4663]){
     const response=await GET(new Request(`http://localhost/api/indexer?chainId=${chainId}`));
     const body=await response.json();
     assert.equal(response.status,200);
@@ -54,7 +59,7 @@ test("NFT price history keeps only recorded listing and settlement prices in tim
 });
 test("coming-soon NFT price history returns a truthful empty state",async()=>{
   const {GET}=await loadModule("app/api/nft-price-history/route.ts");
-  const response=await GET(new Request("http://localhost/api/nft-price-history?chainId=5042&contract=0x1111111111111111111111111111111111111111&tokenId=7"));
+  const response=await GET(new Request("http://localhost/api/nft-price-history?chainId=4663&contract=0x1111111111111111111111111111111111111111&tokenId=7"));
   assert.equal(response.status,200);
   const body=await response.json();
   assert.deepEqual(body.points,[]);

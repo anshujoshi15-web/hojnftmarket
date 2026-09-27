@@ -12,41 +12,41 @@ cp .env.example .env.local
 npm run dev
 ```
 
-The app is connected by default to the Shibarium `HOJNFTMarketplace` V5 deployment at `0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875` (block `19143354`). The older Shibarium deployment remains separate; its deposits and proceeds do not migrate automatically.
+The app is connected by default to the Shibarium V7 deployment at `0x455DaD76334a67660D61bb319d8CfF1010e33049` (block `19169320`). Older deployments remain separate; their listings, deposits, and proceeds do not migrate automatically.
 
 ## Multichain configuration
 
-Nine chains are configured in the wallet and network UI. Base's verified HOJNFTMarketplace V5 deployment is `0xCb54f70B0eb580a8ec22a0e67C05293206C358F2` from block `51733550`. Cronos EVM's V5 deployment is `0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875` from block `95919348`, and Shibarium's V5 deployment is the same hexadecimal address on chain 109 from block `19143354`. Other chains retain their historical marketplace addresses for reference, but new HOJ trading is disabled until their V5 deployments are verified and `marketplaceStatus` is changed to `live`. Setting an address in the environment alone does not activate trading. Server environment values override the checked-in defaults:
+Nine chains are configured in the wallet and network UI. The live chains use V7 deployments recorded in [the V7 deployment guide](docs/DIRECT-SETTLEMENT-V7.md) and `lib/marketplace-chains.ts`. Ethereum and Robinhood remain coming soon. Setting an address in the environment alone does not activate trading. Server environment values override the checked-in defaults:
 
 ```env
 ETHEREUM_MARKETPLACE_ADDRESS=0x...
 ETHEREUM_MARKETPLACE_DEPLOY_BLOCK=...
 ETHEREUM_RPC_URL=https://cloudflare-eth.com
 
-CRONOS_MARKETPLACE_ADDRESS=0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875
-CRONOS_MARKETPLACE_DEPLOY_BLOCK=95919348
+CRONOS_MARKETPLACE_ADDRESS=0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab
+CRONOS_MARKETPLACE_DEPLOY_BLOCK=96267649
 CRONOS_RPC_URL=https://evm.cronos.org
 
-SHIBARIUM_MARKETPLACE_ADDRESS=0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875
-SHIBARIUM_MARKETPLACE_DEPLOY_BLOCK=19143354
+SHIBARIUM_MARKETPLACE_ADDRESS=0x455DaD76334a67660D61bb319d8CfF1010e33049
+SHIBARIUM_MARKETPLACE_DEPLOY_BLOCK=19169320
 SHIBARIUM_RPC_URL=https://...
 
-POLYGON_MARKETPLACE_ADDRESS=0xfb985d4eDd4C1F909899389C217aEC9D6895B72d
-POLYGON_MARKETPLACE_DEPLOY_BLOCK=94404469
+POLYGON_MARKETPLACE_ADDRESS=0x3C626ff68e9a69526117B22D288ab71bdA2B377a
+POLYGON_MARKETPLACE_DEPLOY_BLOCK=94475428
 POLYGON_RPC_URL=https://...
 
-BASE_MARKETPLACE_ADDRESS=0x...
-BASE_MARKETPLACE_DEPLOY_BLOCK=...
+BASE_MARKETPLACE_ADDRESS=0x50489Fdc2352917595359667b34b384b33184b91
+BASE_MARKETPLACE_DEPLOY_BLOCK=51813478
 BASE_RPC_URL=https://mainnet.base.org
 
 ROBINHOOD_MARKETPLACE_ADDRESS=0x...
 ROBINHOOD_MARKETPLACE_DEPLOY_BLOCK=...
 ROBINHOOD_RPC_URL=https://rpc.mainnet.chain.robinhood.com
 
-ZORA_MARKETPLACE_ADDRESS=0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875
-ZORA_MARKETPLACE_DEPLOY_BLOCK=51793532
-APECHAIN_MARKETPLACE_ADDRESS=0x...
-APECHAIN_MARKETPLACE_DEPLOY_BLOCK=...
+ZORA_MARKETPLACE_ADDRESS=0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab
+ZORA_MARKETPLACE_DEPLOY_BLOCK=51861519
+APECHAIN_MARKETPLACE_ADDRESS=0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875
+APECHAIN_MARKETPLACE_DEPLOY_BLOCK=50360444
 
 # Optional Blockscout-compatible NFT API overrides
 ETHEREUM_EXPLORER_API_URL=https://eth.blockscout.com/api/v2
