@@ -1,2 +1,10 @@
 import { InfoPage } from "../info-page";
-export default function AboutPage(){return <InfoPage eyebrow="ABOUT" title="The House of Joshi" intro="A home for considered digital works, permanent provenance, and fair onchain settlement." sections={[{heading:"The marketplace",body:"The NFT Marketplace is a curated, non-custodial venue for ERC-721 works across Ethereum, Shibarium, Polygon, Base, Robinhood Chain, Zora, and ApeChain."},{heading:"The principle",body:"Ownership should be clear, provenance should be permanent, and the work should speak first."},{heading:"The House ecosystem",body:"Explore Kingdom Within, HOJ Swap, NFT Launchpad, and Dreamweaver through the links in the footer."}]}/>}
+
+export default function AboutPage() {
+  return <InfoPage eyebrow="ABOUT" title="The House of Joshi" intro="A multichain marketplace for collecting and presenting NFTs." sections={[
+    { heading: "The marketplace", body: "The House of Joshi marketplace supports ERC-721 NFTs and ERC-1155 editions on its live networks. Each network uses its own contract and settlement currency; networks marked Coming soon cannot be traded here yet." },
+    { heading: "Ownership and settlement", body: "Listings are non-custodial: the asset remains in its owner's wallet until a valid purchase. The marketplace contract records listings and settles sales onchain." },
+    { heading: "Marketplace upgrades", body: "V8 adds same-collection ERC-721 bulk listing. Earlier V7 contracts remain separate, with their existing listings, offers, and proceeds available through Earlier marketplace.", href: "/legacy" },
+    { heading: "The House ecosystem", body: "Explore HOJ Swap and NFT Launchpad through the marketplace navigation." },
+  ]} />;
+}

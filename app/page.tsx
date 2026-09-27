@@ -474,17 +474,17 @@ export default function Home() {
           <div className="royal-step-card">
             <div className="royal-step-number">1</div>
             <h3>Connect Your Wallet</h3>
-            <p>Link your Web3 wallet to access your digital treasures and begin trading.</p>
+            <p>Connect your wallet and choose the live network where you want to trade.</p>
           </div>
           <div className="royal-step-card">
             <div className="royal-step-number">2</div>
             <h3>Explore Collections</h3>
-            <p>Browse curated NFTs across multiple blockchains in our elegant marketplace.</p>
+            <p>Check each NFT’s network, collection contract, token ID, price, and listing status.</p>
           </div>
           <div className="royal-step-card">
             <div className="royal-step-number">3</div>
             <h3>Make Your Move</h3>
-            <p>Purchase with confidence or list your own NFTs for fellow collectors to discover.</p>
+            <p>Confirm purchases in your wallet. To sell, approve the collection if needed, then list one NFT or a V8 batch.</p>
           </div>
         </div>
       </section>

@@ -1,8 +1,14 @@
 import { InfoPage } from "../info-page";
 
-export default function LearnPage(){return <InfoPage eyebrow="LEARN" title="Learn the Marketplace" intro="A clear introduction to collecting and listing NFTs safely across supported networks." sections={[
-  {heading:"Connect your wallet",body:"Use Connect Wallet at the top of the page. The network selector appears directly beside it, so your wallet and marketplace network remain visible together."},
-  {heading:"Choose a network",body:"Select Ethereum, Shibarium, Polygon, Base, Robinhood Chain, Zora, or ApeChain. Listings, activity, balances, and settlement are kept separate for each network."},
-  {heading:"Collect a work",body:"Open a verified listing, review its collection, contract, token ID, price, and network, then confirm the purchase in your wallet."},
-  {heading:"Present a work",body:"Choose an ERC-721 from your connected wallet, approve the marketplace, set its price, and confirm the listing transaction."},
-]}/>}
+export default function LearnPage() {
+  return <InfoPage eyebrow="LEARN" title="How to use the marketplace" intro="From finding a listing to managing sales, approvals, and older contracts." sections={[
+    { heading: "1. Connect and choose a network", body: "Connect Wallet, then select a live network. Your wallet should be on that same chain before you sign. Trading, balances, listings, and proceeds are separate on each network." },
+    { heading: "2. Explore and buy", body: "Use Discover, Collections, Search, or Market. Open the NFT and check its chain, collection contract, token ID, price, and seller. Confirm the purchase and gas cost in your wallet. Cart checkout can combine supported purchases on one chain." },
+    { heading: "3. List one ERC-721", body: "Open Sell, select an NFT from your connected wallet or enter its contract and token ID, and choose a price. If the marketplace has no collection approval, approve it once. Then sign the listing transaction. The NFT stays in your wallet until sold." },
+    { heading: "4. List several from one collection", body: "On a network with marketplace V8, select 2 to 20 ERC-721 NFTs from the same collection in the collection listing panel. They share one price and one batch listing transaction. A first collection approval is a separate transaction; it covers that collection for that marketplace contract." },
+    { heading: "5. List ERC-1155 editions", body: "Open an ERC-1155 NFT page, choose the quantity and price per edition, then confirm the approval and listing steps shown there. The ERC-721 bulk listing panel does not list editions." },
+    { heading: "6. Manage listings and proceeds", body: "Open Profile for your listings and Withdraw for available sale proceeds. Cancel a listing you no longer want to sell. You can revoke collection approval from Sell, but doing so makes active listings in that collection unbuyable until you approve again." },
+    { heading: "7. Check earlier marketplace activity", body: "When a chain moves from V7 to V8, old listings, offers, and proceeds stay on V7. Use Earlier marketplace to buy or cancel those listings and access old account funds. Moving an NFT to V8 requires listing it again.", href: "/legacy" },
+    { heading: "8. Read indexing status", body: "Listings and sales are read from blockchain events. A warning means the visible set may be incomplete until indexing catches up or the provider recovers. Check the transaction on the chain explorer if you need confirmation immediately." },
+  ]} />;
+}
