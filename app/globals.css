@@ -11955,16 +11955,3 @@ article.royal-profile-nft > a {
 .royal-index-warning{margin:0 0 1.5rem;padding:1rem 1.2rem;border:1px solid rgba(189,134,42,.5);border-radius:12px;background:rgba(189,134,42,.1);color:#e8d5ae;line-height:1.5}
 .bulk-approval-control{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
 .bulk-approval-control button{border:1px solid currentColor;border-radius:8px;padding:.5rem .8rem;background:transparent;color:inherit;cursor:pointer}
-.wallet-nft-choice{position:relative;min-width:0}
-.wallet-nft-choice>.wallet-nft{display:block;width:100%;height:100%}
-.wallet-nft-grid.list .wallet-nft-choice{width:100%}
-.wallet-nft-grid.list .wallet-nft-choice>.wallet-nft{display:grid}
-.wallet-nft-checkbox{position:absolute;top:8px;right:8px;z-index:2;display:flex;align-items:center;gap:6px;padding:5px 7px;border:1px solid #8b7040;border-radius:4px;background:#fffaf0;color:#171511;font-size:11px;font-weight:700;cursor:pointer}
-.wallet-nft-checkbox input{width:18px;height:18px;accent-color:#a47725;cursor:pointer}
-.wallet-nft-checkbox:has(input:checked){background:#ead198;border-color:#a47725}
-.wallet-nft-checkbox:has(input:disabled){opacity:.55;cursor:not-allowed}
-.wallet-nft-bulk-link{display:inline-block;margin-top:14px;padding:10px 14px;background:#171511;color:#fff4dc;font-size:12px;font-weight:700;text-decoration:none}
-.bulk-listing-tokens input[type="checkbox"]{width:18px;height:18px;flex:none;accent-color:#c9a95b}
-.bulk-listing-panel .bulk-manual-form{margin-top:22px;padding-top:18px;border-top:1px solid #584827}
-.bulk-manual-form h3{margin:0;font-size:17px}
-.bulk-manual-form p{margin:0}
