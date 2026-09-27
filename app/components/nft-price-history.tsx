@@ -5,6 +5,7 @@ import { ExternalLink, History } from "lucide-react";
 import { formatEther } from "viem";
 import { transactionUrl, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import type { PriceHistoryPoint } from "@/lib/nft-price-history";
+import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type HistoryResponse = { points: PriceHistoryPoint[]; complete: boolean; warning: string | null };
 
@@ -19,19 +20,28 @@ export function NftPriceHistory({ chainId, contract, tokenId, currency, refreshK
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     const controller = new AbortController();
-    queueMicrotask(() => { if (!controller.signal.aborted) setLoading(true); });
+    let pending=false;
     const query = new URLSearchParams({ chainId: String(chainId), contract, tokenId });
-    void fetch(`/api/nft-price-history?${query}`, { cache: "no-store", signal: controller.signal })
+    function refresh(){
+      if(pending)return;
+      pending=true;
+      void fetch(`/api/nft-price-history?${query}`, { cache: "no-store", signal: controller.signal })
       .then(async response => {
         const body = await response.json() as HistoryResponse;
         if (!response.ok && !body.warning) throw new Error("Price history is temporarily unavailable.");
-        setData(body);
+        if(!controller.signal.aborted)setData(body);
       })
       .catch(error => {
-        if (!controller.signal.aborted) setData({ points: [], complete: false, warning: error instanceof Error ? error.message : "Price history is temporarily unavailable." });
+        if (!controller.signal.aborted) setData(current=>({ points: current?.points??[], complete: false, warning: error instanceof Error ? error.message : "Price history is temporarily unavailable." }));
       })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
+      .finally(() => { pending=false;if (!controller.signal.aborted) setLoading(false); });
+    }
+    refresh();
+    const timer=window.setInterval(()=>{if(!document.hidden)refresh();},MARKETPLACE_REFRESH_INTERVAL);
+    const onFocus=()=>{if(!document.hidden)refresh();};
+    window.addEventListener("focus",onFocus);
+    const unsubscribe=onMarketplaceUpdate(updatedChain=>{if(updatedChain===chainId)refresh();});
+    return () => {controller.abort();window.clearInterval(timer);window.removeEventListener("focus",onFocus);unsubscribe();};
   }, [chainId, contract, tokenId, refreshKey]);
 
   const chart = useMemo(() => {

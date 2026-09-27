@@ -6,6 +6,7 @@ import { formatEther } from "viem";
 import Link from "next/link";
 import Image from "next/image";
 import { getMarketplaceChain, isMarketplaceLive, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
+import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:string; tokenId:string; seller:string; price:string; transactionHash:string };
 type Activity = { id:string; chainId:MarketplaceChainId; eventType:string; nftAddress:string|null; tokenId:string|null; price:string|null; blockNumber:number };
@@ -23,7 +24,10 @@ export function NetworkMarketplace({ chainId }: { chainId: MarketplaceChainId })
 
   useEffect(() => {
     let active = true;
+    let refreshing = false;
     async function refresh() {
+      if (refreshing) return;
+      refreshing = true;
       try {
         const response = await fetch(`/api/indexer?chainId=${chainId}`, { cache: "no-store" });
         if (response.ok) {
@@ -33,12 +37,16 @@ export function NetworkMarketplace({ chainId }: { chainId: MarketplaceChainId })
       } catch (error) {
         console.error(`Failed to load ${chain.name} data:`, error);
       } finally {
+        refreshing = false;
         if (active) setLoading(false);
       }
     }
     void refresh();
-    const timer = window.setInterval(refresh, 30_000);
-    return () => { active = false; window.clearInterval(timer); };
+    const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, MARKETPLACE_REFRESH_INTERVAL);
+    const onFocus = () => { if (!document.hidden) void refresh(); };
+    window.addEventListener("focus", onFocus);
+    const unsubscribe = onMarketplaceUpdate(updatedChain => { if (updatedChain === chainId) void refresh(); });
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener("focus", onFocus); unsubscribe(); };
   }, [chainId, chain.name]);
 
   const listings = useMemo(() => chainData?.listings ?? [], [chainData]);

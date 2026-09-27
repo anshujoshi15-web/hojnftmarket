@@ -15,6 +15,7 @@ import { TransactionStatus, useMarketplaceTransaction } from "./components/use-m
 import { OffersPanel } from "./components/offers-panel";
 import { EditionTrading } from "./components/edition-trading";
 import { NftPriceHistory } from "./components/nft-price-history";
+import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type Nft={name:string|null;collection:string|null;imageUrl:string|null;description:string|null;externalUrl:string|null;traits:Array<{type:string;value:string}>;error?:string};
 type Listing={id:string;chainId:MarketplaceChainId;nftAddress:`0x${string}`;tokenId:string;seller:`0x${string}`;price:string;transactionHash:`0x${string}`;updatedBlock:number;tokenType?:"ERC-721"|"ERC-1155";quantity?:string};
@@ -63,7 +64,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
   const{data:isEdition}=useReadContract({address:nftAddress,abi:erc1155Abi,functionName:"supportsInterface",args:["0xd9b67a26"],chainId:marketChainId,query:{enabled:valid}});
   const{data:editionSupply}=useReadContract({address:nftAddress,abi:erc1155SupplyAbi,functionName:"totalSupply",args:[parsedTokenId],chainId:marketChainId,query:{enabled:valid&&isEdition===true}});
   const{data:owner,refetch:refetchOwner}=useReadContract({address:nftAddress,abi:erc721Abi,functionName:"ownerOf",args:[parsedTokenId],chainId:marketChainId,query:{enabled:valid&&!isEdition,refetchInterval:30_000}});
-  const{data:directListing,refetch:refetchListing,isLoading:listingLoading}=useReadContract({address:marketplaceAddress,abi:marketplaceAbi,functionName:"getListing",args:[nftAddress,parsedTokenId],chainId:marketChainId,query:{enabled:valid&&marketplaceLive&&!isEdition,refetchInterval:15_000}});
+  const{data:directListing,refetch:refetchListing,isLoading:listingLoading}=useReadContract({address:marketplaceAddress,abi:marketplaceAbi,functionName:"getListing",args:[nftAddress,parsedTokenId],chainId:marketChainId,query:{enabled:valid&&marketplaceLive&&!isEdition,refetchInterval:MARKETPLACE_REFRESH_INTERVAL}});
   const{data:marketVersion}=useReadContract({address:marketplaceAddress,abi:marketplaceAbi,functionName:"marketplaceVersion",chainId:marketChainId,query:{enabled:valid&&marketplaceLive}});
 
   useEffect(()=>{
@@ -109,14 +110,21 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
 
   useEffect(()=>{
     if(!valid)return;
-    const timer=window.setInterval(async()=>{
-      if(document.visibilityState!=="visible")return;
+    let active=true,pending=false;
+    async function refresh(){
+      if(document.visibilityState!=="visible"||pending)return;
+      pending=true;
       try{
         const response=await fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"});
-        if(response.ok)setIndexer(await response.json() as Indexer);
+        if(response.ok){const body=await response.json() as Indexer;if(active)setIndexer(body);}
       }catch{/* Keep the last verified floor while the indexer is temporarily unavailable. */}
-    },30_000);
-    return()=>window.clearInterval(timer);
+      finally{pending=false;}
+    }
+    const timer=window.setInterval(()=>{void refresh();},MARKETPLACE_REFRESH_INTERVAL);
+    const onFocus=()=>{void refresh();};
+    window.addEventListener("focus",onFocus);
+    const unsubscribe=onMarketplaceUpdate(updatedChain=>{if(updatedChain===chainId)void refresh();});
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus);unsubscribe();};
   },[chainId,valid]);
 
   useEffect(()=>{

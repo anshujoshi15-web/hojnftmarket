@@ -4,7 +4,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { ArrowLeft, ArrowUpRight, ChevronDown, ExternalLink, Grid2X2, Heart, List, Search, ShieldCheck, ShoppingCart, SlidersHorizontal, Trash2, Wallet, X } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatEther, getAddress, erc721Abi, zeroAddress } from "viem";
 import { useAccount, useChainId, usePublicClient, useReadContract } from "wagmi";
 import { getMarketplaceChain, marketplaceChains, isMarketplaceChainId, tokenUrl, transactionUrl, type MarketplaceChainId } from "@/lib/marketplace-chains";
@@ -12,6 +12,7 @@ import { marketplaceAbi as abi, parseNativeAmount } from "@/lib/marketplace-abi"
 import { inspectListing } from "@/lib/prepare-listing";
 import { TransactionStatus, useMarketplaceTransaction } from "./components/use-marketplace-transaction";
 import { favoriteId, useFavorite } from "./favorites";
+import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type View = "market" | "sell" | "activity" | "account" | "protocol";
 type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:`0x${string}`; tokenId:string; seller:`0x${string}`; price:string; transactionHash:`0x${string}`; updatedBlock:number; tokenType?:"ERC-721"|"ERC-1155"; quantity?:string };
@@ -38,12 +39,25 @@ function useIndexer(chainId:MarketplaceChainId) {
   const fallback=useMemo<IndexerData>(()=>({chainId,chain:chain.name,currency:chain.currency,explorerUrl:chain.explorerUrl,configured:false,listings:[],activity:[]}),[chainId,chain]);
   const [data,setData] = useState<IndexerData>(fallback);
   const [loading,setLoading] = useState(true);
-  const refresh=useCallback(async function refresh() {
-    try { const response=await fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"}); const body=await response.json() as IndexerData;if(!response.ok)throw new Error("Indexer unavailable");setData(body); }
-    catch(error){setData({...fallback,syncError:error instanceof Error?error.message:"Indexer temporarily unavailable"});}
-    finally { setLoading(false); }
+  const pendingChains=useRef(new Set<number>());
+  const queuedChains=useRef(new Set<number>());
+  const selectedChain=useRef(chainId);
+  selectedChain.current=chainId;
+  const refresh=useCallback(async function refresh(force=false) {
+    if(pendingChains.current.has(chainId)){if(force)queuedChains.current.add(chainId);return;}
+    pendingChains.current.add(chainId);
+    try { const response=await fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"}); const body=await response.json() as IndexerData;if(!response.ok)throw new Error("Indexer unavailable");if(selectedChain.current===chainId)setData(body); }
+    catch(error){if(selectedChain.current===chainId)setData(current=>({...(current.chainId===chainId&&current.configured?current:fallback),syncError:error instanceof Error?error.message:"Indexer temporarily unavailable"}));}
+    finally { pendingChains.current.delete(chainId); if(selectedChain.current===chainId)setLoading(false); if(queuedChains.current.delete(chainId))void refresh(); }
   },[chainId,fallback]);
-  useEffect(()=>{const initial=window.setTimeout(refresh,0);const timer=window.setInterval(refresh,30_000);return()=>{window.clearTimeout(initial);window.clearInterval(timer);};},[refresh]);
+  useEffect(()=>{
+    void refresh();
+    const timer=window.setInterval(()=>{if(!document.hidden)void refresh();},MARKETPLACE_REFRESH_INTERVAL);
+    const onFocus=()=>{if(!document.hidden)void refresh(true);};
+    window.addEventListener("focus",onFocus);
+    const unsubscribe=onMarketplaceUpdate(updatedChain=>{if(updatedChain===chainId)void refresh(true);});
+    return()=>{window.clearInterval(timer);window.removeEventListener("focus",onFocus);unsubscribe();};
+  },[chainId,refresh]);
   const current=data.chainId===chainId?data:fallback;
   return { data:current, loading:loading||data.chainId!==chainId, refresh };
 }

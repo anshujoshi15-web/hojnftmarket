@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { getMarketplaceChain, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { sortActivity } from "@/lib/activity-sort";
 import { formatEther } from "viem";
+import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type IndexedActivity = {
   id: string;
@@ -40,43 +41,32 @@ export default function ActivityPage() {
   const [sortBy, setSortBy] = useState<"recent" | "price-high" | "price-low">("recent");
 
   useEffect(() => {
-    async function loadActivity() {
+    let active=true;
+    let refreshing=false;
+    const responses=new Map<MarketplaceChainId,IndexedActivity[]>();
+    const liveChains=(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[])
+      .filter(chainId=>marketplaceChains[chainId].marketplaceStatus==="live");
+    async function loadActivity(onlyChainId?:number) {
+      if(refreshing)return;
+      refreshing=true;
       try {
-        // Load Shibarium first for instant content
-        const shibariumResponse = await fetch(`/api/indexer?chainId=109`, { cache: "no-store" });
-        const shibariumData = shibariumResponse.ok ? await shibariumResponse.json() as IndexerResponse : null;
-        
-        if (shibariumData) {
-          setActivity(shibariumData.activity || []);
+        await Promise.allSettled(liveChains.filter(chainId=>onlyChainId===undefined||chainId===onlyChainId).map(async chainId=>{
+          const response=await fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"});
+          if(!response.ok)return;
+          const data=await response.json() as IndexerResponse;
+          if(!active)return;
+          responses.set(chainId,data.activity??[]);
+          setActivity([...responses.values()].flat());
           setLoading(false);
-        }
-
-        // Load other chains in background
-        const otherChains = [1, 25, 137, 8453, 4663, 7777777, 33139] as MarketplaceChainId[];
-        const otherResponses = await Promise.allSettled(
-          otherChains.map(async chainId => {
-            const res = await fetch(`/api/indexer?chainId=${chainId}`, { cache: "no-store" });
-            return res.ok ? (await res.json()) as IndexerResponse : null;
-          })
-        );
-
-        const allActivity: IndexedActivity[] = [...(shibariumData?.activity || [])];
-        otherResponses.forEach((result) => {
-          if (result.status === "fulfilled" && result.value) {
-            const data = result.value as IndexerResponse;
-            allActivity.push(...(data.activity || []));
-          }
-        });
-
-        setActivity(allActivity);
-        setLoading(false);
-      } catch (error) {
-        console.error("Failed to load activity:", error);
-        setLoading(false);
-      }
+        }));
+      } finally { refreshing=false; if(active)setLoading(false); }
     }
-
-    loadActivity();
+    void loadActivity();
+    const timer=window.setInterval(()=>{if(!document.hidden)void loadActivity();},MARKETPLACE_REFRESH_INTERVAL);
+    const onFocus=()=>{if(!document.hidden)void loadActivity();};
+    window.addEventListener("focus",onFocus);
+    const unsubscribe=onMarketplaceUpdate(chainId=>{void loadActivity(chainId);});
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus);unsubscribe();};
   }, []);
 
   const filteredActivity = activity.filter(item => {

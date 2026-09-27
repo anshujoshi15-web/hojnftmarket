@@ -211,21 +211,35 @@ export async function rangeLogs(client:ReturnType<typeof indexClient>,address:Ad
   }
 }
 const pending=new Map<string,Promise<Awaited<ReturnType<typeof buildIndex>>>>();
+const statelessSnapshots=new Map<string,{fromBlock:number;through:number;events:Activity[]}>();
 export async function loadMarketplaceIndex(config:Config,db?:D1Database){
   const scope=`marketplace:v3:${config.chain.id}:${config.address.toLowerCase()}`;
+  const pendingScope=`${scope}:${db?"durable":"stateless"}`;
   // Serialize concurrent reads in this process; database batches commit events and cursor together.
-  let work=pending.get(scope);
-  if(!work){work=buildIndex(config,scope,db);pending.set(scope,work);}
-  try{return await work;}finally{if(pending.get(scope)===work)pending.delete(scope);}
+  let work=pending.get(pendingScope);
+  if(!work){work=buildIndex(config,scope,db);pending.set(pendingScope,work);}
+  try{return await work;}finally{if(pending.get(pendingScope)===work)pending.delete(pendingScope);}
 }
 
 async function buildIndex(config:Config,scope:string,db?:D1Database){
   const client=indexClient(config), address=config.address as Address, chainId=config.chain.id as MarketplaceChainId;
-  const safeLatest=Math.max(0,Number(await client.getBlockNumber())-config.chain.confirmations);
+  // A durable index keeps a confirmation buffer before committing events. The
+  // stateless path replays its window on every read, so it can show mined
+  // listings and sales immediately and self-correct after a reorg.
+  const safeLatest=Math.max(0,Number(await client.getBlockNumber())-(db?config.chain.confirmations:0));
   const deployBlock=Number(config.deployBlock);
   let start=Math.max(deployBlock,safeLatest-CHUNK_SIZE*MAX_CHUNKS+1);
   if(db){await schema(db);const state=await db.prepare("SELECT last_block AS lastBlock FROM indexer_state WHERE id=?").bind(scope).first<{lastBlock:number}>();start=Math.max(deployBlock,(state?.lastBlock??deployBlock-1)+1);}
   const fromBlock=start, events:Activity[]=[];
+  if(!db){
+    const snapshot=statelessSnapshots.get(scope);
+    if(snapshot&&snapshot.fromBlock<=fromBlock&&snapshot.through<=safeLatest){
+      // Re-read the recent confirmation window so a chain reorganization can
+      // replace events kept by this warm serverless instance.
+      start=Math.max(fromBlock,snapshot.through-config.chain.confirmations+1);
+      events.push(...snapshot.events.filter(event=>event.blockNumber>=fromBlock&&event.blockNumber<start));
+    }
+  }
   let chunks=0,logsProcessed=0;
   while(start<=safeLatest&&chunks++<MAX_CHUNKS){
     const {logs,through:end}=await rangeLogs(client,address,start,Math.min(start+CHUNK_SIZE-1,safeLatest));
@@ -237,6 +251,7 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
     else events.push(...decoded);
     logsProcessed+=logs.length;start=end+1;
   }
+  if(!db&&start>safeLatest)statelessSnapshots.set(scope,{fromBlock,through:safeLatest,events});
   let {listings,offers,activity}=replayEvents(events);
   if(db){
     const result=await db.batch([

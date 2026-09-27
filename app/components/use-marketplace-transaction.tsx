@@ -7,6 +7,7 @@ import { type Abi, type Address, type Hash, type TransactionReceipt, type Public
 import { confirmedReceipt } from "@/lib/transaction-receipt";
 import { transactionError } from "@/lib/transaction-errors";
 import { getMarketplaceChain, isMarketplaceLive, transactionUrl, type MarketplaceChainId } from "@/lib/marketplace-chains";
+import { announceMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type Request={address:Address;abi:Abi;functionName:string;args?:readonly unknown[];value?:bigint};
 type Send=(request:Request,label?:string)=>Promise<TransactionReceipt>;
@@ -58,6 +59,7 @@ export function useMarketplaceTransaction(chainId:MarketplaceChainId){
         waiting=submitted;persist(key,submitted);setHash(submitted);setMessage(`${step} submitted. Waiting for confirmation…`);
         const receipt=await confirmedReceipt(client,submitted,replacement=>{waiting=replacement;persist(key,replacement);setHash(replacement);});
         waiting=undefined;persist(key);setMessage(`${step} confirmed. Updating marketplace…`);
+        announceMarketplaceUpdate(chainId);
         return receipt;
       };
       await job(send);
@@ -82,6 +84,7 @@ export function useMarketplaceTransaction(chainId:MarketplaceChainId){
     try{
       await confirmedReceipt(outstanding.client,outstanding.hash,replacement=>{outstanding.hash=replacement;persist(outstanding.key,replacement);setHash(replacement);});
       persist(outstanding.key);
+      announceMarketplaceUpdate(outstanding.chainId);
       setMessage("Transaction confirmed. Refresh this page to see its result; any remaining step can now be continued.");
       active.delete(outstanding.key);outstandingTransactions.delete(outstanding.key);notify();unresolved.current=null;busy.current=false;setUncertain(false);
     }catch(error){

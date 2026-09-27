@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { formatEther } from "viem";
 import Link from "next/link";
 import { getMarketplaceChain, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
+import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type WalletNft = {
   contractAddress: string;
@@ -190,33 +191,6 @@ export default function ProfilePage() {
         setExplorerFallbacks(failedExplorers);
         setLoading(false);
 
-        // Load listings and activity from selected chain
-        const listingResponses = await Promise.allSettled(
-          chainIds.map(async chainId => {
-            const res = await fetch(`/api/indexer?chainId=${chainId}`, { cache: "no-store", signal: controller.signal });
-            return res.ok ? (await res.json()) as IndexerResponse : null;
-          })
-        );
-        if (!active) return;
-
-        const allListings: IndexedListing[] = [];
-        const allActivity: IndexedActivity[] = [];
-
-        listingResponses.forEach((result) => {
-          if (result.status === "fulfilled" && result.value) {
-            const data = result.value as IndexerResponse;
-            allListings.push(...(data.listings || []));
-            allActivity.push(...(data.activity || []));
-          }
-        });
-
-        // Filter listings for this wallet
-        const myListings = allListings.filter(l => l.seller.toLowerCase() === address.toLowerCase());
-        setListings(myListings);
-        setActivity(allActivity.filter(a => 
-          (a.seller?.toLowerCase() === address.toLowerCase() || a.buyer?.toLowerCase() === address.toLowerCase())
-        ));
-
       } catch (error) {
         if (active) console.error("Failed to load wallet data:", error);
       } finally {
@@ -227,6 +201,39 @@ export default function ProfilePage() {
     void loadWalletData();
     return () => { active = false; controller.abort(); };
   }, [address, selectedChain, walletChainId, retry]);
+
+  useEffect(() => {
+    if (!address) { queueMicrotask(()=>{setListings([]);setActivity([]);});return; }
+    const wallet=address.toLowerCase();
+    let active=true,refreshing=false;
+    const chainIds=(selectedChain==="all"
+      ? Object.keys(marketplaceChains).map(Number)
+      : [selectedChain==="wallet"?(walletChainId in marketplaceChains?walletChainId:109):selectedChain]) as MarketplaceChainId[];
+    const liveIds=chainIds.filter(id=>marketplaceChains[id].marketplaceStatus==="live");
+    const responses=new Map<MarketplaceChainId,IndexerResponse>();
+    async function refresh(onlyChainId?:number){
+      if(refreshing)return;
+      refreshing=true;
+      try{
+        await Promise.allSettled(liveIds.filter(id=>onlyChainId===undefined||id===onlyChainId).map(async chainId=>{
+          const response=await fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"});
+          if(!response.ok||!active)return;
+          const data=await response.json() as IndexerResponse;
+          if(!active)return;
+          responses.set(chainId,data);
+          const all=[...responses.values()];
+          setListings(all.flatMap(data=>data.listings??[]).filter(item=>item.seller.toLowerCase()===wallet));
+          setActivity(all.flatMap(data=>data.activity??[]).filter(item=>item.seller?.toLowerCase()===wallet||item.buyer?.toLowerCase()===wallet));
+        }));
+      }finally{refreshing=false;}
+    }
+    void refresh();
+    const timer=window.setInterval(()=>{if(!document.hidden)void refresh();},MARKETPLACE_REFRESH_INTERVAL);
+    const onFocus=()=>{if(!document.hidden)void refresh();};
+    window.addEventListener("focus",onFocus);
+    const unsubscribe=onMarketplaceUpdate(chainId=>{void refresh(chainId);});
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus);unsubscribe();};
+  },[address,selectedChain,walletChainId]);
 
   const filteredNfts = walletNfts.filter(nft => {
     const isListed = listings.some(l => 

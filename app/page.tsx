@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { formatEther } from "viem";
 import { getMarketplaceChain, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
+import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type IndexedListing = {
   id: string;
@@ -132,6 +133,8 @@ export default function Home() {
 
   useEffect(() => {
     let mounted = true;
+    let refreshing = false;
+    let refreshAgain = false;
     const responses = new Map<MarketplaceChainId, IndexerResponse>();
     const liveChains = (Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[])
       .filter(chainId => marketplaceChains[chainId].marketplaceStatus === "live");
@@ -211,8 +214,11 @@ export default function Home() {
       }
     } catch { /* A fresh network read will replace an unavailable snapshot. */ }
 
-    async function loadMarketplaceData() {
-      await Promise.allSettled(liveChains.map(async chainId => {
+    async function loadMarketplaceData(onlyChainId?: number) {
+      if (refreshing) { if (onlyChainId !== undefined) refreshAgain = true; return; }
+      refreshing = true;
+      try {
+      await Promise.allSettled(liveChains.filter(chainId => onlyChainId === undefined || chainId === onlyChainId).map(async chainId => {
         const res = await fetch(`/api/indexer?chainId=${chainId}`, { cache: "no-store" });
         if (!res.ok || !mounted) return;
         const data = await res.json() as IndexerResponse;
@@ -223,11 +229,15 @@ export default function Home() {
         catch { /* Keep the current view when storage is unavailable. */ }
       }));
       if (mounted) setLoading(false);
+      } finally { refreshing = false; if (refreshAgain && mounted) { refreshAgain = false; void loadMarketplaceData(); } }
     }
 
-    loadMarketplaceData();
-    const timer = window.setInterval(() => { if (!document.hidden) void loadMarketplaceData(); }, 30_000);
-    return () => { mounted = false; window.clearInterval(timer); };
+    void loadMarketplaceData();
+    const timer = window.setInterval(() => { if (!document.hidden) void loadMarketplaceData(); }, MARKETPLACE_REFRESH_INTERVAL);
+    const onFocus = () => { if (!document.hidden) void loadMarketplaceData(); };
+    window.addEventListener("focus", onFocus);
+    const unsubscribe = onMarketplaceUpdate(chainId => { void loadMarketplaceData(chainId); });
+    return () => { mounted = false; window.clearInterval(timer); window.removeEventListener("focus", onFocus); unsubscribe(); };
   }, []);
 
   return (

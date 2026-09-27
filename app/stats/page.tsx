@@ -4,6 +4,7 @@ import { BarChart3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { formatEther } from "viem";
 import { getMarketplaceChain, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
+import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type Listing={chainId:MarketplaceChainId;nftAddress:string;price:string};
 type Activity={chainId:MarketplaceChainId;eventType:string;nftAddress:string|null;price:string|null};
@@ -11,7 +12,33 @@ type IndexerData={listings?:Listing[];activity?:Activity[]};
 
 export default function StatsPage(){
   const[listings,setListings]=useState<Listing[]>([]);const[activity,setActivity]=useState<Activity[]>([]);const[loading,setLoading]=useState(true);
-  useEffect(()=>{let active=true;void(async()=>{const chainIds=Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[];const responses=await Promise.allSettled(chainIds.map(async chainId=>{const response=await fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"});return response.ok?await response.json() as IndexerData:null;}));if(!active)return;setListings(responses.flatMap(result=>result.status==="fulfilled"?result.value?.listings??[]:[]));setActivity(responses.flatMap(result=>result.status==="fulfilled"?result.value?.activity??[]:[]));setLoading(false);})();return()=>{active=false;};},[]);
+  useEffect(()=>{
+    let active=true,refreshing=false;
+    const responses=new Map<MarketplaceChainId,IndexerData>();
+    const chainIds=(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live");
+    async function refresh(onlyChainId?:number){
+      if(refreshing)return;
+      refreshing=true;
+      try{
+        await Promise.allSettled(chainIds.filter(id=>onlyChainId===undefined||id===onlyChainId).map(async chainId=>{
+          const response=await fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"});
+          if(!response.ok||!active)return;
+          const data=await response.json() as IndexerData;
+          if(!active)return;
+          responses.set(chainId,data);
+          setListings([...responses.values()].flatMap(data=>data.listings??[]));
+          setActivity([...responses.values()].flatMap(data=>data.activity??[]));
+          setLoading(false);
+        }));
+      }finally{refreshing=false;if(active)setLoading(false);}
+    }
+    void refresh();
+    const timer=window.setInterval(()=>{if(!document.hidden)void refresh();},MARKETPLACE_REFRESH_INTERVAL);
+    const onFocus=()=>{if(!document.hidden)void refresh();};
+    window.addEventListener("focus",onFocus);
+    const unsubscribe=onMarketplaceUpdate(chainId=>{void refresh(chainId);});
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus);unsubscribe();};
+  },[]);
   const sales=useMemo(()=>activity.filter(item=>(["sold","offer_accepted"].includes(item.eventType))&&item.price),[activity]);
   const collections=useMemo(()=>new Set([...listings.map(item=>`${item.chainId}:${item.nftAddress.toLowerCase()}`),...activity.flatMap(item=>item.nftAddress?[`${item.chainId}:${item.nftAddress.toLowerCase()}`]:[])]),[listings,activity]);
   const chainRows=useMemo(()=>(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).map(chainId=>{const chainSales=sales.filter(item=>item.chainId===chainId);return{chainId,listings:listings.filter(item=>item.chainId===chainId).length,sales:chainSales.length,volume:chainSales.reduce((sum,item)=>sum+BigInt(item.price??"0"),0n)};}),[listings,sales]);

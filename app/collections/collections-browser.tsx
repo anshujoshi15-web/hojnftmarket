@@ -7,6 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getMarketplaceChain, isMarketplaceLive, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { shibEcosystemNfts } from "@/lib/shib-ecosystem-nfts";
+import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type Mint = {
   tokenId:string; owner:string; transactionHash:string; sourceText:string; imageURI:string|null;
@@ -34,21 +35,24 @@ export function CollectionsBrowser(){
 
   useEffect(()=>{
     let active=true;
+    let refreshing=false;
     async function refresh(){
+      if(refreshing)return;
+      refreshing=true;
       // Load Shibarium first for instant content
       const shibariumResult = await Promise.allSettled([
         fetch("/api/malkuta",{cache:"no-store"}).then(response=>response.ok?response.json():Promise.reject()),
         fetch(`/api/indexer?chainId=109`,{cache:"no-store"}).then(response=>response.ok?response.json():Promise.reject()),
       ]);
       
-      if(!active)return;
+      if(!active){refreshing=false;return;}
       if(shibariumResult[0].status==="fulfilled")setMalkuta(shibariumResult[0].value as MalkutaData);
       const shibarium=shibariumResult[1];
       if(shibarium.status==="fulfilled")setChains(previous=>[...previous.filter(chain=>chain.chainId!==109),shibarium.value as ChainListings]);
       setLoading(false);
 
       // Load other chains in background
-      const otherChains = chainIds.filter(id => id !== 109);
+      const otherChains = liveChainIds.filter(id => id !== 109);
       const otherResults = await Promise.allSettled(
         otherChains.map(chainId=>fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"}).then(response=>response.ok?response.json():Promise.reject()))
       );
@@ -60,10 +64,14 @@ export function CollectionsBrowser(){
           return [...latest.values()];
         });
       }
+      refreshing=false;
     }
     void refresh();
-    const timer=window.setInterval(refresh,30_000);
-    return()=>{active=false;window.clearInterval(timer);};
+    const timer=window.setInterval(()=>{if(!document.hidden)void refresh();},MARKETPLACE_REFRESH_INTERVAL);
+    const onFocus=()=>{if(!document.hidden)void refresh();};
+    window.addEventListener("focus",onFocus);
+    const unsubscribe=onMarketplaceUpdate(()=>{void refresh();});
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus);unsubscribe();};
   },[]);
 
   const listings=useMemo(()=>chains.flatMap(chain=>chain.listings),[chains]);

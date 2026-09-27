@@ -122,6 +122,8 @@ test("marketplace contract lifecycle on a local EVM",async t=>{
       };
       try{
         await marketWrite(seller,"listItem",[nft,1n,parseEther("1")]);
+        const immediate=await loadMarketplaceIndex({...config,chain:{...config.chain,confirmations:12}});
+        assert.equal(immediate.listings.length,1,"stateless discovery shows a mined listing before the durable confirmation buffer");
         const indexed=await loadMarketplaceIndex(config,adapter);assert.equal(indexed.listings.length,1);assert.ok(indexed.activity[0].timestamp>0);
         await nftWrite(seller,"transferFrom",[seller,newOwner,1n]);
         assert.equal((await loadMarketplaceIndex(config,adapter)).listings.length,0);
