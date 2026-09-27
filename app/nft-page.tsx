@@ -218,7 +218,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
         void refetchListing();
       }
       const state=await inspectListing(publicClient,marketplaceAddress,nftAddress,parsedTokenId,address);
-      if(state.needsApproval)await send({address:nftAddress,abi:erc721Abi,functionName:"approve",args:[marketplaceAddress,parsedTokenId]},"NFT approval");
+      if(state.needsApproval)await send({address:nftAddress,abi:erc721Abi,functionName:"setApprovalForAll",args:[marketplaceAddress,true]},"Collection approval");
       const receipt=await send({address:marketplaceAddress,abi:marketplaceAbi,functionName:"listItem",args:[nftAddress,parsedTokenId,amount]});
       const confirmedListing:Listing={id:`${marketChainId}:${nftAddress.toLowerCase()}:${tokenId}`,chainId:marketChainId,nftAddress,tokenId,seller:address,price:amount.toString(),transactionHash:receipt.transactionHash,updatedBlock:Number(receipt.blockNumber)};
       setIndexer(current=>({configured:true,marketplaceAddress,...current,listings:[confirmedListing,...(current?.listings??[]).filter(item=>item.nftAddress.toLowerCase()!==nftAddress.toLowerCase()||item.tokenId!==tokenId)],activity:current?.activity??[]}));

@@ -15,6 +15,7 @@ export const marketplaceAbi = parseAbi([
   "event TokenItemCanceled(address indexed nftAddress, uint256 indexed tokenId, address indexed paymentToken, address seller)",
   "event TokenItemBought(address indexed nftAddress, uint256 indexed tokenId, address indexed paymentToken, address seller, address buyer, uint256 price, uint256 marketplaceFee, address royaltyRecipient, uint256 royaltyAmount)",
   "function listItem(address nftAddress, uint256 tokenId, uint256 price)",
+  "function batchList(address nftAddress, uint256[] tokenIds, uint256[] prices)",
   "function cancelListing(address nftAddress, uint256 tokenId)",
   "function updateListing(address nftAddress, uint256 tokenId, uint256 price)",
   "function listEdition(address nftAddress, uint256 tokenId, uint256 quantity, uint256 unitPrice)",

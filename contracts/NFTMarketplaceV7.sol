@@ -13,7 +13,7 @@ contract HOJNFTMarketplaceV7 is HOJNFTMarketplaceV6 {
 
     constructor(address treasury) HOJNFTMarketplaceV6(treasury) {}
 
-    function marketplaceVersion() external pure override returns (uint256) { return 7; }
+    function marketplaceVersion() external pure virtual override returns (uint256) { return 7; }
 
     function _creditSale(address nftAddress, uint256 tokenId, address seller, uint256 salePrice)
         internal

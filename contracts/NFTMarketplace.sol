@@ -73,21 +73,25 @@ contract NFTMarketplace is ReentrancyGuard {
         emit ItemListed(msg.sender, nftAddress, tokenId, price);
     }
     function listItem(address nftAddress, uint256 tokenId, uint256 price) external {
+        _listItem(msg.sender, nftAddress, tokenId, price);
+    }
+
+    function _listItem(address seller, address nftAddress, uint256 tokenId, uint256 price) internal {
         if (price == 0) revert PriceMustBeAboveZero();
         IERC721 nft = IERC721(nftAddress);
-        if (nft.ownerOf(tokenId) != msg.sender) revert NotOwner();
-        if (nft.getApproved(tokenId) != address(this) && !nft.isApprovedForAll(msg.sender, address(this))) {
+        if (nft.ownerOf(tokenId) != seller) revert NotOwner();
+        if (nft.getApproved(tokenId) != address(this) && !nft.isApprovedForAll(seller, address(this))) {
             revert MarketplaceNotApproved();
         }
         // An out-of-market transfer must not leave the new owner dependent on
         // the previous seller to cancel an obsolete listing.
         Listing memory previous = s_listings[nftAddress][tokenId];
         if (previous.price != 0) {
-            if (previous.seller == msg.sender) revert AlreadyListed();
+            if (previous.seller == seller) revert AlreadyListed();
             emit ItemCanceled(previous.seller, nftAddress, tokenId);
         }
-        s_listings[nftAddress][tokenId] = Listing(msg.sender, price);
-        emit ItemListed(msg.sender, nftAddress, tokenId, price);
+        s_listings[nftAddress][tokenId] = Listing(seller, price);
+        emit ItemListed(seller, nftAddress, tokenId, price);
     }
 
     function cancelListing(address nftAddress, uint256 tokenId) external {
