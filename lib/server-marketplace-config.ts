@@ -39,6 +39,8 @@ export type RuntimeEnv = {
 
 const SHIBARIUM_V7_ADDRESS="0x455DaD76334a67660D61bb319d8CfF1010e33049";
 const SHIBARIUM_V7_DEPLOY_BLOCK="19169320";
+const BASE_V7_ADDRESS="0x50489Fdc2352917595359667b34b384b33184b91";
+const BASE_V7_DEPLOY_BLOCK="51813478";
 
 export function chainConfig(runtime: RuntimeEnv, chainId: MarketplaceChainId) {
   const chain = getMarketplaceChain(chainId);
@@ -76,13 +78,15 @@ export function chainConfig(runtime: RuntimeEnv, chainId: MarketplaceChainId) {
     deployBlock: runtime.POLYGON_MARKETPLACE_DEPLOY_BLOCK ?? String(chain.marketplaceDeployBlock),
     rpcUrl: runtime.POLYGON_RPC_URL ?? chain.rpcUrl,
   };
-  if (chainId === 8453) return {
-    fallbackRpcUrl,
-    chain,
-    address: runtime.BASE_MARKETPLACE_ADDRESS ?? chain.marketplaceAddress,
-    deployBlock: runtime.BASE_MARKETPLACE_DEPLOY_BLOCK ?? String(chain.marketplaceDeployBlock),
-    rpcUrl: runtime.BASE_RPC_URL ?? chain.rpcUrl,
-  };
+  if (chainId === 8453) {
+    const configuredAddress=runtime.BASE_MARKETPLACE_ADDRESS;
+    const address=configuredAddress?.toLowerCase()===BASE_V7_ADDRESS.toLowerCase()||!configuredAddress
+      ? chain.marketplaceAddress : configuredAddress;
+    const deployBlock=address.toLowerCase()===chain.marketplaceAddress.toLowerCase()
+      ? String(chain.marketplaceDeployBlock)
+      : runtime.BASE_MARKETPLACE_DEPLOY_BLOCK ?? String(chain.marketplaceDeployBlock);
+    return {fallbackRpcUrl,chain,address,deployBlock,rpcUrl:runtime.BASE_RPC_URL ?? chain.rpcUrl};
+  }
   if (chainId === 5042) return {
     fallbackRpcUrl,
     chain,
@@ -117,8 +121,8 @@ export function legacyChainConfig(runtime:RuntimeEnv,chainId:MarketplaceChainId)
   const current=chainConfig(runtime,chainId);
   const prefix=current.chain.slug.toUpperCase();
   const values=runtime as Record<string,unknown>;
-  const address=String(values[`${prefix}_LEGACY_MARKETPLACE_ADDRESS`]??(chainId===109?SHIBARIUM_V7_ADDRESS:current.chain.marketplaceAddress));
-  const deployBlock=String(values[`${prefix}_LEGACY_MARKETPLACE_DEPLOY_BLOCK`]??(chainId===109?SHIBARIUM_V7_DEPLOY_BLOCK:current.chain.marketplaceDeployBlock));
+  const address=String(values[`${prefix}_LEGACY_MARKETPLACE_ADDRESS`]??(chainId===109?SHIBARIUM_V7_ADDRESS:chainId===8453?BASE_V7_ADDRESS:current.chain.marketplaceAddress));
+  const deployBlock=String(values[`${prefix}_LEGACY_MARKETPLACE_DEPLOY_BLOCK`]??(chainId===109?SHIBARIUM_V7_DEPLOY_BLOCK:chainId===8453?BASE_V7_DEPLOY_BLOCK:current.chain.marketplaceDeployBlock));
   if(!isAddress(address,{strict:false})||address.toLowerCase()===current.address.toLowerCase()||!/^\d+$/.test(deployBlock))return null;
   return {...current,address,deployBlock};
 }

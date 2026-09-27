@@ -73,8 +73,8 @@ export const marketplaceChains = {
     explorerApiUrl: "https://base.blockscout.com/api/v2",
     rpcUrl: "https://base-rpc.publicnode.com",
     confirmations: 12,
-    marketplaceAddress: "0x50489Fdc2352917595359667b34b384b33184b91",
-    marketplaceDeployBlock: 51813478,
+    marketplaceAddress: "0x4188737783510f6A284F99212dBe3BF6C21Be8DA",
+    marketplaceDeployBlock: 51875993,
     marketplaceStatus: "live",
   },
   4663: {

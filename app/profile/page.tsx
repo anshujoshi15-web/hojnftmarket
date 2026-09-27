@@ -420,7 +420,7 @@ export default function ProfilePage() {
         ) : (
           <>
             {activeTab === "portfolio" && (
-              <><div className="royal-profile-bulk-selection" role="status"><span>{selectedCount?`${selectedCount} selected from one collection`:"Select 2–20 Shibarium ERC-721 NFTs to list together"}</span>{selectedCount>=2&&<Link href={bulkLink}>Set price for selected NFTs <ArrowUpRight size={14}/></Link>}</div><div className="royal-portfolio-grid">
+              <><div className="royal-profile-bulk-selection" role="status"><span>{selectedCount?`${selectedCount} selected from one collection`:"Select 2–20 Base or Shibarium ERC-721 NFTs to list together"}</span>{selectedCount>=2&&<Link href={bulkLink}>Set price for selected NFTs <ArrowUpRight size={14}/></Link>}</div><div className="royal-portfolio-grid">
                 {filteredNfts.length > 0 ? (
                   filteredNfts.map((nft) => {
                     const nftChainId = nft.chainId || 109; // Default to Shibarium if not set
@@ -440,7 +440,7 @@ export default function ProfilePage() {
                             )}
                           </div>
                         </div>
-                      </Link>{nftChainId===109&&nft.tokenType!=="ERC-1155"&&!activeListing&&<label className="royal-profile-select" title="Select for bulk listing"><input type="checkbox" aria-label={`Select ${nft.name||`token #${nft.tokenId}`} for bulk listing`} checked={bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&bulkSelection.tokenIds.includes(nft.tokenId)} disabled={selectedCount>=20&&bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&!bulkSelection.tokenIds.includes(nft.tokenId)} onChange={event=>toggleBulkNft(nft,nftChainId,event.target.checked)}/></label>}</div>
+                      </Link>{(nftChainId===109||nftChainId===8453)&&nft.tokenType!=="ERC-1155"&&!activeListing&&<label className="royal-profile-select" title="Select for bulk listing"><input type="checkbox" aria-label={`Select ${nft.name||`token #${nft.tokenId}`} for bulk listing`} checked={bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&bulkSelection.tokenIds.includes(nft.tokenId)} disabled={selectedCount>=20&&bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&!bulkSelection.tokenIds.includes(nft.tokenId)} onChange={event=>toggleBulkNft(nft,nftChainId,event.target.checked)}/></label>}</div>
                     );
                   })
                 ) : (

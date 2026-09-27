@@ -8,8 +8,8 @@ test("configured chains resolve independently with the correct native currencies
   const base=chainConfig({},8453);
   assert.equal(polygon.chain.currency,"POL");assert.equal(base.chain.currency,"ETH");
   assert.notEqual(polygon.address,base.address);
-  assert.equal(base.address,"0x50489Fdc2352917595359667b34b384b33184b91");
-  assert.equal(base.deployBlock,"51813478");
+  assert.equal(base.address,"0x4188737783510f6A284F99212dBe3BF6C21Be8DA");
+  assert.equal(base.deployBlock,"51875993");
   assert.equal(base.rpcUrl,"https://base-rpc.publicnode.com");
   assert.equal(polygon.chain.marketplaceStatus,"live");
   assert.equal(chainConfig({},137).address,"0x3C626ff68e9a69526117B22D288ab71bdA2B377a");
@@ -39,10 +39,15 @@ test("configured chains resolve independently with the correct native currencies
 test("V8 configuration retains the earlier marketplace address and block",async()=>{
   const {chainConfig,legacyChainConfig}=await loadModule("lib/server-marketplace-config.ts");
   const next="0x1111111111111111111111111111111111111111";
-  assert.equal(legacyChainConfig({},8453),null);
+  assert.equal(legacyChainConfig({},8453)?.address,"0x50489Fdc2352917595359667b34b384b33184b91");
+  assert.equal(legacyChainConfig({},8453)?.deployBlock,"51813478");
   const old=legacyChainConfig({BASE_MARKETPLACE_ADDRESS:next,BASE_MARKETPLACE_DEPLOY_BLOCK:"52000000"},8453);
   assert.equal(old?.address,"0x50489Fdc2352917595359667b34b384b33184b91");
   assert.equal(old?.deployBlock,"51813478");
+  const previousBaseEnv={BASE_MARKETPLACE_ADDRESS:"0x50489Fdc2352917595359667b34b384b33184b91",BASE_MARKETPLACE_DEPLOY_BLOCK:"51813478"};
+  assert.equal(chainConfig(previousBaseEnv,8453).address,"0x4188737783510f6A284F99212dBe3BF6C21Be8DA");
+  assert.equal(chainConfig(previousBaseEnv,8453).deployBlock,"51875993");
+  assert.equal(legacyChainConfig(previousBaseEnv,8453)?.address,previousBaseEnv.BASE_MARKETPLACE_ADDRESS);
   const explicit=legacyChainConfig({BASE_MARKETPLACE_ADDRESS:next,BASE_LEGACY_MARKETPLACE_ADDRESS:"0x2222222222222222222222222222222222222222",BASE_LEGACY_MARKETPLACE_DEPLOY_BLOCK:"123"},8453);
   assert.equal(explicit?.address,"0x2222222222222222222222222222222222222222");
   assert.equal(explicit?.deployBlock,"123");
