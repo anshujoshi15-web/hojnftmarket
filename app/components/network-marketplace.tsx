@@ -172,8 +172,8 @@ export function NetworkMarketplace({ chainId }: { chainId: MarketplaceChainId })
                           ? "No NFTs match your search."
                           : `No active NFT listings on ${chain.name} yet.`}
                       </p>
-                      <Link href="/sell">
-                        List an NFT <ArrowUpRight size={15} />
+                      <Link href="/profile">
+                        View your NFTs <ArrowUpRight size={15} />
                       </Link>
                     </div>
                   )}

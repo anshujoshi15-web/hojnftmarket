@@ -292,6 +292,7 @@ export default function ProfilePage() {
             <span>{address.slice(0, 6)}…{address.slice(-4)}</span>
           </div>
           <Link href="/wallet" className="hoj-profile-withdraw-link">View withdrawable balance <ArrowUpRight size={15}/></Link>
+          <Link href="/account#bulk-listing" className="hoj-profile-withdraw-link">Bulk list your NFTs <ArrowUpRight size={15}/></Link>
           <div className="royal-portfolio-value">
             <span>Wallet status</span>
             <strong>Connected</strong>

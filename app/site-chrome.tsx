@@ -26,7 +26,6 @@ const navigation: ReadonlyArray<{ href:string; label:string; icon:LucideIcon; ex
   { href: "/collections", label: "Collections", icon: Gem },
   { href: "https://swap.thehouseofjoshi.com/", label: "Swap", icon: Sparkles, external: true },
   { href: "/market", label: "Market", icon: Rocket },
-  { href: "/sell", label: "Sell", icon: Gem },
   { href: "https://www.nftlaunchpad.thehouseofjoshi.com/", label: "Create", icon: Rocket, external: true },
   { href: "/activity", label: "Activity", icon: Activity },
   { href: "/rankings", label: "Rankings", icon: TrendingUp },

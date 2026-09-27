@@ -147,7 +147,7 @@ export function CollectionsBrowser(){
             {liveChainIds.map(chainId=>{const chain=getMarketplaceChain(chainId);const chainListings=listings.filter(item=>item.chainId===chainId);const count=chainListings.length;const floorPrice=chainListings.length>0?chainListings.reduce((min,item)=>{const price=BigInt(item.price);return price<min?price:min;},BigInt(chainListings[0].price)):0n;return <button key={chainId} type="button" className={activeChain===chainId?"active":""} aria-pressed={activeChain===chainId} onClick={()=>setActiveChain(chainId)}><i aria-hidden="true"/><b>{chain.name}</b><em>{count} NFTs</em><small>Lowest: {floorPrice>0n?formatEther(floorPrice):"—"} {chain.currency}</small></button>})}
           </div>
         </aside>
-        <div className={`chain-listings ${layout}`}>{visibleListings.length?visibleListings.map(item=><ListedNft key={item.id} item={item}/>):<div className="collection-loading">{loading?"Reading confirmed listings…":<div><p>{query.trim()?"No NFTs match your search.":`No active NFT listings${activeChain==="all"?"":` on ${getMarketplaceChain(activeChain).name}`} yet.`}</p><Link href="/sell">List an NFT <ArrowUpRight size={15}/></Link></div>}</div>}</div>
+        <div className={`chain-listings ${layout}`}>{visibleListings.length?visibleListings.map(item=><ListedNft key={item.id} item={item}/>):<div className="collection-loading">{loading?"Reading confirmed listings…":<div><p>{query.trim()?"No NFTs match your search.":`No active NFT listings${activeChain==="all"?"":` on ${getMarketplaceChain(activeChain).name}`} yet.`}</p><Link href="/profile">View your NFTs <ArrowUpRight size={15}/></Link></div>}</div>}</div>
       </div>
     </section>
   </main>;

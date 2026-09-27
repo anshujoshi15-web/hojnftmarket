@@ -1,2 +1,3 @@
-import { Portal } from "../portal";
-export default function SellPage(){return <Portal view="sell"/>}
+import { redirect } from "next/navigation";
+
+export default function SellPage(){redirect("/account#bulk-listing")}
