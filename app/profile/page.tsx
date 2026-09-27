@@ -95,6 +95,8 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"portfolio" | "listings" | "offers" | "created" | "activity" | "notifications">("portfolio");
   const [statusFilter, setStatusFilter] = useState<"all" | "listed" | "not-listed">("all");
   const [walletNfts, setWalletNfts] = useState<WalletNft[]>([]);
+  const [bulkSelection, setBulkSelection] = useState<{chainId:MarketplaceChainId;collection:string;tokenIds:string[]}|null>(null);
+  useEffect(()=>{queueMicrotask(()=>setBulkSelection(null));},[address]);
   const [listings, setListings] = useState<IndexedListing[]>([]);
   const [activity, setActivity] = useState<IndexedActivity[]>([]);
   const [loading, setLoading] = useState(false);
@@ -251,6 +253,16 @@ export default function ProfilePage() {
   const filteredListings = activeListingChain === "all" 
     ? listings 
     : listings.filter(l => l.chainId === activeListingChain);
+  const selectedCount=bulkSelection?.tokenIds.length??0;
+  const bulkLink=bulkSelection?`/account?chainId=${bulkSelection.chainId}&collection=${encodeURIComponent(bulkSelection.collection)}&tokens=${encodeURIComponent(bulkSelection.tokenIds.join(","))}#bulk-listing`:"/account#bulk-listing";
+  function toggleBulkNft(nft:WalletNft,chainId:MarketplaceChainId,checked:boolean){
+    setBulkSelection(current=>{
+      const sameCollection=current?.chainId===chainId&&current.collection.toLowerCase()===nft.contractAddress.toLowerCase();
+      const tokenIds=sameCollection?current.tokenIds:[];
+      const next=checked?[...tokenIds.filter(id=>id!==nft.tokenId),nft.tokenId]:tokenIds.filter(id=>id!==nft.tokenId);
+      return next.length?{chainId,collection:nft.contractAddress,tokenIds:next}:null;
+    });
+  }
 
   if (!address) {
     return (
@@ -292,7 +304,7 @@ export default function ProfilePage() {
             <span>{address.slice(0, 6)}…{address.slice(-4)}</span>
           </div>
           <Link href="/wallet" className="hoj-profile-withdraw-link">View withdrawable balance <ArrowUpRight size={15}/></Link>
-          <Link href="/account#bulk-listing" className="hoj-profile-withdraw-link">Bulk list your NFTs <ArrowUpRight size={15}/></Link>
+          <Link href={bulkLink} className="hoj-profile-withdraw-link">Bulk list your NFTs <ArrowUpRight size={15}/></Link>
           <div className="royal-portfolio-value">
             <span>Wallet status</span>
             <strong>Connected</strong>
@@ -408,14 +420,14 @@ export default function ProfilePage() {
         ) : (
           <>
             {activeTab === "portfolio" && (
-              <div className="royal-portfolio-grid">
+              <><div className="royal-profile-bulk-selection" role="status"><span>{selectedCount?`${selectedCount} selected from one collection`:"Select 2–20 Shibarium ERC-721 NFTs to list together"}</span>{selectedCount>=2&&<Link href={bulkLink}>Set price for selected NFTs <ArrowUpRight size={14}/></Link>}</div><div className="royal-portfolio-grid">
                 {filteredNfts.length > 0 ? (
                   filteredNfts.map((nft) => {
                     const nftChainId = nft.chainId || 109; // Default to Shibarium if not set
                     const activeListing=listings.find(l=>l.chainId===nftChainId&&l.nftAddress.toLowerCase()===nft.contractAddress.toLowerCase()&&l.tokenId===nft.tokenId);
                     
                     return (
-                      <Link key={`${nftChainId}-${nft.contractAddress}-${nft.tokenId}`} href={`/nft/${nftChainId}/${nft.contractAddress}/${nft.tokenId}?from=profile`} className="royal-profile-nft">
+                      <div key={`${nftChainId}-${nft.contractAddress}-${nft.tokenId}`} className="royal-profile-nft-choice"><Link href={`/nft/${nftChainId}/${nft.contractAddress}/${nft.tokenId}?from=profile`} className="royal-profile-nft">
                         <NftArtwork key={nft.imageUrl ?? "no-image"} imageUrl={nft.imageUrl} name={nft.name || `Token #${nft.tokenId}`} />
                         <div className="royal-nft-details">
                           <small>{getMarketplaceChain(nftChainId).name} · {nft.collection || `${nft.contractAddress.slice(0, 8)}…`}</small>
@@ -428,7 +440,7 @@ export default function ProfilePage() {
                             )}
                           </div>
                         </div>
-                      </Link>
+                      </Link>{nftChainId===109&&nft.tokenType!=="ERC-1155"&&!activeListing&&<label className="royal-profile-select" title="Select for bulk listing"><input type="checkbox" aria-label={`Select ${nft.name||`token #${nft.tokenId}`} for bulk listing`} checked={bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&bulkSelection.tokenIds.includes(nft.tokenId)} disabled={selectedCount>=20&&bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&!bulkSelection.tokenIds.includes(nft.tokenId)} onChange={event=>toggleBulkNft(nft,nftChainId,event.target.checked)}/></label>}</div>
                     );
                   })
                 ) : (
@@ -438,7 +450,7 @@ export default function ProfilePage() {
                     <p>Try adjusting your filters or connect a different wallet.</p>
                   </div>
                 )}
-              </div>
+              </div></>
             )}
 
             {activeTab === "listings" && (

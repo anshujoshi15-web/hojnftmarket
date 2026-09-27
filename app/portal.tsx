@@ -286,6 +286,16 @@ function BulkListingPanel({nfts,listedIds,connected,configured,supported,currenc
   const [collection,setCollection]=useState("");
   const [selected,setSelected]=useState<string[]>([]);
   const [price,setPrice]=useState("");
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    if(Number(params.get("chainId"))!==chainId)return;
+    const requestedCollection=params.get("collection")??"";
+    const requestedTokens=(params.get("tokens")??"").split(",").filter(token=>/^\d+$/.test(token));
+    if(/^0x[a-fA-F0-9]{40}$/.test(requestedCollection)&&requestedTokens.length>=2&&requestedTokens.length<=20){
+      setCollection(requestedCollection);
+      setSelected([...new Set(requestedTokens)]);
+    }
+  },[chainId]);
   const collections=[...new Map(nfts.filter(item=>item.tokenType!=="ERC-1155").map(item=>[item.contractAddress.toLowerCase(),{address:item.contractAddress,name:item.collection??short(item.contractAddress)}])).values()];
   const address=collections.some(item=>item.address.toLowerCase()===collection)?collection:collections[0]?.address??"";
   const eligible=nfts.filter(item=>item.tokenType!=="ERC-1155"&&item.contractAddress.toLowerCase()===address.toLowerCase()&&!listedIds.has(`${item.contractAddress.toLowerCase()}:${item.tokenId}`));
