@@ -19,8 +19,8 @@ test("configured chains resolve independently with the correct native currencies
   assert.equal(cronos.address,"0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab");
   assert.equal(cronos.deployBlock,"96267649");
   assert.equal(chainConfig({},109).chain.currency,"BONE");assert.equal(chainConfig({},33139).chain.currency,"APE");
-  assert.equal(chainConfig({},109).address,"0x455DaD76334a67660D61bb319d8CfF1010e33049");
-  assert.equal(chainConfig({},109).deployBlock,"19169320");
+  assert.equal(chainConfig({},109).address,"0xfb985d4eDd4C1F909899389C217aEC9D6895B72d");
+  assert.equal(chainConfig({},109).deployBlock,"19188433");
   const zora=chainConfig({},7777777);
   assert.equal(zora.chain.marketplaceStatus,"live");
   assert.equal(zora.address,"0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab");
@@ -37,7 +37,7 @@ test("configured chains resolve independently with the correct native currencies
   assert.equal(apechain.deployBlock,"50360444");
 });
 test("V8 configuration retains the earlier marketplace address and block",async()=>{
-  const {legacyChainConfig}=await loadModule("lib/server-marketplace-config.ts");
+  const {chainConfig,legacyChainConfig}=await loadModule("lib/server-marketplace-config.ts");
   const next="0x1111111111111111111111111111111111111111";
   assert.equal(legacyChainConfig({},8453),null);
   const old=legacyChainConfig({BASE_MARKETPLACE_ADDRESS:next,BASE_MARKETPLACE_DEPLOY_BLOCK:"52000000"},8453);
@@ -46,6 +46,13 @@ test("V8 configuration retains the earlier marketplace address and block",async(
   const explicit=legacyChainConfig({BASE_MARKETPLACE_ADDRESS:next,BASE_LEGACY_MARKETPLACE_ADDRESS:"0x2222222222222222222222222222222222222222",BASE_LEGACY_MARKETPLACE_DEPLOY_BLOCK:"123"},8453);
   assert.equal(explicit?.address,"0x2222222222222222222222222222222222222222");
   assert.equal(explicit?.deployBlock,"123");
+  const shibarium=legacyChainConfig({},109);
+  assert.equal(shibarium?.address,"0x455DaD76334a67660D61bb319d8CfF1010e33049");
+  assert.equal(shibarium?.deployBlock,"19169320");
+  const previousEnv={SHIBARIUM_MARKETPLACE_ADDRESS:"0x455DaD76334a67660D61bb319d8CfF1010e33049",SHIBARIUM_MARKETPLACE_DEPLOY_BLOCK:"19169320"};
+  assert.equal(chainConfig(previousEnv,109).address,"0xfb985d4eDd4C1F909899389C217aEC9D6895B72d");
+  assert.equal(chainConfig(previousEnv,109).deployBlock,"19188433");
+  assert.equal(legacyChainConfig(previousEnv,109)?.address,previousEnv.SHIBARIUM_MARKETPLACE_ADDRESS);
 });
 test("coming-soon networks expose no live marketplace listings",async()=>{
   const {GET}=await loadModule("app/api/indexer/route.ts");

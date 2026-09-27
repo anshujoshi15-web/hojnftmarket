@@ -34,8 +34,8 @@ export const marketplaceChains = {
     explorerApiUrl: "https://shibariumscan.io/api/v2",
     rpcUrl: "https://rpc.shibarium.shib.io",
     confirmations: 12,
-    marketplaceAddress: "0x455DaD76334a67660D61bb319d8CfF1010e33049",
-    marketplaceDeployBlock: 19169320,
+    marketplaceAddress: "0xfb985d4eDd4C1F909899389C217aEC9D6895B72d",
+    marketplaceDeployBlock: 19188433,
     marketplaceStatus: "live",
   },
   137: {

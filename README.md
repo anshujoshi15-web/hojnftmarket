@@ -12,11 +12,11 @@ cp .env.example .env.local
 npm run dev
 ```
 
-The app is connected by default to the Shibarium V7 deployment at `0x455DaD76334a67660D61bb319d8CfF1010e33049` (block `19169320`). Older deployments remain separate; their listings, deposits, and proceeds do not migrate automatically.
+The app is connected by default to Shibarium V8 at `0xfb985d4eDd4C1F909899389C217aEC9D6895B72d` (block `19188433`). Earlier V7 activity remains available at `0x455DaD76334a67660D61bb319d8CfF1010e33049` (block `19169320`). Listings, offers, and proceeds do not migrate automatically.
 
 ## Multichain configuration
 
-Nine chains are configured in the wallet and network UI. The live chains use V7 deployments recorded in [the V7 deployment guide](docs/DIRECT-SETTLEMENT-V7.md) and `lib/marketplace-chains.ts`. Ethereum and Robinhood remain coming soon. Setting an address in the environment alone does not activate trading. Server environment values override the checked-in defaults:
+Nine chains are configured in the wallet and network UI. Shibarium uses V8; other live chains use deployments recorded in [the V7 deployment guide](docs/DIRECT-SETTLEMENT-V7.md) and `lib/marketplace-chains.ts`. Ethereum and Robinhood remain coming soon. Setting an address in the environment alone does not activate trading. Server environment values override the checked-in defaults, except the earlier Shibarium V7 address, which is retained as legacy:
 
 ```env
 ETHEREUM_MARKETPLACE_ADDRESS=0x...
@@ -27,8 +27,10 @@ CRONOS_MARKETPLACE_ADDRESS=0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab
 CRONOS_MARKETPLACE_DEPLOY_BLOCK=96267649
 CRONOS_RPC_URL=https://evm.cronos.org
 
-SHIBARIUM_MARKETPLACE_ADDRESS=0x455DaD76334a67660D61bb319d8CfF1010e33049
-SHIBARIUM_MARKETPLACE_DEPLOY_BLOCK=19169320
+SHIBARIUM_MARKETPLACE_ADDRESS=0xfb985d4eDd4C1F909899389C217aEC9D6895B72d
+SHIBARIUM_MARKETPLACE_DEPLOY_BLOCK=19188433
+SHIBARIUM_LEGACY_MARKETPLACE_ADDRESS=0x455DaD76334a67660D61bb319d8CfF1010e33049
+SHIBARIUM_LEGACY_MARKETPLACE_DEPLOY_BLOCK=19169320
 SHIBARIUM_RPC_URL=https://...
 
 POLYGON_MARKETPLACE_ADDRESS=0x3C626ff68e9a69526117B22D288ab71bdA2B377a

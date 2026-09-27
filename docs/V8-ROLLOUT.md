@@ -5,6 +5,21 @@ one collection. Each chain needs its own V8 deployment. Existing V7 contracts
 remain immutable and keep their listings, offers, approvals, and proceeds.
 Never imply that changing an app address transfers this state.
 
+## Shibarium deployment
+
+- Chain ID: 109
+- V8 address: `0xfb985d4eDd4C1F909899389C217aEC9D6895B72d`
+- Deployment block: `19188433`
+- Deployment transaction: `0x7896ba6637fa49b9e2cc3dd4f662c1b09ad7f9e2ecd453fd6e7c48e17872227d`
+- Treasury: `0x6736d2eA9807297F0e56967361B9410854B86a5f`
+- Earlier V7 address: `0x455DaD76334a67660D61bb319d8CfF1010e33049`, block `19169320`
+
+Onchain reads returned version 8 and a 200-basis-point fee. The deployed runtime
+matched the locally compiled V8 runtime for Solidity 0.8.36, Shanghai, optimizer
+200 runs, excluding constructor immutable slots and compiler metadata. The
+Shibarium explorer had not marked the source verified when this was recorded;
+complete explorer source verification separately.
+
 ## Before deploying
 
 1. Compile `contracts/NFTMarketplaceV8.sol` with Solidity 0.8.36, Shanghai,

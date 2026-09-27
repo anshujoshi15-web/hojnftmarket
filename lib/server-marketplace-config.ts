@@ -14,6 +14,8 @@ export type RuntimeEnv = {
   CRONOS_RPC_URL?: string;
   SHIBARIUM_MARKETPLACE_ADDRESS?: string;
   SHIBARIUM_MARKETPLACE_DEPLOY_BLOCK?: string;
+  SHIBARIUM_LEGACY_MARKETPLACE_ADDRESS?: string;
+  SHIBARIUM_LEGACY_MARKETPLACE_DEPLOY_BLOCK?: string;
   SHIBARIUM_RPC_URL?: string;
   POLYGON_MARKETPLACE_ADDRESS?: string;
   POLYGON_MARKETPLACE_DEPLOY_BLOCK?: string;
@@ -35,6 +37,9 @@ export type RuntimeEnv = {
   ARC_RPC_URL?: string;
 };
 
+const SHIBARIUM_V7_ADDRESS="0x455DaD76334a67660D61bb319d8CfF1010e33049";
+const SHIBARIUM_V7_DEPLOY_BLOCK="19169320";
+
 export function chainConfig(runtime: RuntimeEnv, chainId: MarketplaceChainId) {
   const chain = getMarketplaceChain(chainId);
   const alchemyNetwork:Partial<Record<MarketplaceChainId,string>>={1:"eth-mainnet",137:"polygon-mainnet",8453:"base-mainnet"};
@@ -53,13 +58,17 @@ export function chainConfig(runtime: RuntimeEnv, chainId: MarketplaceChainId) {
     deployBlock: runtime.CRONOS_MARKETPLACE_DEPLOY_BLOCK ?? String(chain.marketplaceDeployBlock),
     rpcUrl: runtime.CRONOS_RPC_URL ?? chain.rpcUrl,
   };
-  if (chainId === 109) return {
-    fallbackRpcUrl,
-    chain,
-    address: runtime.SHIBARIUM_MARKETPLACE_ADDRESS ?? runtime.MARKETPLACE_ADDRESS ?? chain.marketplaceAddress,
-    deployBlock: runtime.SHIBARIUM_MARKETPLACE_DEPLOY_BLOCK ?? runtime.MARKETPLACE_DEPLOY_BLOCK ?? String(chain.marketplaceDeployBlock),
-    rpcUrl: runtime.SHIBARIUM_RPC_URL ?? chain.rpcUrl,
-  };
+  if (chainId === 109) {
+    const configuredAddress=runtime.SHIBARIUM_MARKETPLACE_ADDRESS ?? runtime.MARKETPLACE_ADDRESS;
+    // Existing deployments may still carry the previous V7 environment default.
+    // Keep that address available as legacy while routing new listings to V8.
+    const address=configuredAddress?.toLowerCase()===SHIBARIUM_V7_ADDRESS.toLowerCase()||!configuredAddress
+      ? chain.marketplaceAddress : configuredAddress;
+    const deployBlock=address.toLowerCase()===chain.marketplaceAddress.toLowerCase()
+      ? String(chain.marketplaceDeployBlock)
+      : runtime.SHIBARIUM_MARKETPLACE_DEPLOY_BLOCK ?? runtime.MARKETPLACE_DEPLOY_BLOCK ?? String(chain.marketplaceDeployBlock);
+    return {fallbackRpcUrl,chain,address,deployBlock,rpcUrl:runtime.SHIBARIUM_RPC_URL ?? chain.rpcUrl};
+  }
   if (chainId === 137) return {
     fallbackRpcUrl,
     chain,
@@ -108,8 +117,8 @@ export function legacyChainConfig(runtime:RuntimeEnv,chainId:MarketplaceChainId)
   const current=chainConfig(runtime,chainId);
   const prefix=current.chain.slug.toUpperCase();
   const values=runtime as Record<string,unknown>;
-  const address=String(values[`${prefix}_LEGACY_MARKETPLACE_ADDRESS`]??current.chain.marketplaceAddress);
-  const deployBlock=String(values[`${prefix}_LEGACY_MARKETPLACE_DEPLOY_BLOCK`]??current.chain.marketplaceDeployBlock);
+  const address=String(values[`${prefix}_LEGACY_MARKETPLACE_ADDRESS`]??(chainId===109?SHIBARIUM_V7_ADDRESS:current.chain.marketplaceAddress));
+  const deployBlock=String(values[`${prefix}_LEGACY_MARKETPLACE_DEPLOY_BLOCK`]??(chainId===109?SHIBARIUM_V7_DEPLOY_BLOCK:current.chain.marketplaceDeployBlock));
   if(!isAddress(address,{strict:false})||address.toLowerCase()===current.address.toLowerCase()||!/^\d+$/.test(deployBlock))return null;
   return {...current,address,deployBlock};
 }

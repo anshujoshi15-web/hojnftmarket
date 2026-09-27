@@ -134,6 +134,10 @@ export function Portal({ view,legacy=false }: { view:View;legacy?:boolean }) {
     if(!address||!data.marketplaceAddress||!publicClient)return;
     const ok=await transaction.run("Listing",async send=>{
       const nftAddress=getAddress(nft),tokenId=BigInt(token),amount=parseNativeAmount(price);
+      if(data.legacyMarketplaceAddress){
+        const earlier=await publicClient.readContract({address:data.legacyMarketplaceAddress,abi,functionName:"getListing",args:[nftAddress,tokenId]});
+        if(earlier.price>0n&&earlier.seller.toLowerCase()===address.toLowerCase())throw new Error("Cancel this NFT's earlier marketplace listing before listing it on V8.");
+      }
       const state=await inspectListing(publicClient,data.marketplaceAddress!,nftAddress,tokenId,address);
       if(state.needsApproval)await send({address:nftAddress,abi:erc721Abi,functionName:"setApprovalForAll",args:[data.marketplaceAddress!,true]},"Collection approval");
       await send({address:data.marketplaceAddress!,abi,functionName:"listItem",args:[nftAddress,tokenId,amount]});
@@ -146,7 +150,13 @@ export function Portal({ view,legacy=false }: { view:View;legacy?:boolean }) {
       if(tokens.length<2||tokens.length>20||new Set(tokens).size!==tokens.length)throw new Error("Select 2 to 20 different NFTs from one collection.");
       const tokenIds=tokens.map(token=>BigInt(token));
       for(let offset=0;offset<tokenIds.length;offset+=4){
-        await Promise.all(tokenIds.slice(offset,offset+4).map(tokenId=>inspectListing(publicClient,data.marketplaceAddress!,nftAddress,tokenId,address)));
+        await Promise.all(tokenIds.slice(offset,offset+4).map(async tokenId=>{
+          if(data.legacyMarketplaceAddress){
+            const earlier=await publicClient.readContract({address:data.legacyMarketplaceAddress,abi,functionName:"getListing",args:[nftAddress,tokenId]});
+            if(earlier.price>0n&&earlier.seller.toLowerCase()===address.toLowerCase())throw new Error(`Cancel token #${tokenId}'s earlier marketplace listing before including it in a V8 batch.`);
+          }
+          await inspectListing(publicClient,data.marketplaceAddress!,nftAddress,tokenId,address);
+        }));
       }
       const approved=await publicClient.readContract({address:nftAddress,abi:erc721Abi,functionName:"isApprovedForAll",args:[address,data.marketplaceAddress!]});
       if(!approved)await send({address:nftAddress,abi:erc721Abi,functionName:"setApprovalForAll",args:[data.marketplaceAddress!,true]},"One-time collection approval");
