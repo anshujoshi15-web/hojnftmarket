@@ -11965,11 +11965,11 @@ article.royal-profile-nft > a {
 .royal-profile-bulk-selection a { display:inline-flex; align-items:center; gap:5px; color:#e3c477; text-decoration:none; }
 .royal-profile-nft-choice { position:relative; min-width:0; }
 .royal-profile-nft-choice > .royal-profile-nft { display:block; height:100%; }
-.royal-profile-select { position:absolute; z-index:2; top:8px; right:8px; display:grid; place-items:center; width:34px; height:34px; border:1px solid rgba(255,255,255,.28); border-radius:8px; background:rgba(12,12,12,.34); backdrop-filter:blur(5px); cursor:pointer; }
-.royal-profile-select:hover,.royal-profile-select:focus-within { border-color:#e3c477; background:rgba(12,12,12,.55); }
-.royal-profile-select input { appearance:none; position:relative; width:17px; height:17px; margin:0; border:1.5px solid #f5efe0; border-radius:4px; background:transparent; cursor:pointer; }
+.royal-profile-select { position:absolute; z-index:2; top:3px; right:3px; display:grid; place-items:center; width:44px; height:44px; border-radius:8px; background:transparent; cursor:pointer; }
+.royal-profile-select:hover,.royal-profile-select:focus-within { background:rgba(12,12,12,.28); }
+.royal-profile-select input { appearance:none; position:relative; width:18px; height:18px; margin:0; border:1.5px solid #f5efe0; border-radius:4px; background:rgba(12,12,12,.25); box-shadow:0 1px 6px rgba(0,0,0,.5); cursor:pointer; }
 .royal-profile-select input:checked { border-color:#e3c477; background:rgba(227,196,119,.88); }
 .royal-profile-select input:checked::after { content:"✓"; position:absolute; top:-4px; left:2px; color:#171511; font-size:16px; font-weight:700; }
 .royal-profile-select input:focus-visible { outline:2px solid #e3c477; outline-offset:3px; }
 .royal-profile-select input:disabled { opacity:.35; cursor:not-allowed; }
-@media (max-width:600px) { .royal-profile-select { top:6px; right:6px; width:36px; height:36px; } }
+@media (max-width:600px) { .royal-profile-select { top:2px; right:2px; } }
