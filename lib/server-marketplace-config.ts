@@ -1,3 +1,4 @@
+import { isAddress } from "viem";
 import { getMarketplaceChain, type MarketplaceChainId } from "./marketplace-chains";
 import type { D1Database } from "./marketplace-index";
 export type RuntimeEnv = {
@@ -101,4 +102,14 @@ export function chainConfig(runtime: RuntimeEnv, chainId: MarketplaceChainId) {
     deployBlock: runtime.APECHAIN_MARKETPLACE_DEPLOY_BLOCK ?? String(chain.marketplaceDeployBlock),
     rpcUrl: runtime.APECHAIN_RPC_URL ?? chain.rpcUrl,
   };
+}
+
+export function legacyChainConfig(runtime:RuntimeEnv,chainId:MarketplaceChainId){
+  const current=chainConfig(runtime,chainId);
+  const prefix=current.chain.slug.toUpperCase();
+  const values=runtime as Record<string,unknown>;
+  const address=String(values[`${prefix}_LEGACY_MARKETPLACE_ADDRESS`]??current.chain.marketplaceAddress);
+  const deployBlock=String(values[`${prefix}_LEGACY_MARKETPLACE_DEPLOY_BLOCK`]??current.chain.marketplaceDeployBlock);
+  if(!isAddress(address,{strict:false})||address.toLowerCase()===current.address.toLowerCase()||!/^\d+$/.test(deployBlock))return null;
+  return {...current,address,deployBlock};
 }

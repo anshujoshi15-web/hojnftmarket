@@ -76,11 +76,13 @@ COMPILE_ONLY=1 DEPLOY_CHAIN_ID=8453 npm run deploy:marketplace
 # and FEE_TREASURY_ADDRESS through a secure local environment.
 ```
 
-The command prints the address, block, deployer, and transaction hash. `FEE_TREASURY_ADDRESS` is the constructor argument: check it before signing because it cannot be changed on that deployment. For manual deployment, follow [the Remix guide](docs/DEPLOY-V5-REMIX.md).
+The command now compiles and deploys V8. It prints the address, block, deployer, and transaction hash. `FEE_TREASURY_ADDRESS` is the constructor argument: check it before signing because it cannot be changed on that deployment. For manual deployment and continuity with existing V7 markets, follow [the V8 rollout guide](docs/V8-ROLLOUT.md).
 
 RainbowKit powers wallet connection and account management. Installed browser wallets work without extra configuration. Set `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` to a WalletConnect Cloud project ID to add QR-based mobile wallet connections.
 
 ## Contract
+
+[`contracts/NFTMarketplaceV8.sol`](contracts/NFTMarketplaceV8.sol) is the current deployable marketplace. It inherits V7 and adds ERC-721 bulk listing for one collection per transaction. The first collection approval is a separate NFT contract transaction. Earlier deployed V7 contracts remain accessible through `/legacy` when a distinct V8 address is configured; their state does not migrate.
 
 [`contracts/NFTMarketplaceV5.sol`](contracts/NFTMarketplaceV5.sol) defines the deployable `HOJNFTMarketplace`, built on the base and V4 contracts. It supports ERC-721 and ERC-1155 listings, purchases, and funded offers using the network's native currency. It deducts a 2% protocol fee, honors optional ERC-2981 royalties, and credits sellers, creators, and the constructor-supplied treasury to pull-payment balances withdrawn with `withdrawProceeds()`.
 

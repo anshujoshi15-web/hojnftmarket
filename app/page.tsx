@@ -18,6 +18,7 @@ type IndexedListing = {
   transactionHash: `0x${string}`;
   createdBlock: number;
   updatedBlock: number;
+  legacy?:boolean;
 };
 
 type IndexedActivity = {
@@ -41,6 +42,8 @@ type IndexerResponse = {
   currency: string;
   configured: boolean;
   marketplaceAddress?: `0x${string}`;
+  legacyMarketplaceAddress?:`0x${string}`|null;
+  legacy?:boolean;
   listings: IndexedListing[];
   activity: IndexedActivity[];
   collections?: Array<{ nftAddress: `0x${string}`; floorPrice: string; listingCount: number; latestBlock: number; sampleTokenId: string }>;
@@ -125,6 +128,7 @@ function FeaturedArtwork({ listing, onExpand }: { listing: IndexedListing; onExp
 export default function Home() {
   const [listedCollections, setListedCollections] = useState<ListedCollection[]>([]);
   const [featuredNFTs, setFeaturedNFTs] = useState<IndexedListing[]>([]);
+  const [indexWarnings, setIndexWarnings] = useState<Record<number, string>>({});
   const [recentActivity, setRecentActivity] = useState<IndexedActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [listingCount, setListingCount] = useState(0);
@@ -135,7 +139,7 @@ export default function Home() {
     let mounted = true;
     let refreshing = false;
     let refreshAgain = false;
-    const responses = new Map<MarketplaceChainId, IndexerResponse>();
+    const responses = new Map<string, IndexerResponse>();
     const liveChains = (Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[])
       .filter(chainId => marketplaceChains[chainId].marketplaceStatus === "live");
 
@@ -149,7 +153,7 @@ export default function Home() {
             if (!data.configured) return;
             allListings.push(...data.listings);
             allActivity.push(...data.activity);
-            for (const collection of data.collections ?? []) {
+            for (const collection of data.legacy?[]:data.collections ?? []) {
               collections.push({
                 address: collection.nftAddress,
                 sampleTokenId: collection.sampleTokenId,
@@ -198,7 +202,7 @@ export default function Home() {
         const sales = allActivity.filter(a => (["sold","offer_accepted"].includes(a.eventType)));
         setRecentActivity(sales.slice(0, 6));
         setSaleCount(sales.length);
-        setListingCount(collections.reduce((sum, item) => sum + item.listingCount, 0));
+        setListingCount(allListings.length);
         
         // Sort collections by sales count (trending)
         setListedCollections(collections.sort((a, b) => Number(b.salesCount - a.salesCount) || Number(b.salesVolume - a.salesVolume)));
@@ -209,7 +213,7 @@ export default function Home() {
     try {
       const cached = JSON.parse(window.sessionStorage.getItem("hoj-discover-listings") ?? "null") as {at:number;data:IndexerResponse[]}|null;
       if (cached && Date.now() - cached.at < 60_000 && Array.isArray(cached.data)) {
-        cached.data.forEach(data => { if (liveChains.includes(data.chainId)) responses.set(data.chainId, data); });
+        cached.data.forEach(data => { if (liveChains.includes(data.chainId)) responses.set(`${data.chainId}:${data.legacy?"legacy":"current"}`, data); });
         if (responses.size) renderMarketplaceData();
       }
     } catch { /* A fresh network read will replace an unavailable snapshot. */ }
@@ -219,14 +223,37 @@ export default function Home() {
       refreshing = true;
       try {
       await Promise.allSettled(liveChains.filter(chainId => onlyChainId === undefined || chainId === onlyChainId).map(async chainId => {
+        try {
         const res = await fetch(`/api/indexer?chainId=${chainId}`, { cache: "no-store" });
-        if (!res.ok || !mounted) return;
         const data = await res.json() as IndexerResponse;
         if (!mounted) return;
-        responses.set(chainId, data);
+        if (!res.ok) {
+          setIndexWarnings(current => ({...current, [chainId]: data.syncError ?? "Listings are temporarily unavailable."}));
+          return;
+        }
+        setIndexWarnings(current => {
+          const next={...current};
+          if (data.syncError || !data.sync?.caughtUp) next[chainId]=data.syncError ?? "Older listings are still being indexed.";
+          else delete next[chainId];
+          return next;
+        });
+        responses.set(`${chainId}:current`, data);
+        renderMarketplaceData();
+        if(data.legacyMarketplaceAddress){
+          try{
+            const oldResponse=await fetch(`/api/indexer?chainId=${chainId}&legacy=1`,{cache:"no-store"});
+            const old=await oldResponse.json() as IndexerResponse;
+            if(oldResponse.ok){
+              responses.set(`${chainId}:legacy`,{...old,legacy:true,listings:old.listings.map(item=>({...item,legacy:true}))});
+              if(old.syncError||!old.sync?.caughtUp)setIndexWarnings(current=>({...current,[chainId]:`Earlier listings: ${old.syncError??"older events are still syncing."}`}));
+            }
+            else setIndexWarnings(current=>({...current,[chainId]:`${getMarketplaceChain(chainId).name} earlier listings: ${old.syncError??"temporarily unavailable"}`}));
+          }catch{setIndexWarnings(current=>({...current,[chainId]:`${getMarketplaceChain(chainId).name} earlier listings are temporarily unavailable.`}));}
+        }else responses.delete(`${chainId}:legacy`);
         renderMarketplaceData();
         try { window.sessionStorage.setItem("hoj-discover-listings", JSON.stringify({at:Date.now(),data:[...responses.values()]})); }
         catch { /* Keep the current view when storage is unavailable. */ }
+        } catch { if (mounted) setIndexWarnings(current => ({...current, [chainId]: "Listings are temporarily unavailable."})); }
       }));
       if (mounted) setLoading(false);
       } finally { refreshing = false; if (refreshAgain && mounted) { refreshAgain = false; void loadMarketplaceData(); } }
@@ -324,6 +351,7 @@ export default function Home() {
 
       {/* Featured NFTs */}
       <section className="royal-section royal-section-alt royal-featured-section">
+        {Object.keys(indexWarnings).length>0&&<div className="royal-index-warning" role="status">Listing data is incomplete: {Object.entries(indexWarnings).map(([id,warning])=>`${getMarketplaceChain(Number(id) as MarketplaceChainId).name}: ${warning}`).join(" ")}</div>}
         <div className="royal-section-header">
           <div>
             <span className="royal-section-label">EXPLORE</span>
@@ -347,8 +375,8 @@ export default function Home() {
               const chain = getMarketplaceChain(nft.chainId);
               return (
                 <Link 
-                  key={nft.id} 
-                  href={`/nft/${nft.chainId}/${nft.nftAddress}/${nft.tokenId}`}
+                  key={`${nft.id}:${nft.legacy?"legacy":"current"}`}
+                  href={`/nft/${nft.chainId}/${nft.nftAddress}/${nft.tokenId}${nft.legacy?"?legacy=1":""}`}
                   className="royal-nft-card"
                 >
                   <div className="royal-nft-image">

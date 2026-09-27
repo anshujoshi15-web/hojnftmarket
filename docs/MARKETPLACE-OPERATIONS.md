@@ -1,4 +1,8 @@
-# Marketplace reliability and V5 rollout
+# Marketplace operations and V8 rollout
+
+For new deployments and access to earlier V7 contracts, use
+[V8-ROLLOUT.md](V8-ROLLOUT.md). This document also records earlier deployment
+history; addresses in older sections are not the current network defaults.
 
 ## Storage and backfill
 
@@ -11,7 +15,7 @@ need a persistent database adapter before historical indexing can be complete.
 
 Each `/api/indexer?chainId=…` call resumes the address-scoped cursor and scans up
 to eight 8,000-block ranges. Provider range limits cause ranges to split. A failed
-range never advances the cursor. The UI refreshes every 30 seconds. Large backfills
+range never advances the cursor. The UI refreshes every 10 seconds. Large backfills
 will require multiple calls; inspect `sync.caughtUp` and `syncError` before treating
 the floor as complete. Floors are HOJ-only native-currency asking prices, not a
 market-wide floor, appraisal, or guaranteed sale price. Activity is the latest 100
@@ -20,11 +24,10 @@ events per network, not all-time analytics.
 ## Wallet discovery and metadata
 
 Configure `ALCHEMY_API_KEY` and per-network RPC/explorer overrides on the server.
-The Base default RPC is `https://mainnet.base.org`; the former PublicNode
-default rejects archive log requests without a personal token and caused
-production `/api/indexer?chainId=8453` to return no listings. If production
-sets `BASE_RPC_URL`, update that override to a historical-log-capable endpoint
-too. Base's public endpoint limits `eth_getLogs` to 2,000 blocks per request;
+The Base default RPC is `https://base-rpc.publicnode.com`, with
+`https://mainnet.base.org` as a fallback. If production sets `BASE_RPC_URL`,
+update that override to a historical-log-capable endpoint too. Base's official
+public endpoint limits `eth_getLogs` to 2,000 blocks per request;
 the indexer splits larger requested ranges and resumes from its saved cursor.
 The existing Alchemy key is also used as an archive RPC fallback for Ethereum,
 Polygon and Base. Provider plan restrictions still apply. Range limits narrow the

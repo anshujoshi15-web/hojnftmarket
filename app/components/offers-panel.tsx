@@ -9,14 +9,14 @@ import { getMarketplaceChain, isMarketplaceChainId, marketplaceChains, type Mark
 import { marketplaceAbi, parseNativeAmount, type IndexedOffer } from "@/lib/marketplace-abi";
 import { TransactionStatus, useMarketplaceTransaction } from "./use-marketplace-transaction";
 
-type Props={nftAddress?:string;tokenId?:string;chainId:number;isOwner?:boolean;ownerAddress?:string;onChanged?:()=>void};
+type Props={nftAddress?:string;tokenId?:string;chainId:number;isOwner?:boolean;ownerAddress?:string;onChanged?:()=>void;legacy?:boolean};
 type Snapshot={marketplaceAddress:Address;version:number;proceeds:string;now:number;offers:IndexedOffer[];warning?:string|null};
 export function OffersPanel(props:Props){
   const {address}=useAccount();
   if(!isMarketplaceChainId(props.chainId))return <p>Unsupported network.</p>;
   return <OfferControls key={`${props.chainId}:${props.nftAddress}:${props.tokenId}:${address}`} {...props} chainId={props.chainId}/>;
 }
-function OfferControls({nftAddress,tokenId,chainId,onChanged}:Props&{chainId:MarketplaceChainId}){
+function OfferControls({nftAddress,tokenId,chainId,onChanged,legacy}:Props&{chainId:MarketplaceChainId}){
   const {address}=useAccount(),client=usePublicClient({chainId});
   const chain=getMarketplaceChain(chainId),tx=useMarketplaceTransaction(chainId);
   const [data,setData]=useState<Snapshot|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(!!nftAddress||!!address);
@@ -24,6 +24,7 @@ function OfferControls({nftAddress,tokenId,chainId,onChanged}:Props&{chainId:Mar
   const [tab,setTab]=useState<"received"|"sent">("received");
   const [refresh,setRefresh]=useState(0),[clock,setClock]=useState(0);
   const query=new URLSearchParams({chainId:String(chainId)});
+  if(legacy)query.set("legacy","1");
   if(nftAddress&&tokenId!==undefined){query.set("nftAddress",nftAddress);query.set("tokenId",tokenId);}
   if(address)query.set("wallet",address);
   const url=`/api/offers?${query}`;

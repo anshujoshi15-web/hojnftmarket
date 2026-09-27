@@ -3,7 +3,7 @@ import { isAddress } from "viem";
 import { isMarketplaceChainId } from "@/lib/marketplace-chains";
 import { loadMarketplaceIndex, type Activity } from "@/lib/marketplace-index";
 import { toPriceHistoryPoints } from "@/lib/nft-price-history";
-import { chainConfig, type RuntimeEnv } from "@/lib/server-marketplace-config";
+import { chainConfig, legacyChainConfig, type RuntimeEnv } from "@/lib/server-marketplace-config";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,8 @@ export async function GET(request: Request) {
     return Response.json({ error: "Provide a supported chain, NFT contract and token ID." }, { status: 400 });
   }
   const runtime = env as unknown as RuntimeEnv;
-  const config = chainConfig(runtime, chainId);
+  const config = query.get("legacy")==="1"?legacyChainConfig(runtime,chainId):chainConfig(runtime, chainId);
+  if(!config)return Response.json({chainId,contract,tokenId,points:[],complete:false,warning:"No earlier marketplace is configured on this network."},{status:404});
   const base = { chainId, contract, tokenId, currency: config.chain.currency };
   if (config.chain.marketplaceStatus !== "live") {
     return Response.json({ ...base, points: [], complete: false, warning: `HOJ marketplace trading is coming soon on ${config.chain.name}.` });

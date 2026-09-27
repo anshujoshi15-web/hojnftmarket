@@ -10,7 +10,7 @@ import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketp
 
 type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:string; tokenId:string; seller:string; price:string; transactionHash:string };
 type Activity = { id:string; chainId:MarketplaceChainId; eventType:string; nftAddress:string|null; tokenId:string|null; price:string|null; blockNumber:number };
-type ChainData = { chainId:MarketplaceChainId; chain:string; currency:string; configured:boolean; listings:Listing[]; activity:Activity[] };
+type ChainData = { chainId:MarketplaceChainId; chain:string; currency:string; configured:boolean; legacyMarketplaceAddress?:string|null; listings:Listing[]; activity:Activity[] };
 type NftMetadata = { name:string|null; collection:string|null; imageUrl:string|null };
 
 export function NetworkMarketplace({ chainId }: { chainId: MarketplaceChainId }) {
@@ -102,6 +102,7 @@ export function NetworkMarketplace({ chainId }: { chainId: MarketplaceChainId })
           <span>LIVE MARKETPLACE</span>
           <h1>{chain.name} NFT Marketplace</h1>
           <p>Trade NFTs securely on {chain.name} with instant settlements and low fees.</p>
+          {chainData?.legacyMarketplaceAddress&&<p><Link href={`/legacy?chainId=${chainId}`}>Browse listings on the earlier marketplace <ArrowUpRight size={15}/></Link></p>}
         </div>
         <div className="network-stats">
           <div>

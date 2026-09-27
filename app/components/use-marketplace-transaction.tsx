@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getAccount } from "@wagmi/core";
 import { useAccount, useConfig, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
-import { type Abi, type Address, type Hash, type TransactionReceipt, type PublicClient } from "viem";
+import { formatEther, type Abi, type Address, type Hash, type TransactionReceipt, type PublicClient } from "viem";
 import { confirmedReceipt } from "@/lib/transaction-receipt";
 import { transactionError } from "@/lib/transaction-errors";
 import { getMarketplaceChain, isMarketplaceLive, transactionUrl, type MarketplaceChainId } from "@/lib/marketplace-chains";
@@ -54,7 +54,13 @@ export function useMarketplaceTransaction(chainId:MarketplaceChainId){
         setMessage(`Checking ${step.toLowerCase()}…`);
         await client.simulateContract({...request,account});
         if(getAccount(config).address?.toLowerCase()!==account.toLowerCase()||getAccount(config).chainId!==chainId)throw new Error("Wallet or network changed. Please try again.");
-        setMessage(`Confirm ${step.toLowerCase()} in your wallet.`);
+        const approval=request.functionName==="setApprovalForAll"&&request.args?.[1]===true
+          ? ` This grants ${request.args[0]} access to every NFT you own in collection ${request.address}; you can revoke it later.`:"";
+        const gas=await client.estimateContractGas({...request,account}).catch(()=>null);
+        const fees=await client.estimateFeesPerGas().catch(()=>null);
+        const feePerGas=fees?.maxFeePerGas;
+        const estimate=gas&&feePerGas?` Estimated execution gas: up to ${formatEther(gas*feePerGas)} ${getMarketplaceChain(chainId).currency}; your wallet shows the final fee.`:"";
+        setMessage(`Confirm ${step.toLowerCase()} on ${getMarketplaceChain(chainId).name} in your wallet.${approval}${estimate}`);
         const submitted=await writeContractAsync({...request,account,chainId});
         waiting=submitted;persist(key,submitted);setHash(submitted);setMessage(`${step} submitted. Waiting for confirmation…`);
         const receipt=await confirmedReceipt(client,submitted,replacement=>{waiting=replacement;persist(key,replacement);setHash(replacement);});

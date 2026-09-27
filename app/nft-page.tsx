@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronDown, Copy, External
 import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatEther, parseEther, erc1155Abi, type Address } from "viem";
+import { formatEther, parseEther, erc1155Abi, zeroAddress, type Address } from "viem";
 import { useAccount, usePublicClient, useReadContract } from "wagmi";
 import { favoriteId, useFavorite } from "./favorites";
 import { getMarketplaceChain, isMarketplaceChainId, tokenUrl, transactionUrl, type MarketplaceChainId } from "@/lib/marketplace-chains";
@@ -32,8 +32,8 @@ const erc721Abi=[
 const erc1155SupplyAbi=[{type:"function",name:"totalSupply",stateMutability:"view",inputs:[{name:"id",type:"uint256"}],outputs:[{name:"",type:"uint256"}]}] as const;
 const short=(value:string)=>`${value.slice(0,6)}…${value.slice(-4)}`;
 
-export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:number;contract:string;tokenId:string;returnTo?:"/market"|"/profile"}){
-  const[returnHref,setReturnHref]=useState(returnTo==="/market"?"/":returnTo);
+export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=false}:{chainId:number;contract:string;tokenId:string;returnTo?:"/market"|"/profile";legacy?:boolean}){
+  const[returnHref,setReturnHref]=useState(legacy?`/legacy?chainId=${chainId}`:returnTo==="/market"?"/":returnTo);
   const valid=isMarketplaceChainId(chainId)&&/^0x[a-fA-F0-9]{40}$/.test(contract)&&/^\d+$/.test(tokenId);
   const marketChainId:MarketplaceChainId=isMarketplaceChainId(chainId)?chainId:109;
   const chain=getMarketplaceChain(marketChainId);
@@ -41,7 +41,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
   const[nft,setNft]=useState<Nft|null>(null);
   const[indexer,setIndexer]=useState<Indexer|null>(null);
   const[collectionTokens,setCollectionTokens]=useState<Array<{tokenId:string;name:string;imageUrl:string}>>([]);
-  const marketplaceAddress=(indexer?.marketplaceAddress??chain.marketplaceAddress) as Address;
+  const marketplaceAddress=(indexer?.marketplaceAddress??(legacy?zeroAddress:chain.marketplaceAddress)) as Address;
   const[error,setError]=useState("");
   const[status,setStatus]=useState("");
   const[copied,setCopied]=useState(false);
@@ -64,13 +64,14 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
   const{data:isEdition}=useReadContract({address:nftAddress,abi:erc1155Abi,functionName:"supportsInterface",args:["0xd9b67a26"],chainId:marketChainId,query:{enabled:valid}});
   const{data:editionSupply}=useReadContract({address:nftAddress,abi:erc1155SupplyAbi,functionName:"totalSupply",args:[parsedTokenId],chainId:marketChainId,query:{enabled:valid&&isEdition===true}});
   const{data:owner,refetch:refetchOwner}=useReadContract({address:nftAddress,abi:erc721Abi,functionName:"ownerOf",args:[parsedTokenId],chainId:marketChainId,query:{enabled:valid&&!isEdition,refetchInterval:30_000}});
-  const{data:directListing,refetch:refetchListing,isLoading:listingLoading}=useReadContract({address:marketplaceAddress,abi:marketplaceAbi,functionName:"getListing",args:[nftAddress,parsedTokenId],chainId:marketChainId,query:{enabled:valid&&marketplaceLive&&!isEdition,refetchInterval:MARKETPLACE_REFRESH_INTERVAL}});
-  const{data:marketVersion}=useReadContract({address:marketplaceAddress,abi:marketplaceAbi,functionName:"marketplaceVersion",chainId:marketChainId,query:{enabled:valid&&marketplaceLive}});
+  const{data:directListing,refetch:refetchListing,isLoading:listingLoading}=useReadContract({address:marketplaceAddress,abi:marketplaceAbi,functionName:"getListing",args:[nftAddress,parsedTokenId],chainId:marketChainId,query:{enabled:valid&&marketplaceLive&&marketplaceAddress!==zeroAddress&&!isEdition,refetchInterval:MARKETPLACE_REFRESH_INTERVAL}});
+  const{data:marketVersion}=useReadContract({address:marketplaceAddress,abi:marketplaceAbi,functionName:"marketplaceVersion",chainId:marketChainId,query:{enabled:valid&&marketplaceLive&&marketplaceAddress!==zeroAddress}});
 
   useEffect(()=>{
     let active=true;
     queueMicrotask(()=>{
       if(!active)return;
+      if(legacy){setReturnHref(`/legacy?chainId=${chainId}`);return;}
       if(returnTo==="/profile"){setReturnHref("/profile");return;}
       try{
         const stored=JSON.parse(window.sessionStorage.getItem("hoj-nft-origin")??"null") as {href?:string;at?:number}|null;
@@ -80,7 +81,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
       setReturnHref("/");
     });
     return()=>{active=false;};
-  },[returnTo]);
+  },[returnTo,legacy,chainId]);
 
   const loadMetadata=useCallback(async(refresh=false)=>{
     const query=new URLSearchParams({chainId:String(chainId),contract,tokenId});
@@ -98,7 +99,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
     if(!valid){setError("This NFT link is not valid.");return;}
     const[metadataResult,indexerResult]=await Promise.allSettled([
       loadMetadata(),
-      fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"}).then(async response=>{const body=await response.json() as Indexer;if(!response.ok&&!body.configured)throw new Error("Marketplace activity is unavailable.");console.log(`Indexer data loaded: ${body.listings.length} listings, ${body.activity.length} activity events`);return body;}),
+      fetch(`/api/indexer?chainId=${chainId}${legacy?"&legacy=1":""}`,{cache:"no-store"}).then(async response=>{const body=await response.json() as Indexer;if(!response.ok&&!body.configured)throw new Error("Marketplace activity is unavailable.");console.log(`Indexer data loaded: ${body.listings.length} listings, ${body.activity.length} activity events`);return body;}),
     ]);
     if(!active)return;
     if(metadataResult.status==="rejected")setError(metadataResult.reason instanceof Error?metadataResult.reason.message:"NFT metadata is unavailable.");
@@ -106,7 +107,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
       setIndexer(indexerResult.value);
       console.log(`Indexer set with ${indexerResult.value.listings.length} listings`);
     }
-  })();return()=>{active=false;};},[chainId,loadMetadata,valid]);
+  })();return()=>{active=false;};},[chainId,loadMetadata,valid,legacy]);
 
   useEffect(()=>{
     if(!valid)return;
@@ -115,7 +116,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
       if(document.visibilityState!=="visible"||pending)return;
       pending=true;
       try{
-        const response=await fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"});
+        const response=await fetch(`/api/indexer?chainId=${chainId}${legacy?"&legacy=1":""}`,{cache:"no-store"});
         if(response.ok){const body=await response.json() as Indexer;if(active)setIndexer(body);}
       }catch{/* Keep the last verified floor while the indexer is temporarily unavailable. */}
       finally{pending=false;}
@@ -125,7 +126,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
     window.addEventListener("focus",onFocus);
     const unsubscribe=onMarketplaceUpdate(updatedChain=>{if(updatedChain===chainId)void refresh();});
     return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus);unsubscribe();};
-  },[chainId,valid]);
+  },[chainId,valid,legacy]);
 
   useEffect(()=>{
     if(!valid)return;
@@ -193,8 +194,8 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
     setHistoryRefreshKey(key=>key+1);
     void refetchOwner();
     void refetchListing();
-    void fetch(`/api/indexer?chainId=${marketChainId}`,{cache:"no-store"}).then(async response=>{if(response.ok)setIndexer(await response.json() as Indexer);}).catch(()=>{});
-  },[marketChainId,refetchOwner,refetchListing]);
+    void fetch(`/api/indexer?chainId=${marketChainId}${legacy?"&legacy=1":""}`,{cache:"no-store"}).then(async response=>{if(response.ok)setIndexer(await response.json() as Indexer);}).catch(()=>{});
+  },[marketChainId,refetchOwner,refetchListing,legacy]);
   async function buy(){
     if(!address||!listing||!owner||owner.toLowerCase()!==listing.seller.toLowerCase())return;
     const ok=await transaction.run("Purchase",async send=>{await send({address:marketplaceAddress,abi:marketplaceAbi,functionName:"buyItem",args:[listing.nftAddress,BigInt(listing.tokenId)],value:BigInt(listing.price)});});
@@ -239,12 +240,12 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
   }
   function addToCart(){
     if(!listing)return;
-    const key=`hoj-market-cart:${marketChainId}`;
+    const key=`hoj-market-cart:${marketChainId}${legacy?":legacy":""}`;
     try{
       const saved=JSON.parse(window.localStorage.getItem(key)??"[]") as unknown;
       const ids=Array.isArray(saved)?saved.filter((id):id is string=>typeof id==="string"):[];
       window.localStorage.setItem(key,JSON.stringify([...new Set([...ids,listing.id])]));
-      window.location.assign(`/market?chainId=${marketChainId}&cart=1`);
+      window.location.assign(`${legacy?"/legacy":"/market"}?chainId=${marketChainId}&cart=1`);
     }catch{setStatus("Your browser could not save the cart. Please try Buy now instead.");}
   }
 
@@ -255,9 +256,9 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
         <Link href={returnHref} className="royal-nft-gallery-back" aria-label="Back to previous page"><ArrowLeft size={18}/></Link>
         <div className="royal-nft-thumbnails" aria-label="More NFTs from this collection">
           {nft?.imageUrl&&!artFailed?<span className="royal-nft-thumb active"><Image src={nft.imageUrl} alt="Current NFT" fill unoptimized sizes="52px"/></span>:<span className="royal-nft-thumb active"><ImageIcon size={20}/></span>}
-          {galleryItems.map(item=><Link key={item.tokenId} className="royal-nft-thumb" href={`/nft/${chainId}/${contract}/${item.tokenId}${returnTo==="/profile"?"?from=profile":""}`} title={item.name}><Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/></Link>)}
+          {galleryItems.map(item=><Link key={item.tokenId} className="royal-nft-thumb" href={`/nft/${chainId}/${contract}/${item.tokenId}${legacy?"?legacy=1":returnTo==="/profile"?"?from=profile":""}`} title={item.name}><Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/></Link>)}
         </div>
-        {galleryItems.length>0&&<Link href={`/nft/${chainId}/${contract}/${galleryItems[0].tokenId}${returnTo==="/profile"?"?from=profile":""}`} className="royal-nft-gallery-next" aria-label="View another NFT in this collection"><ArrowRight size={18}/></Link>}
+        {galleryItems.length>0&&<Link href={`/nft/${chainId}/${contract}/${galleryItems[0].tokenId}${legacy?"?legacy=1":returnTo==="/profile"?"?from=profile":""}`} className="royal-nft-gallery-next" aria-label="View another NFT in this collection"><ArrowRight size={18}/></Link>}
       </div>
       <div className="royal-nft-nav-actions">
         <div className="nft-share-wrap">
@@ -386,7 +387,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
         </details>
         <details className="royal-nft-accordion">
           <summary><History size={17}/><span>Price history</span><ChevronDown size={17}/></summary>
-          <div className="royal-nft-accordion-body"><NftPriceHistory chainId={marketChainId} contract={contract} tokenId={tokenId} currency={chain.currency} refreshKey={historyRefreshKey}/></div>
+          <div className="royal-nft-accordion-body"><NftPriceHistory chainId={marketChainId} contract={contract} tokenId={tokenId} currency={chain.currency} refreshKey={historyRefreshKey} legacy={legacy}/></div>
         </details>
         <details className="royal-nft-accordion">
           <summary><Info size={17}/><span>About</span><ChevronDown size={17}/></summary>
@@ -421,7 +422,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
             </a>)}
           </div>:<p>No marketplace activity has been confirmed for this NFT.</p>}
         </div>
-        {!isEdition&&<OffersPanel nftAddress={contract} tokenId={tokenId} chainId={marketChainId} isOwner={isOwner} ownerAddress={owner} onChanged={refreshTrading} />}
+        {!isEdition&&<OffersPanel nftAddress={contract} tokenId={tokenId} chainId={marketChainId} isOwner={isOwner} ownerAddress={owner} onChanged={refreshTrading} legacy={legacy} />}
       </>}
 
       {activeTab==="activity"&&<>
@@ -452,7 +453,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market"}:{chainId:n
       <summary><ImageIcon size={17}/><span>More from this collection</span><small>{Math.min(relatedItems.length,6)}</small><ChevronDown size={17}/></summary>
       <div className="royal-collection-grid">
         {relatedItems.slice(0,6).map(item=>(
-          <Link key={item.tokenId} href={`/nft/${chainId}/${contract}/${item.tokenId}${returnTo==="/profile"?"?from=profile":""}`} className="royal-collection-item">
+          <Link key={item.tokenId} href={`/nft/${chainId}/${contract}/${item.tokenId}${legacy?"?legacy=1":returnTo==="/profile"?"?from=profile":""}`} className="royal-collection-item">
             <div className="royal-collection-item-art">
               <Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="140px"/>
             </div>

@@ -9,12 +9,13 @@ import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketp
 
 type HistoryResponse = { points: PriceHistoryPoint[]; complete: boolean; warning: string | null };
 
-export function NftPriceHistory({ chainId, contract, tokenId, currency, refreshKey }: {
+export function NftPriceHistory({ chainId, contract, tokenId, currency, refreshKey,legacy=false }: {
   chainId: MarketplaceChainId;
   contract: string;
   tokenId: string;
   currency: string;
   refreshKey: number;
+  legacy?:boolean;
 }) {
   const [data, setData] = useState<HistoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,6 +23,7 @@ export function NftPriceHistory({ chainId, contract, tokenId, currency, refreshK
     const controller = new AbortController();
     let pending=false;
     const query = new URLSearchParams({ chainId: String(chainId), contract, tokenId });
+    if(legacy)query.set("legacy","1");
     function refresh(){
       if(pending)return;
       pending=true;
@@ -42,7 +44,7 @@ export function NftPriceHistory({ chainId, contract, tokenId, currency, refreshK
     window.addEventListener("focus",onFocus);
     const unsubscribe=onMarketplaceUpdate(updatedChain=>{if(updatedChain===chainId)refresh();});
     return () => {controller.abort();window.clearInterval(timer);window.removeEventListener("focus",onFocus);unsubscribe();};
-  }, [chainId, contract, tokenId, refreshKey]);
+  }, [chainId, contract, tokenId, refreshKey,legacy]);
 
   const chart = useMemo(() => {
     const values = (data?.points ?? []).map(point => Number(formatEther(BigInt(point.price))));

@@ -36,6 +36,17 @@ test("configured chains resolve independently with the correct native currencies
   assert.equal(apechain.address,"0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875");
   assert.equal(apechain.deployBlock,"50360444");
 });
+test("V8 configuration retains the earlier marketplace address and block",async()=>{
+  const {legacyChainConfig}=await loadModule("lib/server-marketplace-config.ts");
+  const next="0x1111111111111111111111111111111111111111";
+  assert.equal(legacyChainConfig({},8453),null);
+  const old=legacyChainConfig({BASE_MARKETPLACE_ADDRESS:next,BASE_MARKETPLACE_DEPLOY_BLOCK:"52000000"},8453);
+  assert.equal(old?.address,"0x50489Fdc2352917595359667b34b384b33184b91");
+  assert.equal(old?.deployBlock,"51813478");
+  const explicit=legacyChainConfig({BASE_MARKETPLACE_ADDRESS:next,BASE_LEGACY_MARKETPLACE_ADDRESS:"0x2222222222222222222222222222222222222222",BASE_LEGACY_MARKETPLACE_DEPLOY_BLOCK:"123"},8453);
+  assert.equal(explicit?.address,"0x2222222222222222222222222222222222222222");
+  assert.equal(explicit?.deployBlock,"123");
+});
 test("coming-soon networks expose no live marketplace listings",async()=>{
   const {GET}=await loadModule("app/api/indexer/route.ts");
   for(const chainId of [1,4663]){

@@ -2,7 +2,7 @@ import { env } from "@runtime-env";
 import { erc721Abi, isAddress, type Address } from "viem";
 import { isMarketplaceChainId } from "@/lib/marketplace-chains";
 import { marketplaceAbi, type IndexedOffer } from "@/lib/marketplace-abi";
-import { chainConfig, type RuntimeEnv } from "@/lib/server-marketplace-config";
+import { chainConfig, legacyChainConfig, type RuntimeEnv } from "@/lib/server-marketplace-config";
 import { indexClient, loadMarketplaceIndex, mapLimit, offerId } from "@/lib/marketplace-index";
 
 export const dynamic="force-dynamic";
@@ -11,7 +11,8 @@ export async function GET(request:Request){
   const query=new URL(request.url).searchParams;
   const chainId=Number(query.get("chainId")),nft=query.get("nftAddress"),token=query.get("tokenId"),wallet=query.get("wallet");
   if(!isMarketplaceChainId(chainId)||(!wallet&&!nft)|| (wallet&&!isAddress(wallet,{strict:false})) || (nft&&(!isAddress(nft,{strict:false})||token===null||!/^\d+$/.test(token)||BigInt(token)>2n**256n-1n)) || (!nft&&token!==null))return Response.json({error:"Provide a supported chain and a valid wallet or NFT."},{status:400});
-  const runtime=env as unknown as RuntimeEnv,config=chainConfig(runtime,chainId);
+  const runtime=env as unknown as RuntimeEnv,config=query.get("legacy")==="1"?legacyChainConfig(runtime,chainId):chainConfig(runtime,chainId);
+  if(!config)return Response.json({error:"No earlier marketplace is configured on this network."},{status:404});
   if(config.chain.marketplaceStatus!=="live")return Response.json({error:`HOJ NFT Marketplace is coming soon on ${config.chain.name}.`,status:"coming-soon"},{status:503});
   if(!isAddress(config.address,{strict:false}))return Response.json({error:"Marketplace is not configured."},{status:503});
   const client=indexClient(config),address=config.address as Address;

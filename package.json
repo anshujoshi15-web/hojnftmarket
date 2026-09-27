@@ -18,6 +18,7 @@
     "deploy:marketplace": "node scripts/deploy-marketplace.mjs",
     "test:contracts": "node --test tests/contracts.test.mjs",
     "health:marketplace": "node scripts/check-marketplace-health.mjs",
+    "verify:marketplace-v8": "node scripts/verify-marketplace-v8.mjs",
     "typecheck": "tsc --noEmit --incremental false"
   },
   "dependencies": {
