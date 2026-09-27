@@ -194,7 +194,7 @@ export function eventStatements(db:D1Database,scope:string,events:Activity[]){
 }
 
 const CHUNK_SIZE=8_000, MAX_CHUNKS=8;
-async function rangeLogs(client:ReturnType<typeof indexClient>,address:Address,start:number,end:number):Promise<{logs:RpcLog[];through:number}> {
+export async function rangeLogs(client:ReturnType<typeof indexClient>,address:Address,start:number,end:number):Promise<{logs:RpcLog[];through:number}> {
   try {
     const logs=await client.request({method:"eth_getLogs",params:[{address,fromBlock:`0x${start.toString(16)}`,toBlock:`0x${end.toString(16)}`}]}) as RpcLog[];
     return {logs,through:end};
@@ -203,9 +203,11 @@ async function rangeLogs(client:ReturnType<typeof indexClient>,address:Address,s
     // failures into hundreds of additional requests. No cursor advances on error.
     if(end===start||!/range|too many|response size|limit.*block|maximum.*block|query.*exceed/i.test(String(error)))throw error;
     const middle=Math.floor((start+end)/2);
-    // Commit a smaller successful range and resume the remainder on the next
-    // bounded iteration, rather than recursively issuing thousands of requests.
-    return rangeLogs(client,address,start,middle);
+    // Some RPCs cap eth_getLogs to fewer blocks than CHUNK_SIZE. Read both
+    // halves so a stateless request does not repeatedly stop at the first cap.
+    const first=await rangeLogs(client,address,start,middle);
+    const second=await rangeLogs(client,address,middle+1,end);
+    return {logs:[...first.logs,...second.logs],through:end};
   }
 }
 const pending=new Map<string,Promise<Awaited<ReturnType<typeof buildIndex>>>>();

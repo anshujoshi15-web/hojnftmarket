@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { encodeAbiParameters, encodeEventTopics, parseEther } from "viem";
 import { loadModule } from "./load-module.mjs";
 const {marketplaceAbi,parseNativeAmount}=await loadModule("lib/marketplace-abi.ts");
-const {decodeMarketplaceLogs,replayEvents,eventStatements}=await loadModule("lib/marketplace-index.ts");
+const {decodeMarketplaceLogs,replayEvents,eventStatements,rangeLogs}=await loadModule("lib/marketplace-index.ts");
 const {sortActivity}=await loadModule("lib/activity-sort.ts");
 const {confirmedReceipt}=await loadModule("lib/transaction-receipt.ts");
 const seller="0x1111111111111111111111111111111111111111",buyer="0x2222222222222222222222222222222222222222",nft="0x3333333333333333333333333333333333333333";
@@ -20,6 +20,17 @@ const logs=[
   log("OfferMade",{buyer,nftAddress:nft,tokenId:1n,amount:parseEther("0.2"),expiresAt:3000n},2),
   log("OfferAccepted",{seller,buyer,nftAddress:nft,tokenId:1n,amount:parseEther("0.2"),marketplaceFee:4n,royaltyRecipient:seller,royaltyAmount:5n},3),
 ];
+test("range-limited RPC scans include logs from both halves",async()=>{
+  const client={request:async({params})=>{
+    const {fromBlock,toBlock}=params[0];
+    const start=Number(BigInt(fromBlock)),end=Number(BigInt(toBlock));
+    if(end-start+1>2)throw new Error("eth_getLogs block range limit exceeded");
+    return [start,end].map(block=>({blockNumber:`0x${block.toString(16)}`}));
+  }};
+  const result=await rangeLogs(client,seller,1,8);
+  assert.equal(result.through,8);
+  assert.deepEqual(result.logs.map(item=>Number(BigInt(item.blockNumber))),[1,2,3,4,5,6,7,8]);
+});
 test("amounts retain exact native units and reject malformed, nonpositive or overprecise input",()=>{
   assert.equal(parseNativeAmount("0.1"),100000000000000000n);
   assert.equal(parseNativeAmount("1"),1000000000000000000n);
