@@ -142,7 +142,13 @@ export function summarizeCollections(chainId: number, listings: Listing[]) {
 type Config = ReturnType<typeof chainConfig>;
 export function indexClient(config:Config){
   const primary=http(config.rpcUrl,{timeout:12_000,retryCount:1});
-  const transport=config.fallbackRpcUrl?fallback([primary,http(config.fallbackRpcUrl,{timeout:12_000,retryCount:1})],{shouldThrow:()=>false}):primary;
+  // Base's public RPC can reject historical log ranges or throttle bursts.
+  // Keep an independent public provider available even when no API key is set.
+  const transports=[primary];
+  if(config.chain.id===8453)
+    transports.push(http(config.rpcUrl==="https://base-rpc.publicnode.com"?"https://mainnet.base.org":"https://base-rpc.publicnode.com",{timeout:12_000,retryCount:1}));
+  if(config.fallbackRpcUrl)transports.push(http(config.fallbackRpcUrl,{timeout:12_000,retryCount:1}));
+  const transport=transports.length>1?fallback(transports,{shouldThrow:()=>false}):primary;
   return createPublicClient({transport});
 }
 
