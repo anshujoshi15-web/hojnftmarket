@@ -203,7 +203,7 @@ export function eventStatements(db:D1Database,scope:string,events:Activity[]){
   return statements;
 }
 
-const CHUNK_SIZE=8_000, MAX_CHUNKS=8;
+const CHUNK_SIZE=8_000, MAX_CHUNKS=8, MAX_STATELESS_CHUNKS=256;
 export async function rangeLogs(client:ReturnType<typeof indexClient>,address:Address,start:number,end:number):Promise<{logs:RpcLog[];through:number}> {
   try {
     const logs=await client.request({method:"eth_getLogs",params:[{address,fromBlock:`0x${start.toString(16)}`,toBlock:`0x${end.toString(16)}`}]}) as RpcLog[];
@@ -238,7 +238,7 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
   // listings and sales immediately and self-correct after a reorg.
   const safeLatest=Math.max(0,Number(await client.getBlockNumber())-(db?config.chain.confirmations:0));
   const deployBlock=Number(config.deployBlock);
-  let start=Math.max(deployBlock,safeLatest-CHUNK_SIZE*MAX_CHUNKS+1);
+  let start=Math.max(deployBlock,safeLatest-CHUNK_SIZE*MAX_STATELESS_CHUNKS+1);
   if(db){await schema(db);const state=await db.prepare("SELECT last_block AS lastBlock FROM indexer_state WHERE id=?").bind(scope).first<{lastBlock:number}>();start=Math.max(deployBlock,(state?.lastBlock??deployBlock-1)+1);}
   const fromBlock=start, events:Activity[]=[];
   if(!db){
@@ -251,14 +251,25 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
     }
   }
   let chunks=0,logsProcessed=0;
-  while(start<=safeLatest&&chunks++<MAX_CHUNKS){
+  if(!db){
+    const ranges:Array<[number,number]>=[];
+    for(let from=start;from<=safeLatest&&ranges.length<MAX_STATELESS_CHUNKS;from+=CHUNK_SIZE)
+      ranges.push([from,Math.min(from+CHUNK_SIZE-1,safeLatest)]);
+    const results=await mapLimit(ranges,6,async([from,to])=>rangeLogs(client,address,from,to));
+    const decoded=results.flatMap(result=>decodeMarketplaceLogs(chainId,result.logs));
+    const times=new Map<number,number>();
+    await mapLimit([...new Set(decoded.map(e=>e.blockNumber))],6,async block=>{times.set(block,Number((await client.getBlock({blockNumber:BigInt(block)})).timestamp));});
+    decoded.forEach(e=>{e.timestamp=times.get(e.blockNumber)!;});
+    events.push(...decoded);
+    logsProcessed=results.reduce((sum,result)=>sum+result.logs.length,0);
+    start=results.length?results[results.length-1].through+1:start;
+  }else while(start<=safeLatest&&chunks++<MAX_CHUNKS){
     const {logs,through:end}=await rangeLogs(client,address,start,Math.min(start+CHUNK_SIZE-1,safeLatest));
     const decoded=decodeMarketplaceLogs(chainId,logs as RpcLog[]);
     const times=new Map<number,number>();
     await mapLimit([...new Set(decoded.map(e=>e.blockNumber))],6,async block=>{times.set(block,Number((await client.getBlock({blockNumber:BigInt(block)})).timestamp));});
     decoded.forEach(e=>{e.timestamp=times.get(e.blockNumber)!;});
-    if(db){const statements=eventStatements(db,scope,decoded);statements.push(db.prepare("INSERT INTO indexer_state VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET last_block=MAX(last_block,excluded.last_block),updated_at=excluded.updated_at").bind(scope,end,Date.now()));await db.batch(statements);}
-    else events.push(...decoded);
+    const statements=eventStatements(db,scope,decoded);statements.push(db.prepare("INSERT INTO indexer_state VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET last_block=MAX(last_block,excluded.last_block),updated_at=excluded.updated_at").bind(scope,end,Date.now()));await db.batch(statements);
     logsProcessed+=logs.length;start=end+1;
   }
   if(!db&&start>safeLatest)statelessSnapshots.set(scope,{fromBlock,through:safeLatest,events});
