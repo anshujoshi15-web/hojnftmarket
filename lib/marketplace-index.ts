@@ -141,10 +141,14 @@ export function summarizeCollections(chainId: number, listings: Listing[]) {
 
 type Config = ReturnType<typeof chainConfig>;
 export function indexClient(config:Config){
-  const primary=http(config.rpcUrl,{timeout:12_000,retryCount:1});
+  // Cronos's default RPC limits log requests to 2,000 blocks. PublicNode
+  // accepts the indexer's 8,000-block ranges, including the older V7 market.
+  const rpcUrl=config.chain.id===25&&config.rpcUrl==="https://evm.cronos.org"?"https://cronos-evm-rpc.publicnode.com":config.rpcUrl;
+  const primary=http(rpcUrl,{timeout:12_000,retryCount:1});
   // Base's public RPC can reject historical log ranges or throttle bursts.
   // Keep an independent public provider available even when no API key is set.
   const transports=[primary];
+  if(rpcUrl!==config.rpcUrl)transports.push(http(config.rpcUrl,{timeout:12_000,retryCount:1}));
   if(config.chain.id===8453)
     transports.push(http(config.rpcUrl==="https://base-rpc.publicnode.com"?"https://mainnet.base.org":"https://base-rpc.publicnode.com",{timeout:12_000,retryCount:1}));
   // Arc's primary public endpoint can throttle log scans even at modest volume.
