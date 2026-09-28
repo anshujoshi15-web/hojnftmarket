@@ -5,11 +5,10 @@ import { ArrowLeft, ArrowUpRight, ChevronDown, ExternalLink, Grid2X2, Heart, Lis
 import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { formatEther, getAddress, erc721Abi, zeroAddress } from "viem";
+import { formatEther, zeroAddress } from "viem";
 import { useAccount, useChainId, usePublicClient, useReadContract } from "wagmi";
 import { getMarketplaceChain, marketplaceChains, isMarketplaceChainId, tokenUrl, transactionUrl, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { marketplaceAbi as abi, parseNativeAmount } from "@/lib/marketplace-abi";
-import { inspectListing } from "@/lib/prepare-listing";
 import { TransactionStatus, useMarketplaceTransaction } from "./components/use-marketplace-transaction";
 import { favoriteId, useFavorite } from "./favorites";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
@@ -104,7 +103,6 @@ export function Portal({ view,legacy=false }: { view:View;legacy?:boolean }) {
   const { data:proceeds, refetch:refetchProceeds }=useReadContract({ address:addressForRead, abi, functionName:"getProceeds", args:[address ?? zeroAddress], chainId:selectedChainId, query:{enabled:!!address && !!data.marketplaceAddress} });
   const { data:marketplaceVersion }=useReadContract({address:addressForRead,abi,functionName:"marketplaceVersion",chainId:selectedChainId,query:{enabled:!!data.marketplaceAddress}});
   const advancedMarketplace=marketplaceVersion!==undefined&&marketplaceVersion>=2n;
-  const bulkListingSupported=marketplaceVersion!==undefined&&marketplaceVersion>=8n;
 
   async function buy(item:Listing){
     if(!data.marketplaceAddress)return;
@@ -130,32 +128,6 @@ export function Portal({ view,legacy=false }: { view:View;legacy?:boolean }) {
       await send({address:data.marketplaceAddress!,abi,functionName:"makeOffer",args:[item.nftAddress,BigInt(item.tokenId),block.timestamp+604800n],value:parseNativeAmount(amount)});
     });
   }
-  async function bulkList(nft:string,tokens:string[],price:string){
-    if(!address||!data.marketplaceAddress||!publicClient||!bulkListingSupported)return;
-    const ok=await transaction.run("Bulk listing",async send=>{
-      const nftAddress=getAddress(nft),amount=parseNativeAmount(price);
-      if(tokens.length<2||tokens.length>20||new Set(tokens).size!==tokens.length)throw new Error("Select 2 to 20 different NFTs from one collection.");
-      const tokenIds=tokens.map(token=>BigInt(token));
-      for(let offset=0;offset<tokenIds.length;offset+=4){
-        await Promise.all(tokenIds.slice(offset,offset+4).map(async tokenId=>{
-          if(data.legacyMarketplaceAddress){
-            const earlier=await publicClient.readContract({address:data.legacyMarketplaceAddress,abi,functionName:"getListing",args:[nftAddress,tokenId]});
-            if(earlier.price>0n&&earlier.seller.toLowerCase()===address.toLowerCase())throw new Error(`Cancel token #${tokenId}'s earlier marketplace listing before including it in a V8 batch.`);
-          }
-          await inspectListing(publicClient,data.marketplaceAddress!,nftAddress,tokenId,address);
-        }));
-      }
-      const approved=await publicClient.readContract({address:nftAddress,abi:erc721Abi,functionName:"isApprovedForAll",args:[address,data.marketplaceAddress!]});
-      if(!approved)await send({address:nftAddress,abi:erc721Abi,functionName:"setApprovalForAll",args:[data.marketplaceAddress!,true]},"One-time collection approval");
-      await send({address:data.marketplaceAddress!,abi,functionName:"batchList",args:[nftAddress,tokenIds,tokenIds.map(()=>amount)]},"List collection selection");
-    });if(ok)void refresh(true);
-  }
-  async function revokeCollectionApproval(nft:string){
-    if(!data.marketplaceAddress||!address)return;
-    const ok=await transaction.run("Collection approval revocation",async send=>{
-      await send({address:getAddress(nft),abi:erc721Abi,functionName:"setApprovalForAll",args:[data.marketplaceAddress!,false]},"Revoke collection approval");
-    });if(ok)void refresh(true);
-  }
   async function cancel(item:Listing){
     if(!data.marketplaceAddress)return;
     const ok=await transaction.run("Listing cancellation",async send=>{
@@ -179,7 +151,7 @@ export function Portal({ view,legacy=false }: { view:View;legacy?:boolean }) {
     <fieldset className="royal-transaction-fields royal-portal-content" disabled={transaction.pending}>
       {view==="market"&&<MarketView key={selectedChainId} data={data} loading={loading} account={address} advancedMarketplace={advancedMarketplace} legacy={legacy} onBuy={buy} onBatchBuy={batchBuy} onOffer={makeOffer} onCancel={cancel}/>}
       {view==="activity"&&<ActivityView items={data.activity} loading={loading}/>}
-      {view==="account"&&<><AccountView connected={!!address} configured={!!data.marketplaceAddress} listings={mine} activity={data.activity} account={address} proceeds={proceeds ?? 0n} onCancel={cancel} onWithdraw={withdraw} currency={selectedChain.currency} walletNfts={walletNfts} chainId={selectedChainId}/>{!legacy&&<BulkListingPanel key={`${selectedChainId}:${address}`} nfts={walletNfts.nfts} listedIds={new Set(mine.map(item=>`${item.nftAddress.toLowerCase()}:${item.tokenId}`))} connected={!!address} configured={!!data.marketplaceAddress} supported={bulkListingSupported} currency={selectedChain.currency} market={data.marketplaceAddress} account={address} chainId={selectedChainId} onBulkList={bulkList} onRevokeApproval={revokeCollectionApproval}/>}</>}
+      {view==="account"&&<AccountView connected={!!address} configured={!!data.marketplaceAddress} listings={mine} activity={data.activity} account={address} proceeds={proceeds ?? 0n} onCancel={cancel} onWithdraw={withdraw} currency={selectedChain.currency} walletNfts={walletNfts} chainId={selectedChainId}/>}
       {view==="protocol"&&<ProtocolView/>}
     </fieldset>
     <TransactionStatus transaction={transaction}/>
@@ -276,48 +248,6 @@ function MarketNftDetail({listing,details,account,advancedMarketplace,onClose,on
 }
 function ListingTile({item,action}:{item:Listing;action:React.ReactNode}){const chain=getMarketplaceChain(item.chainId);return <article className="portal-card"><div className="portal-token"><span>{chain.name} · ERC-721</span><strong>#{item.tokenId}</strong><i>{short(item.nftAddress)}</i></div><div className="portal-card-copy"><small>{short(item.nftAddress)}</small><h2>Token #{item.tokenId}</h2><p>Seller · {short(item.seller)}</p><div><span>Total price</span><strong>{formatEther(BigInt(item.price))} {chain.currency}</strong></div>{action}</div></article>}
 
-function CollectionApprovalControl({collection,market,account,chainId,onRevoke}:{collection:string;market?:`0x${string}`;account?:`0x${string}`;chainId:MarketplaceChainId;onRevoke:(collection:string)=>void}){
-  const {data:approved}=useReadContract({address:collection as `0x${string}`,abi:erc721Abi,functionName:"isApprovedForAll",args:[account??zeroAddress,market??zeroAddress],chainId,query:{enabled:!!account&&!!market&&!!collection,refetchInterval:MARKETPLACE_REFRESH_INTERVAL}});
-  if(!approved)return null;
-  return <p className="bulk-approval-control">Collection approval is active for this marketplace. Revoking it makes your current listings in this collection unbuyable until you approve again. <button type="button" onClick={()=>onRevoke(collection)}>Revoke approval</button></p>;
-}
-
-function BulkListingPanel({nfts,listedIds,connected,configured,supported,currency,market,account,chainId,onBulkList,onRevokeApproval}:{nfts:WalletNft[];listedIds:Set<string>;connected:boolean;configured:boolean;supported:boolean;currency:string;market?:`0x${string}`;account?:`0x${string}`;chainId:MarketplaceChainId;onBulkList:(contract:string,tokens:string[],price:string)=>void;onRevokeApproval:(contract:string)=>void}){
-  const [collection,setCollection]=useState("");
-  const [selected,setSelected]=useState<string[]>([]);
-  const [price,setPrice]=useState("");
-  useEffect(()=>{
-    const params=new URLSearchParams(window.location.search);
-    if(Number(params.get("chainId"))!==chainId)return;
-    const requestedCollection=params.get("collection")??"";
-    const requestedTokens=(params.get("tokens")??"").split(",").filter(token=>/^\d+$/.test(token));
-    if(/^0x[a-fA-F0-9]{40}$/.test(requestedCollection)&&requestedTokens.length>=2&&requestedTokens.length<=20){
-      setCollection(requestedCollection);
-      setSelected([...new Set(requestedTokens)]);
-    }
-  },[chainId]);
-  const collections=[...new Map(nfts.filter(item=>item.tokenType!=="ERC-1155").map(item=>[item.contractAddress.toLowerCase(),{address:item.contractAddress,name:item.collection??short(item.contractAddress)}])).values()];
-  const address=collections.some(item=>item.address.toLowerCase()===collection)?collection:collections[0]?.address??"";
-  const eligible=nfts.filter(item=>item.tokenType!=="ERC-1155"&&item.contractAddress.toLowerCase()===address.toLowerCase()&&!listedIds.has(`${item.contractAddress.toLowerCase()}:${item.tokenId}`));
-  const tokens=selected.filter(token=>eligible.some(item=>item.tokenId===token));
-  const validPrice=/^\d+(?:\.\d{1,18})?$/.test(price.trim())&&Number(price)>0;
-  if(!connected)return null;
-  return <section id="bulk-listing" className="bulk-listing-panel"><div className="bulk-listing-heading"><div><span>COLLECTION LISTING</span><h2>List several NFTs together</h2></div><small>{supported?"One listing transaction for your selection":"Available on marketplace V8"}</small></div>
-    {!supported?<p>Bulk listing requires the V8 marketplace contract on this network. Individual listings use one collection approval, then one listing transaction per NFT.</p>
-    :!configured?<p>Deploy a marketplace on this network to list NFTs.</p>
-    :collections.length===0?<p>No ERC-721 NFTs were found in this wallet on the selected network.</p>
-    :<form onSubmit={event=>{event.preventDefault();if(tokens.length>=2&&tokens.length<=20&&validPrice)onBulkList(address,tokens,price);}}>
-      <label>Collection<select value={address} onChange={event=>{setCollection(event.target.value);setSelected([]);}}>{collections.map(item=><option key={item.address} value={item.address}>{item.name} · {short(item.address)}</option>)}</select></label>
-      <div className="bulk-listing-tokens">{eligible.map(item=><label key={`${item.contractAddress}:${item.tokenId}`}><input type="checkbox" checked={tokens.includes(item.tokenId)} onChange={event=>setSelected(current=>event.target.checked?[...current,item.tokenId]:current.filter(token=>token!==item.tokenId))}/><span>{item.name??`Token #${item.tokenId}`} <small>#{item.tokenId}</small></span></label>)}</div>
-      {eligible.length===0&&<p>Every NFT found in this collection is already listed.</p>}
-      <label>Price per NFT in {currency}<input value={price} onChange={event=>setPrice(event.target.value)} inputMode="decimal" placeholder="Enter amount"/></label>
-      <p>Select 2 to 20 NFTs from this collection. Your wallet may request a one-time collection approval first; afterward, all selected NFTs list in one transaction.</p>
-      <button disabled={tokens.length<2||tokens.length>20||!validPrice}>List {tokens.length} NFTs together <ArrowUpRight size={16}/></button>
-    </form>}
-    {configured&&address&&<CollectionApprovalControl collection={address} market={market} account={account} chainId={chainId} onRevoke={onRevokeApproval}/>}
-  </section>;
-}
-
 function NftDetail({item,chainId,onClose,onList}:{item:WalletNft;chainId:MarketplaceChainId;onClose:()=>void;onList:()=>void}){const chain=getMarketplaceChain(chainId);const tokenType=item.tokenType??"ERC-721";return <div className="nft-detail-backdrop" role="dialog" aria-modal="true" aria-label="NFT details" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}><article className="nft-detail"><button className="nft-detail-close" onClick={onClose} aria-label="Close NFT details"><X size={18}/></button>{item.imageUrl?<div className="nft-detail-image"><img src={item.imageUrl} alt={item.name??`Token #${item.tokenId}`}/></div>:<div className="nft-detail-image empty"/>}<div className="nft-detail-copy"><small>{item.collection??short(item.contractAddress)} · {chain.name} · {tokenType}</small><h2>{item.name??`Token #${item.tokenId}`}</h2><p className="nft-token-id">#{item.tokenId} · {short(item.contractAddress)}{item.quantity&&item.quantity!=="1"?` · Quantity ${item.quantity}`:""}</p>{item.description&&<p className="nft-description">{item.description}</p>}{item.traits.length>0&&<section className="nft-traits"><span>TRAITS</span><div>{item.traits.map(trait=><article key={`${trait.type}:${trait.value}`}><small>{trait.type}</small><strong>{trait.value}</strong></article>)}</div></section>}<div className="nft-detail-actions">{tokenType==="ERC-721"&&<button onClick={onList}>List this NFT <ArrowUpRight size={15}/></button>}{item.externalUrl&&<a href={item.externalUrl} target="_blank" rel="noreferrer">Collection link <ExternalLink size={14}/></a>}<a href={tokenUrl(chainId,item.contractAddress,item.tokenId)} target="_blank" rel="noreferrer">View on {chain.name} explorer <ExternalLink size={14}/></a></div></div></article></div>}
 
 function ActivityView({items,loading}:{items:Activity[];loading:boolean}){if(!items.length)return <Empty eyebrow={loading?"SYNCING":"NO EVENTS"} title={loading?"Reading confirmed blocks.":"No activity recorded."} detail="Contract events will appear here after confirmation."/>;return <div className="portal-activity">{items.map(x=>{const chain=getMarketplaceChain(x.chainId);return <a key={x.id} href={transactionUrl(x.chainId,x.transactionHash)} target="_blank" rel="noreferrer"><b>{x.eventType.toUpperCase()}</b><span>{x.nftAddress&&x.tokenId?`${short(x.nftAddress)} · #${x.tokenId}`:x.seller?short(x.seller):"Marketplace"}</span><span>{x.price?`${formatEther(BigInt(x.price))} ${chain.currency}`:"—"}</span><span>{chain.name} · Block {x.blockNumber}</span><ExternalLink size={14}/></a>})}</div>}
@@ -347,6 +277,6 @@ function AccountView({connected,configured,listings,activity,account,proceeds,on
   </>;
 }
 
-function ProtocolView(){return <div className="protocol-grid"><article><span>01</span><h2>Non-custodial</h2><p>Listed NFTs stay in the owner’s wallet. A valid approval and payment are required for a purchase.</p></article><article><span>02</span><h2>Fee and royalties</h2><p>The marketplace charges 2% of the sale price. Collections implementing ERC-2981 may also receive creator royalties. Wallet gas fees are separate.</p></article><article><span>03</span><h2>Collection approval</h2><p>The first listing may need a separate approval transaction for that collection and marketplace contract. Approval covers other NFTs in that collection until revoked.</p></article><article><span>04</span><h2>V8 bulk listing</h2><p>Where V8 is deployed, 2 to 20 ERC-721 NFTs from one collection can be listed in one batch transaction after approval. Other networks use individual listing transactions.</p></article><article><span>05</span><h2>Earlier contracts</h2><p>V7 listings, offers, and proceeds remain on V7 after a V8 upgrade. Use Earlier marketplace to manage them; state does not move between contracts.</p></article><article><span>06</span><h2>Chain and index status</h2><p>Listings, proceeds, and settlement stay on their original network. An indexing warning means visible activity may be incomplete; check the chain explorer for onchain confirmation.</p></article></div>}
+function ProtocolView(){return <div className="protocol-grid"><article><span>01</span><h2>Non-custodial</h2><p>Listed NFTs stay in the owner’s wallet. A valid approval and payment are required for a purchase.</p></article><article><span>02</span><h2>Fee and royalties</h2><p>The marketplace charges 2% of the sale price. Collections implementing ERC-2981 may also receive creator royalties. Wallet gas fees are separate.</p></article><article><span>03</span><h2>Collection approval</h2><p>The first listing may need a separate approval transaction for that collection and marketplace contract. Approval covers other NFTs in that collection until revoked.</p></article><article><span>04</span><h2>V8 bulk listing</h2><p>In Profile, select up to 20 ERC-721 NFTs from one collection, set individual prices, review, and confirm. After collection approval, a batch uses one listing transaction.</p></article><article><span>05</span><h2>Earlier contracts</h2><p>V7 listings, offers, and proceeds remain on V7 after a V8 upgrade. Use Earlier marketplace to manage them; state does not move between contracts.</p></article><article><span>06</span><h2>Chain and index status</h2><p>Listings, proceeds, and settlement stay on their original network. An indexing warning means visible activity may be incomplete; check the chain explorer for onchain confirmation.</p></article></div>}
 
 function Empty({eyebrow,title,detail,action}:{eyebrow:string;title:string;detail:string;action?:React.ReactNode}){return <div className="portal-empty"><span>{eyebrow}</span><h2>{title}</h2><p>{detail}</p>{action}</div>}

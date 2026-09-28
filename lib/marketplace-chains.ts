@@ -21,8 +21,8 @@ export const marketplaceChains = {
     explorerApiUrl: "https://cronos.blockscout.com/api/v2",
     rpcUrl: "https://evm.cronos.org",
     confirmations: 12,
-    marketplaceAddress: "0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab",
-    marketplaceDeployBlock: 96267649,
+    marketplaceAddress: "0x455DaD76334a67660D61bb319d8CfF1010e33049",
+    marketplaceDeployBlock: 96559481,
     marketplaceStatus: "live",
   },
   109: {
@@ -60,8 +60,8 @@ export const marketplaceChains = {
     explorerApiUrl: "https://api.blockscout.com/5042/api/v2",
     rpcUrl: "https://rpc.mainnet.arc.io",
     confirmations: 12,
-    marketplaceAddress: "0xD9883fDdf57Ca58f775Bdab96C0e7c3F1c918af3",
-    marketplaceDeployBlock: 22840359,
+    marketplaceAddress: "0x3C626ff68e9a69526117B22D288ab71bdA2B377a",
+    marketplaceDeployBlock: 23087002,
     marketplaceStatus: "live",
   },
   8453: {

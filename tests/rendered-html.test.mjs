@@ -16,8 +16,8 @@ test("configured chains resolve independently with the correct native currencies
   assert.equal(chainConfig({},137).deployBlock,"94475428");
   const cronos=chainConfig({},25);
   assert.equal(cronos.chain.currency,"CRO");
-  assert.equal(cronos.address,"0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab");
-  assert.equal(cronos.deployBlock,"96267649");
+  assert.equal(cronos.address,"0x455DaD76334a67660D61bb319d8CfF1010e33049");
+  assert.equal(cronos.deployBlock,"96559481");
   assert.equal(chainConfig({},109).chain.currency,"BONE");assert.equal(chainConfig({},33139).chain.currency,"APE");
   assert.equal(chainConfig({},109).address,"0xfb985d4eDd4C1F909899389C217aEC9D6895B72d");
   assert.equal(chainConfig({},109).deployBlock,"19188433");
@@ -28,8 +28,8 @@ test("configured chains resolve independently with the correct native currencies
   const arc=chainConfig({},5042);
   assert.equal(arc.chain.currency,"USDC");
   assert.equal(arc.chain.marketplaceStatus,"live");
-  assert.equal(arc.address,"0xD9883fDdf57Ca58f775Bdab96C0e7c3F1c918af3");
-  assert.equal(arc.deployBlock,"22840359");
+  assert.equal(arc.address,"0x3C626ff68e9a69526117B22D288ab71bdA2B377a");
+  assert.equal(arc.deployBlock,"23087002");
   assert.equal(arc.rpcUrl,"https://rpc.mainnet.arc.io");
   const apechain=chainConfig({},33139);
   assert.equal(apechain.chain.marketplaceStatus,"live");
@@ -39,6 +39,13 @@ test("configured chains resolve independently with the correct native currencies
 test("V8 configuration retains the earlier marketplace address and block",async()=>{
   const {chainConfig,legacyChainConfig}=await loadModule("lib/server-marketplace-config.ts");
   const next="0x1111111111111111111111111111111111111111";
+  for(const [chainId,prefix,current,previous,currentBlock,previousBlock] of [[25,"CRONOS","0x455DaD76334a67660D61bb319d8CfF1010e33049","0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab","96559481","96267649"],[5042,"ARC","0x3C626ff68e9a69526117B22D288ab71bdA2B377a","0xD9883fDdf57Ca58f775Bdab96C0e7c3F1c918af3","23087002","22840359"]]){
+    const stale={[`${prefix}_MARKETPLACE_ADDRESS`]:previous,[`${prefix}_MARKETPLACE_DEPLOY_BLOCK`]:previousBlock};
+    assert.equal(chainConfig(stale,chainId).address,current);
+    assert.equal(chainConfig(stale,chainId).deployBlock,currentBlock);
+    assert.equal(legacyChainConfig(stale,chainId)?.address,previous);
+    assert.equal(legacyChainConfig(stale,chainId)?.deployBlock,previousBlock);
+  }
   assert.equal(legacyChainConfig({},8453)?.address,"0x50489Fdc2352917595359667b34b384b33184b91");
   assert.equal(legacyChainConfig({},8453)?.deployBlock,"51813478");
   const old=legacyChainConfig({BASE_MARKETPLACE_ADDRESS:next,BASE_MARKETPLACE_DEPLOY_BLOCK:"52000000"},8453);

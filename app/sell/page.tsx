@@ -1,3 +1,3 @@
 import { redirect } from "next/navigation";
 
-export default function SellPage(){redirect("/account#bulk-listing")}
+export default function SellPage(){redirect("/profile")}

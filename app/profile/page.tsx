@@ -10,6 +10,7 @@ import { formatEther } from "viem";
 import Link from "next/link";
 import { getMarketplaceChain, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
+import { ProfileListingFlow } from "../components/profile-listing-flow";
 
 type WalletNft = {
   contractAddress: string;
@@ -265,7 +266,6 @@ export default function ProfilePage() {
     ? listings 
     : listings.filter(l => l.chainId === activeListingChain);
   const selectedCount=bulkSelection?.tokenIds.length??0;
-  const bulkLink=bulkSelection?`/account?chainId=${bulkSelection.chainId}&collection=${encodeURIComponent(bulkSelection.collection)}&tokens=${encodeURIComponent(bulkSelection.tokenIds.join(","))}#bulk-listing`:"/account#bulk-listing";
   function toggleBulkNft(nft:WalletNft,chainId:MarketplaceChainId,checked:boolean){
     setBulkSelection(current=>{
       const sameCollection=current?.chainId===chainId&&current.collection.toLowerCase()===nft.contractAddress.toLowerCase();
@@ -315,7 +315,6 @@ export default function ProfilePage() {
             <span>{address.slice(0, 6)}…{address.slice(-4)}</span>
           </div>
           <Link href="/wallet" className="hoj-profile-withdraw-link">View withdrawable balance <ArrowUpRight size={15}/></Link>
-          <Link href={bulkLink} className="hoj-profile-withdraw-link">Bulk list your NFTs <ArrowUpRight size={15}/></Link>
           <div className="royal-portfolio-value">
             <span>Wallet status</span>
             <strong>Connected</strong>
@@ -431,7 +430,7 @@ export default function ProfilePage() {
         ) : (
           <>
             {activeTab === "portfolio" && (
-              <><div className="royal-profile-bulk-selection" role="status"><span>{selectedCount?`${selectedCount} selected from one collection`:"Select 2–20 Base or Shibarium ERC-721 NFTs to list together"}</span>{selectedCount>=2&&<Link href={bulkLink}>Set price for selected NFTs <ArrowUpRight size={14}/></Link>}</div><div className="royal-portfolio-grid">
+              <><div className="royal-portfolio-grid">
                 {filteredNfts.length > 0 ? (
                   filteredNfts.map((nft) => {
                     const nftChainId = nft.chainId || 109; // Default to Shibarium if not set
@@ -451,7 +450,7 @@ export default function ProfilePage() {
                             )}
                           </div>
                         </div>
-                      </Link>{(nftChainId===109||nftChainId===8453)&&nft.tokenType!=="ERC-1155"&&!activeListing&&<label className="royal-profile-select" title="Select for bulk listing"><input type="checkbox" aria-label={`Select ${nft.name||`token #${nft.tokenId}`} for bulk listing`} checked={bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&bulkSelection.tokenIds.includes(nft.tokenId)} disabled={selectedCount>=20&&bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&!bulkSelection.tokenIds.includes(nft.tokenId)} onChange={event=>toggleBulkNft(nft,nftChainId,event.target.checked)}/></label>}</div>
+                      </Link>{(nftChainId===25||nftChainId===109||nftChainId===5042||nftChainId===8453)&&nft.tokenType!=="ERC-1155"&&!activeListing&&<label className="royal-profile-select" title="Select for listing"><input type="checkbox" aria-label={`Select ${nft.name||`token #${nft.tokenId}`} for listing`} checked={bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&bulkSelection.tokenIds.includes(nft.tokenId)} disabled={selectedCount>=20&&bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&!bulkSelection.tokenIds.includes(nft.tokenId)} onChange={event=>toggleBulkNft(nft,nftChainId,event.target.checked)}/></label>}</div>
                     );
                   })
                 ) : (
@@ -632,6 +631,7 @@ export default function ProfilePage() {
           </>
         )}
       </section>
+      {bulkSelection&&<ProfileListingFlow chainId={bulkSelection.chainId} collection={bulkSelection.collection} items={bulkSelection.tokenIds.map(tokenId=>walletNfts.find(nft=>nft.chainId===bulkSelection.chainId&&nft.contractAddress.toLowerCase()===bulkSelection.collection.toLowerCase()&&nft.tokenId===tokenId)).filter((nft):nft is WalletNft=>!!nft)} onRemove={tokenId=>setBulkSelection(current=>{const remaining=current?.tokenIds.filter(id=>id!==tokenId)??[];return current&&remaining.length?{...current,tokenIds:remaining}:null;})} onClear={()=>setBulkSelection(null)}/>}
     </main>
   );
 }
