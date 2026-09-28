@@ -40,7 +40,9 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
   const marketplaceLive=chain.marketplaceStatus==="live";
   const[nft,setNft]=useState<Nft|null>(null);
   const[indexer,setIndexer]=useState<Indexer|null>(null);
-  const[collectionTokens,setCollectionTokens]=useState<Array<{tokenId:string;name:string;imageUrl:string}>>([]);
+  const[walletCollectionItems,setWalletCollectionItems]=useState<Array<{tokenId:string;name:string;imageUrl:string}>>([]);
+  const[walletCollectionLoading,setWalletCollectionLoading]=useState(false);
+  const[walletCollectionMessage,setWalletCollectionMessage]=useState("");
   const marketplaceAddress=(indexer?.marketplaceAddress??(legacy?zeroAddress:chain.marketplaceAddress)) as Address;
   const[error,setError]=useState("");
   const[status,setStatus]=useState("");
@@ -129,14 +131,28 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
   },[chainId,valid,legacy]);
 
   useEffect(()=>{
-    if(!valid)return;
+    if(!valid||!address){queueMicrotask(()=>{setWalletCollectionItems([]);setWalletCollectionLoading(false);setWalletCollectionMessage("");});return;}
     let active=true;
-    void fetch(`/api/collection-nfts?${new URLSearchParams({chainId:String(chainId),contract})}`)
-      .then(response=>response.ok?response.json() as Promise<{items:Array<{tokenId:string;name:string;imageUrl:string}>}>:{items:[]})
-      .then(body=>{if(active)setCollectionTokens(body.items);})
-      .catch(()=>{});
-    return()=>{active=false;};
-  },[chainId,contract,valid]);
+    const controller=new AbortController();
+    queueMicrotask(()=>{if(active){setWalletCollectionItems([]);setWalletCollectionMessage("");}});
+    async function loadWalletCollection(){
+      setWalletCollectionLoading(true);
+      try{
+        const query=new URLSearchParams({owner:address!,chainId:String(chainId)});
+        const response=await fetch(`/api/wallet-nfts?${query}`,{cache:"no-store",signal:controller.signal});
+        if(!response.ok)throw new Error("Wallet NFTs are unavailable.");
+        const body=await response.json() as {complete?:boolean;nfts?:Array<{contractAddress:string;tokenId:string;quantity:string;name:string|null;imageUrl:string|null}>};
+        if(active){setWalletCollectionMessage(body.complete===false?"Some wallet NFTs could not be checked yet. Refresh to try again.":"");setWalletCollectionItems((body.nfts??[])
+          .filter(item=>item.contractAddress.toLowerCase()===contract.toLowerCase()&&item.tokenId!==tokenId&&BigInt(item.quantity)>0n)
+          .map(item=>({tokenId:item.tokenId,name:item.name??`Token #${item.tokenId}`,imageUrl:item.imageUrl??`/api/nft-image?${new URLSearchParams({chainId:String(chainId),contract,tokenId:item.tokenId})}`})));}
+      }catch{if(active){setWalletCollectionItems([]);setWalletCollectionMessage("Wallet NFTs could not be loaded. Refresh to try again.");}}
+      finally{if(active)setWalletCollectionLoading(false);}
+    }
+    void loadWalletCollection();
+    const onFocus=()=>{if(!document.hidden)void loadWalletCollection();};
+    window.addEventListener("focus",onFocus);
+    return()=>{active=false;controller.abort();window.removeEventListener("focus",onFocus);};
+  },[address,chainId,contract,tokenId,valid]);
 
   async function refreshMetadata(){
     if(refreshing||!valid)return;
@@ -160,13 +176,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
     return indexed??null;
   },[indexer,contract,tokenId,directListing,isEdition,marketChainId]);
   const activity=useMemo(()=>indexer?.activity.filter(item=>item.nftAddress?.toLowerCase()===contract.toLowerCase()&&item.tokenId===tokenId)??[],[indexer,contract,tokenId]);
-  const collectionListings=useMemo(()=>indexer?.listings.filter(item=>item.nftAddress.toLowerCase()===contract.toLowerCase()&&item.tokenId!==tokenId)??[],[indexer,contract,tokenId]);
-  const relatedItems=useMemo(()=>{
-    const byId=new Map<string,{tokenId:string;name:string;imageUrl:string;listing:Listing|null}>();
-    for(const item of collectionTokens){if(item.tokenId!==tokenId)byId.set(item.tokenId,{...item,listing:null});}
-    for(const listing of collectionListings){const existing=byId.get(listing.tokenId);byId.set(listing.tokenId,{tokenId:listing.tokenId,name:existing?.name??`Token #${listing.tokenId}`,imageUrl:existing?.imageUrl??`/api/nft-image?${new URLSearchParams({chainId:String(chainId),contract,tokenId:listing.tokenId})}`,listing});}
-    return [...byId.values()].slice(0,24);
-  },[chainId,collectionListings,collectionTokens,contract,tokenId]);
+  const relatedItems=walletCollectionItems;
   const galleryItems=relatedItems.slice(0,6);
   const lastSale=activity.find(item=>(["sold","offer_accepted"].includes(item.eventType))&&item.price);
   const isSeller=!!address&&!!listing&&address.toLowerCase()===listing.seller.toLowerCase();
@@ -302,10 +312,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
       <div className="royal-nft-details">
         <div className="royal-nft-header">
           <h1>{nft?.name??`Token ${displayTokenId}`}</h1>
-          <Link href={`/collection/${chainId}/${contract}`} className="royal-collection-link">
-            {nft?.collection??short(contract)}
-            <ArrowUpRight size={14}/>
-          </Link>
+          <span className="royal-collection-link">{nft?.collection??short(contract)}</span>
         </div>
 
         <div className="royal-nft-badges">
@@ -449,8 +456,8 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
 
     </section>
 
-    {activeTab==="details"&&<details className="royal-nft-more-from-collection royal-nft-accordion">
-      <summary><ImageIcon size={17}/><span>More from this collection</span><small>{Math.min(relatedItems.length,6)}</small><ChevronDown size={17}/></summary>
+    {activeTab==="details"&&address&&<details className="royal-nft-more-from-collection royal-nft-accordion">
+      <summary><ImageIcon size={17}/><span>More from this collection in your wallet</span><small>{Math.min(relatedItems.length,6)}</small><ChevronDown size={17}/></summary>
       <div className="royal-collection-grid">
         {relatedItems.slice(0,6).map(item=>(
           <Link key={item.tokenId} href={`/nft/${chainId}/${contract}/${item.tokenId}${legacy?"?legacy=1":returnTo==="/profile"?"?from=profile":""}`} className="royal-collection-item">
@@ -459,11 +466,12 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
             </div>
             <div className="royal-collection-item-info">
               <small>{item.name}</small>
-              <strong>{item.listing?`${formatEther(BigInt(item.listing.price))} ${chain.currency}`:"Not listed"}</strong>
+              <strong>In your wallet</strong>
             </div>
           </Link>
         ))}
-        {relatedItems.length===0&&<p>No other NFTs from this collection could be loaded right now.</p>}
+        {relatedItems.length===0&&!walletCollectionMessage&&<p>{walletCollectionLoading?"Loading your wallet NFTs…":"No other NFTs from this collection are in your wallet."}</p>}
+        {walletCollectionMessage&&<p>{walletCollectionMessage}</p>}
       </div>
     </details>}
     </div>
