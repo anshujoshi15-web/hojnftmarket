@@ -209,20 +209,21 @@ function MarketView({data,loading,account,advancedMarketplace,legacy,onBuy,onBat
         <div className="price-filter-note">Prices shown in {data.currency}</div>
       </aside>}
       <section className="market-results">
-        {shown.length?<div className="market-listings-grid">{shown.map(item=><MarketListingCard key={item.id} item={item} currency={data.currency} chain={data.chain} legacy={legacy} inCart={cartIds.includes(item.id)} onToggleCart={()=>toggleCart(item)}/>)}</div>:<div className="market-no-results"><Search size={24}/><h2>{loading?"Loading listings…":data.configured?data.listings.length?"No matching NFTs":"No active listings on this network":`${data.chain} marketplace coming soon`}</h2><p>{loading?"Reading the latest marketplace listings.":data.syncError??(data.listings.length?"Try a different search or collection filter.":data.configured?"Choose another network or check back when an owner lists an NFT.":"Trading will open after the marketplace contract is deployed.")}</p>{data.listings.length>0&&<button onClick={()=>{setSearch("");setCollection("all")}}>Clear filters</button>}</div>}
+        {shown.length?<div className="market-listings-grid">{shown.map(item=><MarketListingCard key={item.id} item={item} currency={data.currency} chain={data.chain} legacy={legacy} account={account} onBuy={()=>onBuy(item)} inCart={cartIds.includes(item.id)} onToggleCart={()=>toggleCart(item)}/>)}</div>:<div className="market-no-results"><Search size={24}/><h2>{loading?"Loading listings…":data.configured?data.listings.length?"No matching NFTs":"No active listings on this network":`${data.chain} marketplace coming soon`}</h2><p>{loading?"Reading the latest marketplace listings.":data.syncError??(data.listings.length?"Try a different search or collection filter.":data.configured?"Choose another network or check back when an owner lists an NFT.":"Trading will open after the marketplace contract is deployed.")}</p>{data.listings.length>0&&<button onClick={()=>{setSearch("");setCollection("all")}}>Clear filters</button>}</div>}
       </section>
     </div>
     {cartOpen&&<CartDrawer items={cart} currency={data.currency} account={account} total={cartTotal} batchSupported={advancedMarketplace} onClose={()=>setCartOpen(false)} onRemove={item=>toggleCart(item)} onBuy={onBuy} onBatchBuy={()=>onBatchBuy(cart)}/>}
   </>
 }
 
-function MarketListingCard({item,currency,chain,legacy,inCart,onToggleCart}:{item:Listing;currency:string;chain:string;legacy:boolean;inCart:boolean;onToggleCart:()=>void}){
+function MarketListingCard({item,currency,chain,legacy,account,onBuy,inCart,onToggleCart}:{item:Listing;currency:string;chain:string;legacy:boolean;account?:`0x${string}`;onBuy:()=>void;inCart:boolean;onToggleCart:()=>void}){
   const details=useNftMetadata(item);
   const nft=details.nft;
   const [artFailed,setArtFailed]=useState(false);
   const showArt=!!nft?.imageUrl&&!artFailed;
   const saved=useFavorite(favoriteId(item.chainId,item.nftAddress,item.tokenId));
   const href=`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}${legacy?"?legacy=1":""}`;
+  const isSeller=account?.toLowerCase()===item.seller.toLowerCase();
   return <article className="market-listing">
     <Link href={href} className={`market-listing-art ${showArt?"has-image":""}`}>
       {showArt?<Image src={nft.imageUrl!} alt={nft.name??`NFT #${item.tokenId}`} fill unoptimized sizes="(max-width: 700px) 50vw, 220px" style={{objectFit:"cover"}} onError={()=>setArtFailed(true)}/>:<><span>{chain} · {item.tokenType??"ERC-721"}</span><strong>#{item.tokenId}</strong><i>Artwork unavailable</i></>}
@@ -233,6 +234,7 @@ function MarketListingCard({item,currency,chain,legacy,inCart,onToggleCart}:{ite
       <h2><Link href={href}>{nft?.name??`Token #${item.tokenId}`}</Link></h2>
       <div className="market-card-price"><span>{item.tokenType==="ERC-1155"?"PER EDITION":"PRICE"}</span><strong>{formatEther(BigInt(item.price))} {currency}</strong></div>
       <div className="market-card-actions"><Link href={href}>View NFT <ArrowUpRight size={13}/></Link>{item.tokenType!=="ERC-1155"&&<button className={inCart?"active":""} onClick={onToggleCart} aria-label={inCart?"Remove from cart":"Add to cart"}><ShoppingCart size={14}/>{inCart?"Added":"Add"}</button>}</div>
+      {BigInt(item.price)>0n&&!isSeller&&(item.tokenType==="ERC-1155"?<Link className="nft-card-buy-now" href={href}>Buy now <ArrowUpRight size={15}/></Link>:account?<button className="nft-card-buy-now" onClick={onBuy}>Buy now <ArrowUpRight size={15}/></button>:<ConnectButton.Custom>{({openConnectModal})=><button className="nft-card-buy-now" onClick={openConnectModal}>Buy now <ArrowUpRight size={15}/></button>}</ConnectButton.Custom>)}
     </div>
   </article>
 }

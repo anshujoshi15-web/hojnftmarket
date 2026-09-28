@@ -608,8 +608,8 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
                         const chain = getMarketplaceChain(listing.chainId);
                         const lastSale = activity.find(a => a.tokenId === listing.tokenId && ["sold", "offer_accepted"].includes(a.eventType));
                         return (
+                          <div className="nft-card-with-action" key={listing.id}>
                           <Link
-                            key={listing.id}
                             href={`/nft/${listing.chainId}/${listing.nftAddress}/${listing.tokenId}`}
                             className="royal-nft-card opensea-style"
                           >
@@ -655,6 +655,8 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
                               )}
                             </div>
                           </Link>
+                          {BigInt(listing.price)>0n&&<Link className="nft-card-buy-now" href={`/nft/${listing.chainId}/${listing.nftAddress}/${listing.tokenId}`}>Buy now <ShoppingCart size={15}/></Link>}
+                          </div>
                         );
                       })
                     ) : (

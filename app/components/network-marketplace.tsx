@@ -218,6 +218,7 @@ function ListedNft({ item, chain }: { item: Listing; chain: ReturnType<typeof ge
   }, [item]);
 
   return (
+    <div className="nft-card-with-action">
     <Link href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}`} className="network-listing">
       <div className="network-listing-art">
         {nft?.imageUrl && !artFailed ? (
@@ -250,6 +251,8 @@ function ListedNft({ item, chain }: { item: Listing; chain: ReturnType<typeof ge
         </span>
       </div>
     </Link>
+    {BigInt(item.price)>0n&&<Link className="nft-card-buy-now" href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}`}>Buy now <ArrowUpRight size={15}/></Link>}
+    </div>
   );
 }
 

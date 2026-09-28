@@ -374,8 +374,8 @@ export default function Home() {
             {featuredNFTs.map((nft) => {
               const chain = getMarketplaceChain(nft.chainId);
               return (
+                <div className="nft-card-with-action" key={`${nft.id}:${nft.legacy?"legacy":"current"}`}>
                 <Link 
-                  key={`${nft.id}:${nft.legacy?"legacy":"current"}`}
                   href={`/nft/${nft.chainId}/${nft.nftAddress}/${nft.tokenId}${nft.legacy?"?legacy=1":""}`}
                   className="royal-nft-card"
                 >
@@ -399,6 +399,8 @@ export default function Home() {
                     </div>
                   </div>
                 </Link>
+                {BigInt(nft.price)>0n&&<Link className="nft-card-buy-now" href={`/nft/${nft.chainId}/${nft.nftAddress}/${nft.tokenId}${nft.legacy?"?legacy=1":""}`}>Buy now <ArrowUpRight size={15}/></Link>}
+                </div>
               );
             })}
           </div>
