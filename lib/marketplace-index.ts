@@ -147,6 +147,10 @@ export function indexClient(config:Config){
   const transports=[primary];
   if(config.chain.id===8453)
     transports.push(http(config.rpcUrl==="https://base-rpc.publicnode.com"?"https://mainnet.base.org":"https://base-rpc.publicnode.com",{timeout:12_000,retryCount:1}));
+  // Arc's primary public endpoint can throttle log scans even at modest volume.
+  // Arcscan's independent public gateway serves the same mainnet and log history.
+  if(config.chain.id===5042&&config.rpcUrl!=="https://rpc.arc-scan.org")
+    transports.push(http("https://rpc.arc-scan.org",{timeout:12_000,retryCount:1}));
   if(config.fallbackRpcUrl)transports.push(http(config.fallbackRpcUrl,{timeout:12_000,retryCount:1}));
   const transport=transports.length>1?fallback(transports,{shouldThrow:()=>false}):primary;
   return createPublicClient({transport});
