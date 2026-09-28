@@ -147,7 +147,10 @@ export function indexClient(config:Config){
   const primary=http(rpcUrl,{timeout:12_000,retryCount:1});
   // Base's public RPC can reject historical log ranges or throttle bursts.
   // Keep an independent public provider available even when no API key is set.
-  const transports=[primary];
+  // Historical scans are too expensive for shared public RPCs on these chains.
+  // Prefer the configured dedicated endpoint, while retaining public fallbacks.
+  const dedicatedFirst=(config.chain.id===137||config.chain.id===8453)&&!!config.fallbackRpcUrl;
+  const transports=dedicatedFirst?[http(config.fallbackRpcUrl!,{timeout:12_000,retryCount:1}),primary]:[primary];
   if(rpcUrl!==config.rpcUrl)transports.push(http(config.rpcUrl,{timeout:12_000,retryCount:1}));
   if(config.chain.id===8453)
     transports.push(http(config.rpcUrl==="https://base-rpc.publicnode.com"?"https://mainnet.base.org":"https://base-rpc.publicnode.com",{timeout:12_000,retryCount:1}));
@@ -155,7 +158,7 @@ export function indexClient(config:Config){
   // Arcscan's independent public gateway serves the same mainnet and log history.
   if(config.chain.id===5042&&config.rpcUrl!=="https://rpc.arc-scan.org")
     transports.push(http("https://rpc.arc-scan.org",{timeout:12_000,retryCount:1}));
-  if(config.fallbackRpcUrl)transports.push(http(config.fallbackRpcUrl,{timeout:12_000,retryCount:1}));
+  if(config.fallbackRpcUrl&&!dedicatedFirst)transports.push(http(config.fallbackRpcUrl,{timeout:12_000,retryCount:1}));
   const transport=transports.length>1?fallback(transports,{shouldThrow:()=>false}):primary;
   return createPublicClient({transport});
 }
@@ -208,14 +211,25 @@ export function eventStatements(db:D1Database,scope:string,events:Activity[]){
 }
 
 const CHUNK_SIZE=8_000, MAX_CHUNKS=8, MAX_STATELESS_CHUNKS=256;
+const isRateLimited=(error:unknown)=>/429|rate limit|too many requests|compute units/i.test(String(error));
+const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
+async function withRateLimitRetry<T>(read:()=>Promise<T>):Promise<T>{
+  for(let attempt=0;;attempt++){
+    try{return await read();}
+    catch(error){
+      if(!isRateLimited(error)||attempt===2)throw error;
+      await wait(600*2**attempt);
+    }
+  }
+}
 export async function rangeLogs(client:ReturnType<typeof indexClient>,address:Address,start:number,end:number):Promise<{logs:RpcLog[];through:number}> {
   try {
-    const logs=await client.request({method:"eth_getLogs",params:[{address,fromBlock:`0x${start.toString(16)}`,toBlock:`0x${end.toString(16)}`}]}) as RpcLog[];
+    const logs=await withRateLimitRetry(()=>client.request({method:"eth_getLogs",params:[{address,fromBlock:`0x${start.toString(16)}`,toBlock:`0x${end.toString(16)}`}]}) as Promise<RpcLog[]>);
     return {logs,through:end};
   } catch(error) {
     // Retry only range/result-size errors, never turn authentication or throttling
     // failures into hundreds of additional requests. No cursor advances on error.
-    if(end===start||!/range|too many|response size|limit.*block|maximum.*block|query.*exceed/i.test(String(error)))throw error;
+    if(end===start||isRateLimited(error)||!/range|too many|response size|limit.*block|maximum.*block|query.*exceed/i.test(String(error)))throw error;
     const middle=Math.floor((start+end)/2);
     // Some RPCs cap eth_getLogs to fewer blocks than CHUNK_SIZE. Read both
     // halves so a stateless request does not repeatedly stop at the first cap.
@@ -237,10 +251,11 @@ export async function loadMarketplaceIndex(config:Config,db?:D1Database){
 
 async function buildIndex(config:Config,scope:string,db?:D1Database){
   const client=indexClient(config), address=config.address as Address, chainId=config.chain.id as MarketplaceChainId;
+  const rpcConcurrency=chainId===137||chainId===8453?2:6;
   // A durable index keeps a confirmation buffer before committing events. The
   // stateless path replays its window on every read, so it can show mined
   // listings and sales immediately and self-correct after a reorg.
-  const safeLatest=Math.max(0,Number(await client.getBlockNumber())-(db?config.chain.confirmations:0));
+  const safeLatest=Math.max(0,Number(await withRateLimitRetry(()=>client.getBlockNumber()))-(db?config.chain.confirmations:0));
   const deployBlock=Number(config.deployBlock);
   let start=Math.max(deployBlock,safeLatest-CHUNK_SIZE*MAX_STATELESS_CHUNKS+1);
   if(db){await schema(db);const state=await db.prepare("SELECT last_block AS lastBlock FROM indexer_state WHERE id=?").bind(scope).first<{lastBlock:number}>();start=Math.max(deployBlock,(state?.lastBlock??deployBlock-1)+1);}
@@ -259,10 +274,10 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
     const ranges:Array<[number,number]>=[];
     for(let from=start;from<=safeLatest&&ranges.length<MAX_STATELESS_CHUNKS;from+=CHUNK_SIZE)
       ranges.push([from,Math.min(from+CHUNK_SIZE-1,safeLatest)]);
-    const results=await mapLimit(ranges,6,async([from,to])=>rangeLogs(client,address,from,to));
+    const results=await mapLimit(ranges,rpcConcurrency,async([from,to])=>rangeLogs(client,address,from,to));
     const decoded=results.flatMap(result=>decodeMarketplaceLogs(chainId,result.logs));
     const times=new Map<number,number>();
-    await mapLimit([...new Set(decoded.map(e=>e.blockNumber))],6,async block=>{times.set(block,Number((await client.getBlock({blockNumber:BigInt(block)})).timestamp));});
+    await mapLimit([...new Set(decoded.map(e=>e.blockNumber))],rpcConcurrency,async block=>{times.set(block,Number((await withRateLimitRetry(()=>client.getBlock({blockNumber:BigInt(block)}))).timestamp));});
     decoded.forEach(e=>{e.timestamp=times.get(e.blockNumber)!;});
     events.push(...decoded);
     logsProcessed=results.reduce((sum,result)=>sum+result.logs.length,0);
@@ -271,7 +286,7 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
     const {logs,through:end}=await rangeLogs(client,address,start,Math.min(start+CHUNK_SIZE-1,safeLatest));
     const decoded=decodeMarketplaceLogs(chainId,logs as RpcLog[]);
     const times=new Map<number,number>();
-    await mapLimit([...new Set(decoded.map(e=>e.blockNumber))],6,async block=>{times.set(block,Number((await client.getBlock({blockNumber:BigInt(block)})).timestamp));});
+    await mapLimit([...new Set(decoded.map(e=>e.blockNumber))],rpcConcurrency,async block=>{times.set(block,Number((await withRateLimitRetry(()=>client.getBlock({blockNumber:BigInt(block)}))).timestamp));});
     decoded.forEach(e=>{e.timestamp=times.get(e.blockNumber)!;});
     const statements=eventStatements(db,scope,decoded);statements.push(db.prepare("INSERT INTO indexer_state VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET last_block=MAX(last_block,excluded.last_block),updated_at=excluded.updated_at").bind(scope,end,Date.now()));await db.batch(statements);
     logsProcessed+=logs.length;start=end+1;
@@ -291,24 +306,24 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
     listings=[...result[0].results,...editions[0].results] as Listing[];offers=[...result[1].results,...editions[1].results] as IndexedOffer[];activity=result[2].results as Activity[];
   }
   let verificationFailed=false;
-  const verified=await mapLimit(listings,6,async item=>{
+  const verified=await mapLimit(listings,rpcConcurrency,async item=>{
     try{
       const args=[item.nftAddress,BigInt(item.tokenId)] as const;
       if(item.tokenType==="ERC-1155"){
-        const [current,balance,approved]=await Promise.all([
+        const [current,balance,approved]=await withRateLimitRetry(()=>Promise.all([
           client.readContract({address,abi:marketplaceAbi,functionName:"getEditionListing",args:[...args,item.seller]}),
           client.readContract({address:item.nftAddress,abi:erc1155Abi,functionName:"balanceOf",args:[item.seller,args[1]]}),
           client.readContract({address:item.nftAddress,abi:erc1155Abi,functionName:"isApprovedForAll",args:[item.seller,address]}),
-        ]);
+        ]));
         const quantity=current.quantity<balance?current.quantity:balance;
         return quantity>0n&&current.unitPrice>0n&&approved?{...item,quantity:String(quantity),price:String(current.unitPrice)}:null;
       }
-      const [current,owner,approved,approvedForAll]=await Promise.all([
+      const [current,owner,approved,approvedForAll]=await withRateLimitRetry(()=>Promise.all([
         client.readContract({address,abi:marketplaceAbi,functionName:"getListing",args}),
         client.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"ownerOf",args:[args[1]]}),
         client.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"getApproved",args:[args[1]]}),
         client.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"isApprovedForAll",args:[item.seller,address]}),
-      ]);
+      ]));
       return current.price>0n&&current.price===BigInt(item.price)&&current.seller.toLowerCase()===item.seller.toLowerCase()&&owner.toLowerCase()===item.seller.toLowerCase()&&(approved.toLowerCase()===address.toLowerCase()||approvedForAll)?item:null;
     }catch{verificationFailed=true;return null;}
   });

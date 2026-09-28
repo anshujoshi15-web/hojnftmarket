@@ -247,8 +247,8 @@ export default function Home() {
               responses.set(`${chainId}:legacy`,{...old,legacy:true,listings:old.listings.map(item=>({...item,legacy:true}))});
               if(old.syncError||!old.sync?.caughtUp)setIndexWarnings(current=>({...current,[chainId]:`Earlier listings: ${old.syncError??"older events are still syncing."}`}));
             }
-            else setIndexWarnings(current=>({...current,[chainId]:`${getMarketplaceChain(chainId).name} earlier listings: ${old.syncError??"temporarily unavailable"}`}));
-          }catch{setIndexWarnings(current=>({...current,[chainId]:`${getMarketplaceChain(chainId).name} earlier listings are temporarily unavailable.`}));}
+            else setIndexWarnings(current=>({...current,[chainId]:`Earlier listings: ${old.syncError??"temporarily unavailable"}`}));
+          }catch{setIndexWarnings(current=>({...current,[chainId]:"Earlier listings are temporarily unavailable."}));}
         }else responses.delete(`${chainId}:legacy`);
         renderMarketplaceData();
         try { window.sessionStorage.setItem("hoj-discover-listings", JSON.stringify({at:Date.now(),data:[...responses.values()]})); }

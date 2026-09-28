@@ -31,6 +31,18 @@ test("range-limited RPC scans include logs from both halves",async()=>{
   assert.equal(result.through,8);
   assert.deepEqual(result.logs.map(item=>Number(BigInt(item.blockNumber))),[1,2,3,4,5,6,7,8]);
 });
+test("rate-limited log reads retry the same range without splitting it",async()=>{
+  let calls=0;
+  const client={request:async()=>{
+    calls++;
+    if(calls<3)throw new Error("429 rate limit exceeded");
+    return [];
+  }};
+  const result=await rangeLogs(client,seller,1,8000);
+  assert.equal(calls,3);
+  assert.equal(result.through,8000);
+  assert.deepEqual(result.logs,[]);
+});
 test("amounts retain exact native units and reject malformed, nonpositive or overprecise input",()=>{
   assert.equal(parseNativeAmount("0.1"),100000000000000000n);
   assert.equal(parseNativeAmount("1"),1000000000000000000n);
