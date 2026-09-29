@@ -12,25 +12,29 @@ export function shibMagazineEdition(chainId: number, contract: string, tokenId: 
 }
 
 export function parseShibMagazineCovers(html: string): Cover[] {
-  const cards = new Map<string, { imageUrl: string; articleUrl: string }>();
-  const pattern = /<div class="gcarousel_item"[\s\S]*?<div class="item_img"[\s\S]*?<a href="([^"]+)"[^>]*>\s*<img[^>]*\bsrc="([^"]+)"/g;
-  for (const match of html.matchAll(pattern)) {
+  const covers = new Map<number, Cover>();
+  for (const match of html.matchAll(/<img\b[^>]*>/gi)) {
+    const srcset = match[0].match(/\bsrcset=["']([^"']+)["']/i)?.[1] ?? "";
+    const original = srcset.split(",").map(entry => entry.trim().split(/\s+/)[0]).find(url => /\/(?:cover[-_]\d{1,3}(?:[-_]\d+)?|\d{1,3}[-_]cover\d*(?:[-_]\d+)?)\.[a-z]+$/i.test(url));
+    const source = original ?? match[0].match(/\bsrc=["']([^"']+)["']/i)?.[1];
+    if (!source) continue;
     try {
-      const article = new URL(match[1]);
-      const image = new URL(match[2]);
-      if (article.origin !== "https://magazine.shib.io" || image.origin !== article.origin || !image.pathname.startsWith("/wp-content/uploads/")) continue;
-      cards.set(article.href, { articleUrl: article.href, imageUrl: image.href });
+      const image = new URL(source, "https://magazine.shib.io");
+      if (image.origin !== "https://magazine.shib.io" || !image.pathname.startsWith("/wp-content/uploads/")) continue;
+      const filename = image.pathname.split("/").pop() ?? "";
+      const numbered = filename.match(/^(?:cover[-_](\d{1,3})(?:[-_.]|$)|(\d{1,3})[-_]cover\d*(?:[-_.]|$))/i);
+      const edition = Number(numbered?.[1] ?? numbered?.[2]);
+      if (!numbered || edition < 1 || edition > 1000 || covers.has(edition)) continue;
+      covers.set(edition, { edition, imageUrl: image.href, articleUrl: "https://magazine.shib.io/magazine-editions/" });
     } catch {
-      // Ignore malformed external links on the publisher page.
+      // Ignore malformed media links on the publisher page.
     }
   }
-  const ordered = [...cards.values()];
-  // Official edition carousel is newest first and includes the first edition.
-  return ordered.map((cover, index) => ({ ...cover, edition: ordered.length - index }));
+  return [...covers.values()];
 }
 
 export async function officialShibMagazineCover(edition: number, refresh = false) {
-  const response = await fetch("https://magazine.shib.io/nfts/", {
+  const response = await fetch("https://magazine.shib.io/magazine-editions/", {
     headers: { accept: "text/html" },
     signal: AbortSignal.timeout(12_000),
     ...(refresh ? { cache: "no-store" as const } : { next: { revalidate: 60 * 60 * 6 } }),
