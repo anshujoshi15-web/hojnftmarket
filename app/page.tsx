@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Sparkles, TrendingUp, Users, Clock, Search, ImageIcon, Maximize2, X } from "lucide-react";
+import { ArrowUpRight, Sparkles, TrendingUp, Clock, Search, ImageIcon, Maximize2, X, Share2, Download } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -92,6 +92,26 @@ function ListedCollectionCard({collection,rank}:{collection:ListedCollection;ran
   </Link>;
 }
 
+function DiscoverShowcaseCard({collection,rank}:{collection:ListedCollection;rank:number}) {
+  const [name,setName]=useState<string|null>(null);
+  const [failed,setFailed]=useState(false);
+  const chain=getMarketplaceChain(collection.chainId);
+  const artworkUrl=`/api/nft-image?chainId=${collection.chainId}&contract=${collection.address}&tokenId=${collection.sampleTokenId}`;
+  useEffect(()=>{
+    const controller=new AbortController();
+    void fetch(`/api/nft?chainId=${collection.chainId}&contract=${collection.address}&tokenId=${collection.sampleTokenId}`,{signal:controller.signal})
+      .then(response=>response.ok?response.json() as Promise<{collection?:string|null}>:null)
+      .then(data=>setName(data?.collection??null)).catch(()=>{});
+    return()=>controller.abort();
+  },[collection.chainId,collection.address,collection.sampleTokenId]);
+  return <Link className="discover-showcase-card" href={`/collection/${collection.chainId}/${collection.address}`}>
+    {!failed?<Image src={artworkUrl} alt={name??`${chain.name} collection artwork`} fill unoptimized sizes="(max-width: 700px) 85vw, 34vw" onError={()=>setFailed(true)}/>:<div className="discover-showcase-fallback"><ImageIcon size={42}/></div>}
+    <span className="discover-showcase-shade"/>
+    <div className="discover-showcase-top"><span>FEATURED #{rank}</span><span>{chain.name}</span></div>
+    <div className="discover-showcase-copy"><h2>{name??shortAddress(collection.address)}</h2><div><span><small>LISTED</small><strong>{collection.listingCount}</strong></span><span><small>FLOOR</small><strong>{formatEther(BigInt(collection.floorPrice))} {chain.currency}</strong></span><span><small>SALES</small><strong>{collection.salesCount}</strong></span></div></div>
+  </Link>;
+}
+
 function FeaturedArtwork({ listing, onExpand }: { listing: IndexedListing; onExpand: (url: string) => void }) {
   const [failed, setFailed] = useState(false);
   const imageUrl = `/api/nft-image?chainId=${listing.chainId}&contract=${listing.nftAddress}&tokenId=${listing.tokenId}`;
@@ -130,9 +150,19 @@ export default function Home() {
   const [featuredNFTs, setFeaturedNFTs] = useState<IndexedListing[]>([]);
   const [recentActivity, setRecentActivity] = useState<IndexedActivity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [listingCount, setListingCount] = useState(0);
-  const [saleCount, setSaleCount] = useState(0);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [activeChain,setActiveChain]=useState<MarketplaceChainId|"all">("all");
+  const [shareCopied,setShareCopied]=useState(false);
+  const visibleCollections=listedCollections.filter(collection=>activeChain==="all"||collection.chainId===activeChain);
+  const visibleNFTs=featuredNFTs.filter(item=>activeChain==="all"||item.chainId===activeChain).slice(0,12);
+
+  async function shareDiscover(){
+    const data={title:"House of Joshi · Discover NFTs",text:"Explore NFTs across House of Joshi marketplaces.",url:window.location.origin+"/"};
+    try{
+      if(navigator.share)await navigator.share(data);
+      else {await navigator.clipboard.writeText(data.url);setShareCopied(true);window.setTimeout(()=>setShareCopied(false),3000);}
+    }catch(error){if((error as Error).name!=="AbortError")console.error("Could not share Discover",error);}
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -197,11 +227,9 @@ export default function Home() {
           return bTime-aTime || (a.chainId===b.chainId ? b.updatedBlock-a.updatedBlock : 0);
         });
         
-        setFeaturedNFTs(sortedListings.slice(0, 12)); // Increased from 8 to 12 to show more NFTs
+        setFeaturedNFTs(sortedListings);
         const sales = allActivity.filter(a => (["sold","offer_accepted"].includes(a.eventType)));
         setRecentActivity(sales.slice(0, 6));
-        setSaleCount(sales.length);
-        setListingCount(allListings.length);
         
         // Sort collections by sales count (trending)
         setListedCollections(collections.sort((a, b) => Number(b.salesCount - a.salesCount) || Number(b.salesVolume - a.salesVolume)));
@@ -257,55 +285,21 @@ export default function Home() {
 
   return (
     <main className="royal-homepage">
-      {/* Hero Section */}
-      <section className="royal-hero">
-        <div className="royal-hero-content">
-          <div className="royal-badge">
-            <Sparkles size={16} />
-            <span>House of Joshi · NFT Marketplace</span>
-          </div>
-          <h1>Collect what moves you.</h1>
-          <p className="royal-subtitle">
-            Explore real listings across supported networks. Find a work you love, inspect its details, and trade from your wallet.
-          </p>
-          <div className="royal-hero-actions">
-            <Link href="/market" className="royal-primary-button">
-              Explore NFTs
-              <ArrowUpRight size={18} />
-            </Link>
-            <a href="https://www.nftlaunchpad.thehouseofjoshi.com/" target="_blank" rel="noopener noreferrer" className="royal-secondary-button">
-              Create NFT
-              <Sparkles size={18} />
-            </a>
+      <section className="discover-intro">
+        <div className="discover-intro-head">
+          <div><span className="royal-section-label">HOUSE OF JOSHI · NFT MARKETPLACE</span><h1>Discover</h1><p>Find work across live networks. Explore collections and listings, then trade from your wallet.</p></div>
+          <div className="discover-intro-actions">
+            <button type="button" onClick={()=>void shareDiscover()}><Share2 size={16}/>{shareCopied?"Link copied":"Share Discover"}</button>
+            <a href="/social-share-cover.png" download="house-of-joshi-marketplace.png"><Download size={16}/>Share image</a>
           </div>
         </div>
-        <div className="royal-hero-visual">
+        <div className="discover-chain-pills" aria-label="Filter by network">
+          <button type="button" aria-pressed={activeChain==="all"} onClick={()=>setActiveChain("all")}>All networks</button>
+          {(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live").map(id=><button key={id} type="button" aria-pressed={activeChain===id} onClick={()=>setActiveChain(id)}>{marketplaceChains[id].name}</button>)}
         </div>
       </section>
-
-      {/* Stats Bar */}
-      <section className="royal-stats-bar">
-        <div className="royal-stat">
-          <Users size={20} />
-          <div>
-            <strong>{Object.keys(marketplaceChains).length}</strong>
-            <span>Supported Networks</span>
-          </div>
-        </div>
-        <div className="royal-stat">
-          <TrendingUp size={20} />
-          <div>
-            <strong>{listingCount}</strong>
-            <span>Active Listings</span>
-          </div>
-        </div>
-        <div className="royal-stat">
-          <Clock size={20} />
-          <div>
-            <strong>{saleCount}</strong>
-            <span>Recent Sales</span>
-          </div>
-        </div>
+      <section className="discover-showcase" aria-label="Featured collections">
+        {loading?<div className="discover-showcase-loading">Loading collections…</div>:visibleCollections.length===0?<div className="discover-showcase-loading">No active collections on this network yet.</div>:visibleCollections.slice(0,3).map((collection,index)=><DiscoverShowcaseCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>)}
       </section>
 
       {/* Trending Collections based on sales */}
@@ -329,8 +323,8 @@ export default function Home() {
           </div>
         ) : (
           <div className="royal-collections-grid">
-            {listedCollections.length === 0 && <p className="royal-market-empty">No collections have active indexed listings yet. Check back after a seller lists an NFT.</p>}
-            {listedCollections.map((collection, index) => (
+            {visibleCollections.length === 0 && <p className="royal-market-empty">No collections have active indexed listings on this network yet.</p>}
+            {visibleCollections.map((collection, index) => (
               <ListedCollectionCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>
             ))}
           </div>
@@ -357,8 +351,8 @@ export default function Home() {
           </div>
         ) : (
           <div className="royal-nfts-grid">
-            {featuredNFTs.length === 0 && <p className="royal-market-empty">No active NFTs are available to browse right now. Explore the market or list a work from your wallet.</p>}
-            {featuredNFTs.map((nft) => {
+            {visibleNFTs.length === 0 && <p className="royal-market-empty">No active NFTs are available on this network right now.</p>}
+            {visibleNFTs.map((nft) => {
               const chain = getMarketplaceChain(nft.chainId);
               return (
                 <div className="nft-card-with-action" key={`${nft.id}:${nft.legacy?"legacy":"current"}`}>
