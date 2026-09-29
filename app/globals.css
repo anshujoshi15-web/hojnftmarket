@@ -12079,3 +12079,46 @@ article.royal-profile-nft > a {
 .opensea-listing-actions button:disabled { opacity:.5; cursor:wait; }
 .opensea-listing-actions a { background:#171614; color:#e8d9bc; }
 .royal-holdings-coverage-note { margin:0 0 16px; color:#a89e8d; font-size:13px; line-height:1.5; }
+
+/* Profile activity: compact event ledger with status filters. */
+.profile-activity-layout { display:grid; grid-template-columns:210px minmax(0,1fr); gap:24px; }
+.profile-activity-sidebar { padding:18px 16px; border:1px solid var(--royal-border); border-radius:10px; background:#111110; align-self:start; }
+.profile-activity-sidebar h2 { margin:0 0 16px; font-size:14px; font-weight:600; }
+.profile-activity-sidebar p { margin:18px 0 0; padding-top:16px; border-top:1px solid var(--royal-border); color:#8e8980; font-size:11px; line-height:1.5; }
+.profile-activity-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.profile-activity-chips button { min-height:34px; padding:6px 11px; border:1px solid #36342f; border-radius:18px; background:#171716; color:#aaa59d; font-size:12px; cursor:pointer; }
+.profile-activity-chips button.active,.profile-activity-chips button:hover { border-color:#b99a61; background:#292418; color:#f1e2c2; }
+.profile-activity-main { min-width:0; }
+.profile-activity-table { width:100%; }
+.profile-activity-table-head,.profile-activity-table-row { display:grid; grid-template-columns:110px minmax(180px,1.5fr) minmax(100px,.8fr) minmax(80px,.7fr) minmax(80px,.7fr) minmax(100px,.9fr); gap:12px; align-items:center; }
+.profile-activity-table-head { min-height:42px; border-bottom:1px solid #393630; color:#969189; font-size:10px; text-transform:uppercase; letter-spacing:.09em; }
+.profile-activity-table-row { min-height:76px; padding:11px 0; border-bottom:1px solid #2c2b29; color:#eee9df; font-size:12px; }
+.profile-activity-table-row:hover { background:rgba(212,175,55,.045); }
+.profile-activity-event,.profile-activity-item { display:flex; align-items:center; gap:10px; min-width:0; }
+.profile-activity-event strong,.profile-activity-item a { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.profile-activity-event-icon { flex:none; display:grid; place-items:center; width:30px; height:30px; border:1px solid #575044; border-radius:50%; color:#dec087; }
+.profile-activity-event-icon.sold { color:#9ed5ae; border-color:#3e7452; }
+.profile-activity-event-icon.canceled { color:#dba69d; border-color:#805049; }
+.profile-activity-item .royal-nft-image { flex:none; width:44px; height:44px; aspect-ratio:1; min-height:0; border-radius:6px; overflow:hidden; background:#211f1c; }
+.profile-activity-item .royal-nft-image img { width:100%; height:100%; object-fit:contain; }
+.profile-activity-item .royal-nft-artwork-fallback { padding:0; }
+.profile-activity-item .royal-nft-artwork-fallback span { display:none; }
+.profile-activity-item a { color:#f2eee6; font-weight:600; text-decoration:none; }
+.profile-activity-item a:hover,.profile-activity-block:hover { color:#e7c17c; }
+.profile-activity-item a small,.profile-activity-block small { display:block; margin-top:4px; color:#928c81; font-size:10px; font-weight:400; }
+.profile-activity-price { font-family:var(--font-mono); white-space:nowrap; }
+.profile-activity-address { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.profile-activity-block { color:#d9d0be; text-decoration:none; white-space:nowrap; }
+.profile-activity-more { display:block; min-height:42px; margin:18px auto 0; padding:8px 16px; border:1px solid #6b5a3c; border-radius:7px; background:#1b1915; color:#e7cf9d; cursor:pointer; }
+@media (max-width:1000px) { .profile-activity-layout { grid-template-columns:1fr; gap:12px; } .profile-activity-sidebar { padding:12px; } .profile-activity-sidebar h2 { margin-bottom:10px; } .profile-activity-sidebar p { display:none; } }
+@media (max-width:700px) {
+  .profile-activity-table-head { display:none; }
+  .profile-activity-table-row { grid-template-columns:minmax(0,1fr) auto; gap:8px 12px; padding:13px 0; }
+  .profile-activity-event { grid-column:1; }
+  .profile-activity-item { grid-column:1; grid-row:2; }
+  .profile-activity-price { grid-column:2; grid-row:2; text-align:right; }
+  .profile-activity-address { color:#a7a095; font-size:11px; }
+  .profile-activity-address:nth-child(4)::before { content:"From "; color:#777067; }
+  .profile-activity-address:nth-child(5)::before { content:"To "; color:#777067; }
+  .profile-activity-block { grid-column:2; grid-row:1; text-align:right; font-size:11px; }
+}

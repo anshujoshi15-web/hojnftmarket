@@ -8,7 +8,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useState, useEffect } from "react";
 import { formatEther } from "viem";
 import Link from "next/link";
-import { getMarketplaceChain, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
+import { getMarketplaceChain, marketplaceChains, transactionUrl, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 import { ProfileListingFlow } from "../components/profile-listing-flow";
 
@@ -103,6 +103,8 @@ export default function ProfilePage() {
   useEffect(()=>{queueMicrotask(()=>setBulkSelection(null));},[address]);
   const [listings, setListings] = useState<IndexedListing[]>([]);
   const [activity, setActivity] = useState<IndexedActivity[]>([]);
+  const [activityFilter, setActivityFilter] = useState<"all"|IndexedActivity["eventType"]>("all");
+  const [activityLimit, setActivityLimit] = useState(30);
   const [loading, setLoading] = useState(false);
   const [selectedChain, setSelectedChain] = useState<MarketplaceChainId | "all" | "wallet">("all");
   const [explorerFallbacks, setExplorerFallbacks] = useState<ExplorerFallback[]>([]);
@@ -243,7 +245,7 @@ export default function ProfilePage() {
           }
           const all=[...responses.values()];
           setListings(all.flatMap(data=>data.listings??[]).filter(item=>item.seller.toLowerCase()===wallet));
-          setActivity(all.flatMap(data=>data.activity??[]).filter(item=>item.seller?.toLowerCase()===wallet||item.buyer?.toLowerCase()===wallet));
+          setActivity(all.flatMap(data=>data.activity??[]).filter(item=>item.seller?.toLowerCase()===wallet||item.buyer?.toLowerCase()===wallet).sort((a,b)=>b.blockNumber-a.blockNumber||b.logIndex-a.logIndex));
         }));
       }finally{refreshing=false;}
     }
@@ -271,6 +273,8 @@ export default function ProfilePage() {
   const filteredListings = activeListingChain === "all" 
     ? listings 
     : listings.filter(l => l.chainId === activeListingChain);
+  const filteredActivity=activity.filter(item=>activityFilter==="all"||item.eventType===activityFilter);
+  const visibleActivity=filteredActivity.slice(0,activityLimit);
   const selectedCount=bulkSelection?.tokenIds.length??0;
   function toggleBulkNft(nft:WalletNft,chainId:MarketplaceChainId,checked:boolean){
     setBulkSelection(current=>{
@@ -377,7 +381,7 @@ export default function ProfilePage() {
           className={activeTab === "notifications" ? "active" : ""} 
           onClick={() => setActiveTab("notifications")}
         >
-          <Bell size={16} /> Notifications
+          Notifications
         </button>
       </section>
 
@@ -395,7 +399,7 @@ export default function ProfilePage() {
             ))}
           </select>
         </div>
-        <div className="royal-filter-group">
+        {activeTab==="portfolio"&&<div className="royal-filter-group">
           <span>Status</span>
           <select 
             value={statusFilter} 
@@ -405,12 +409,12 @@ export default function ProfilePage() {
             <option value="listed">Listed</option>
             <option value="not-listed">Not Listed</option>
           </select>
-        </div>
+        </div>}
       </section>
 
       <section className="royal-profile-content">
-        {indexedCoverage.length>0&&<p className="royal-holdings-coverage-note">{indexedCoverage.join(", ")} NFTs are shown from indexed collections. Some collections may not appear without a dedicated wallet indexer.</p>}
-        {explorerFallbacks.length > 0 && (
+        {activeTab==="portfolio"&&indexedCoverage.length>0&&<p className="royal-holdings-coverage-note">{indexedCoverage.join(", ")} NFTs are shown from indexed collections. Some collections may not appear without a dedicated wallet indexer.</p>}
+        {activeTab==="portfolio"&&explorerFallbacks.length > 0 && (
           <div className="royal-explorer-fallbacks" role="status">
             <div>
               <strong>Holdings could not be fully verified on {explorerFallbacks.map(item=>item.chainName).join(", ")}</strong>
@@ -500,35 +504,29 @@ export default function ProfilePage() {
             )}
 
             {activeTab === "activity" && (
-              <div className="royal-activity-timeline">
-                {activity.length > 0 ? (
-                  activity.map((item) => {
-                    const chain = getMarketplaceChain(item.chainId);
-                    return (
-                      <div key={item.id} className="royal-activity-item">
-                        <div className="royal-activity-icon">
-                          {item.eventType === "sold" && <TrendingUp size={16} />}
-                          {item.eventType === "listed" && <Gift size={16} />}
-                          {item.eventType === "canceled" && <Activity size={16} />}
-                        </div>
-                        <div className="royal-activity-content">
-                          <span className="royal-activity-type">{item.eventType.toUpperCase()}</span>
-                          <h3>{item.nftAddress ? `Token #${item.tokenId}` : "Marketplace"}</h3>
-                          <p>{item.price ? `${formatEther(BigInt(item.price))} ${chain.currency}` : "—"}</p>
-                        </div>
-                        <div className="royal-activity-time">
-                          <small>Block {item.blockNumber}</small>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="royal-empty-state">
-                    <Activity size={64} />
-                    <h2>No Activity Yet</h2>
-                    <p>Your marketplace activity will appear here.</p>
+              <div className="profile-activity-layout">
+                <aside className="profile-activity-sidebar"><h2>Status</h2><div className="profile-activity-chips">{([ ["all","All"],["sold","Sale"],["listed","Listing"],["canceled","Cancellation"],["withdrawn","Withdrawal"] ] as const).map(([value,label])=><button key={value} type="button" className={activityFilter===value?"active":""} aria-pressed={activityFilter===value} onClick={()=>{setActivityFilter(value);setActivityLimit(30);}}>{label}</button>)}</div><p>Confirmed activity on House of Joshi marketplace contracts.</p></aside>
+                <div className="profile-activity-main">
+                  <div className="profile-activity-table" role="table" aria-label="Marketplace activity">
+                    <div className="profile-activity-table-head" role="row"><span>Event</span><span>Item</span><span>Price</span><span>From</span><span>To</span><span>Network / Block</span></div>
+                    {visibleActivity.map(item=>{
+                      const chain=getMarketplaceChain(item.chainId);
+                      const nft=item.nftAddress&&item.tokenId?walletNfts.find(held=>held.chainId===item.chainId&&held.contractAddress.toLowerCase()===item.nftAddress?.toLowerCase()&&held.tokenId===item.tokenId):null;
+                      const imageUrl=item.nftAddress&&item.tokenId?nft?.imageUrl??`/api/nft-image?${new URLSearchParams({chainId:String(item.chainId),contract:item.nftAddress,tokenId:item.tokenId})}`:null;
+                      const label={listed:"Listing",sold:"Sale",canceled:"Cancellation",withdrawn:"Withdrawal"}[item.eventType];
+                      return <div key={item.id} className="profile-activity-table-row" role="row">
+                        <div className="profile-activity-event"><span className={`profile-activity-event-icon ${item.eventType}`}>{item.eventType==="sold"?<TrendingUp size={17}/>:item.eventType==="listed"?<Gift size={17}/>:<Activity size={17}/>}</span><strong>{label}</strong></div>
+                        <div className="profile-activity-item">{item.nftAddress&&item.tokenId?<><NftArtwork imageUrl={imageUrl} name={nft?.name??`Token #${item.tokenId}`}/><Link href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}?from=profile`}>{nft?.name??`Token #${item.tokenId}`}<small>{nft?.collection??`${item.nftAddress.slice(0,6)}…${item.nftAddress.slice(-4)}`}</small></Link></>:<span>Marketplace proceeds</span>}</div>
+                        <span className="profile-activity-price">{item.price?`${formatEther(BigInt(item.price))} ${chain.currency}`:"—"}</span>
+                        <span className="profile-activity-address">{item.seller?item.seller.toLowerCase()===address.toLowerCase()?"You":`${item.seller.slice(0,6)}…${item.seller.slice(-4)}`:"—"}</span>
+                        <span className="profile-activity-address">{item.buyer?item.buyer.toLowerCase()===address.toLowerCase()?"You":`${item.buyer.slice(0,6)}…${item.buyer.slice(-4)}`:"—"}</span>
+                        <a className="profile-activity-block" href={transactionUrl(item.chainId,item.transactionHash)} target="_blank" rel="noreferrer" aria-label={`View ${label.toLowerCase()} transaction on ${chain.name} explorer`}>{chain.name}<small>Block {item.blockNumber} ↗</small></a>
+                      </div>;
+                    })}
                   </div>
-                )}
+                  {filteredActivity.length===0&&<div className="royal-empty-state"><Activity size={48}/><h2>No {activityFilter==="all"?"Activity":`${activityFilter} Activity`} Yet</h2><p>Confirmed marketplace events will appear here.</p></div>}
+                  {filteredActivity.length>activityLimit&&<button type="button" className="profile-activity-more" onClick={()=>setActivityLimit(limit=>limit+30)}>Show more activity</button>}
+                </div>
               </div>
             )}
 
