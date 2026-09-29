@@ -128,7 +128,6 @@ function FeaturedArtwork({ listing, onExpand }: { listing: IndexedListing; onExp
 export default function Home() {
   const [listedCollections, setListedCollections] = useState<ListedCollection[]>([]);
   const [featuredNFTs, setFeaturedNFTs] = useState<IndexedListing[]>([]);
-  const [indexWarnings, setIndexWarnings] = useState<Record<number, string>>({});
   const [recentActivity, setRecentActivity] = useState<IndexedActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [listingCount, setListingCount] = useState(0);
@@ -227,16 +226,7 @@ export default function Home() {
         const res = await fetch(`/api/indexer?chainId=${chainId}`, { cache: "no-store" });
         const data = await res.json() as IndexerResponse;
         if (!mounted) return;
-        if (!res.ok) {
-          setIndexWarnings(current => ({...current, [chainId]: data.syncError ?? "Listings are temporarily unavailable."}));
-          return;
-        }
-        setIndexWarnings(current => {
-          const next={...current};
-          if (data.syncError || !data.sync?.caughtUp) next[chainId]=data.syncError ?? "Older listings are still being indexed.";
-          else delete next[chainId];
-          return next;
-        });
+        if (!res.ok) return;
         responses.set(`${chainId}:current`, data);
         renderMarketplaceData();
         if(data.legacyMarketplaceAddress){
@@ -245,15 +235,13 @@ export default function Home() {
             const old=await oldResponse.json() as IndexerResponse;
             if(oldResponse.ok){
               responses.set(`${chainId}:legacy`,{...old,legacy:true,listings:old.listings.map(item=>({...item,legacy:true}))});
-              if(old.syncError||!old.sync?.caughtUp)setIndexWarnings(current=>({...current,[chainId]:`Earlier listings: ${old.syncError??"older events are still syncing."}`}));
             }
-            else setIndexWarnings(current=>({...current,[chainId]:`Earlier listings: ${old.syncError??"temporarily unavailable"}`}));
-          }catch{setIndexWarnings(current=>({...current,[chainId]:"Earlier listings are temporarily unavailable."}));}
+          }catch{/* Keep current listings visible when older history is unavailable. */}
         }else responses.delete(`${chainId}:legacy`);
         renderMarketplaceData();
         try { window.sessionStorage.setItem("hoj-discover-listings", JSON.stringify({at:Date.now(),data:[...responses.values()]})); }
         catch { /* Keep the current view when storage is unavailable. */ }
-        } catch { if (mounted) setIndexWarnings(current => ({...current, [chainId]: "Listings are temporarily unavailable."})); }
+        } catch { /* Keep available listings from other networks visible. */ }
       }));
       if (mounted) setLoading(false);
       } finally { refreshing = false; if (refreshAgain && mounted) { refreshAgain = false; void loadMarketplaceData(); } }
@@ -351,7 +339,6 @@ export default function Home() {
 
       {/* Featured NFTs */}
       <section className="royal-section royal-section-alt royal-featured-section">
-        {Object.keys(indexWarnings).length>0&&<div className="royal-index-warning" role="status">Listing data is incomplete: {Object.entries(indexWarnings).map(([id,warning])=>`${getMarketplaceChain(Number(id) as MarketplaceChainId).name}: ${warning}`).join(" ")}</div>}
         <div className="royal-section-header">
           <div>
             <span className="royal-section-label">EXPLORE</span>
