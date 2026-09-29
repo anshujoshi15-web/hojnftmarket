@@ -1,6 +1,6 @@
 # House of Joshi — Multichain NFT Marketplace
 
-A non-custodial ERC-721 and ERC-1155 marketplace. HOJ trading is configured on Base, Cronos EVM, Shibarium, Polygon, Robinhood Chain, and Zora. Ethereum, ApeChain, and Arc are marked Coming soon for HOJ trading. Arc uses USDC as its native gas and settlement currency.
+A non-custodial ERC-721 and ERC-1155 marketplace. HOJ trading is configured on Base, Cronos EVM, Shibarium, Polygon, Arc, Robinhood Chain, and Zora. Ethereum and ApeChain are marked Coming soon for current HOJ trading. Arc uses USDC as its native gas and settlement currency.
 
 ## Local setup
 
@@ -16,7 +16,7 @@ The app is connected by default to Shibarium V8 at `0xfb985d4eDd4C1F909899389C21
 
 ## Multichain configuration
 
-Nine chains are configured in the wallet and network UI. The active V8 deployments and earlier contract addresses are recorded in `lib/marketplace-chains.ts` and [the V8 rollout guide](docs/V8-ROLLOUT.md). Ethereum remains coming soon. Setting an address in the environment alone does not activate trading. Server environment values override the checked-in defaults; known earlier V7 contracts remain available as legacy:
+Nine chains are configured in the wallet and network UI. The active deployments and earlier contract addresses are recorded in `lib/marketplace-chains.ts` and [the V8 rollout guide](docs/V8-ROLLOUT.md). Ethereum and ApeChain remain coming soon for current HOJ trading. ApeChain's recorded address does not activate trading. Server environment values override the checked-in defaults; known earlier V7 contracts remain available as legacy:
 
 ```env
 ETHEREUM_MARKETPLACE_ADDRESS=0x...

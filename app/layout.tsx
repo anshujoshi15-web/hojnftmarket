@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(`${protocol}://${host}`),
     title: "House of Joshi · NFT Marketplace",
-    description: "A premium, non-custodial NFT marketplace across Ethereum, Shibarium, Polygon, Base, Robinhood Chain, Zora, and ApeChain. Experience elegance in digital collecting.",
+    description: "A premium, non-custodial NFT marketplace across Shibarium, Polygon, Base, Cronos, Arc, Robinhood Chain, and Zora. Experience elegance in digital collecting.",
     openGraph: { title: "House of Joshi · NFT Marketplace", description: "Premium digital collectibles. Royal elegance. Chain-specific settlement.", images: [{ url:"/social-share-cover.png", width:1200, height:630, alt:"The House of Joshi Multichain NFT Marketplace" }], type: "website" },
     twitter: { card: "summary_large_image", title: "House of Joshi · NFT Marketplace", description: "The Premium Multichain NFT Marketplace", images: ["/social-share-cover.png"] },
     icons: { icon: "/house-of-joshi-logo.png", apple: "/house-of-joshi-logo.png" },

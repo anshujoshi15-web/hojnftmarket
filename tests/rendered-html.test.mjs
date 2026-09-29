@@ -36,7 +36,7 @@ test("configured chains resolve independently with the correct native currencies
   assert.equal(arc.deployBlock,"23087002");
   assert.equal(arc.rpcUrl,"https://rpc.mainnet.arc.io");
   const apechain=chainConfig({},33139);
-  assert.equal(apechain.chain.marketplaceStatus,"live");
+  assert.equal(apechain.chain.marketplaceStatus,"coming-soon");
   assert.equal(apechain.address,"0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875");
   assert.equal(apechain.deployBlock,"50360444");
 });
@@ -76,7 +76,7 @@ test("V8 configuration retains the earlier marketplace address and block",async(
 });
 test("coming-soon networks expose no live marketplace listings",async()=>{
   const {GET}=await loadModule("app/api/indexer/route.ts");
-  for(const chainId of [1]){
+  for(const chainId of [1,33139]){
     const response=await GET(new Request(`http://localhost/api/indexer?chainId=${chainId}`));
     const body=await response.json();
     assert.equal(response.status,200);

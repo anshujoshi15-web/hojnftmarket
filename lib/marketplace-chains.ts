@@ -101,7 +101,7 @@ export const marketplaceChains = {
     confirmations: 12,
     marketplaceAddress: "0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875",
     marketplaceDeployBlock: 50360444,
-    marketplaceStatus: "live",
+    marketplaceStatus: "coming-soon",
   },
   7777777: {
     id: 7777777,
