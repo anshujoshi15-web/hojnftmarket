@@ -58,7 +58,7 @@ from the active address. Keep those checked-in values or set explicit legacy
 values before editing them. Restart or redeploy the site, then check both:
 
 For a chain currently marked `coming-soon` in
-`lib/marketplace-chains.ts` (including Ethereum and Robinhood), change its
+`lib/marketplace-chains.ts` (including Ethereum), change its
 status to `live` only after the deployed V8 address and block are recorded.
 
 ```text

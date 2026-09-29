@@ -12,8 +12,8 @@ test("configured chains resolve independently with the correct native currencies
   assert.equal(base.deployBlock,"51875993");
   assert.equal(base.rpcUrl,"https://base-rpc.publicnode.com");
   assert.equal(polygon.chain.marketplaceStatus,"live");
-  assert.equal(chainConfig({},137).address,"0x3C626ff68e9a69526117B22D288ab71bdA2B377a");
-  assert.equal(chainConfig({},137).deployBlock,"94475428");
+  assert.equal(chainConfig({},137).address,"0x77eD6097BF531c6ec3759Bd915858D5854057828");
+  assert.equal(chainConfig({},137).deployBlock,"94642898");
   const cronos=chainConfig({},25);
   assert.equal(cronos.chain.currency,"CRO");
   assert.equal(cronos.address,"0x455DaD76334a67660D61bb319d8CfF1010e33049");
@@ -23,8 +23,12 @@ test("configured chains resolve independently with the correct native currencies
   assert.equal(chainConfig({},109).deployBlock,"19188433");
   const zora=chainConfig({},7777777);
   assert.equal(zora.chain.marketplaceStatus,"live");
-  assert.equal(zora.address,"0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab");
-  assert.equal(zora.deployBlock,"51861519");
+  assert.equal(zora.address,"0x455DaD76334a67660D61bb319d8CfF1010e33049");
+  assert.equal(zora.deployBlock,"51988065");
+  const robinhood=chainConfig({},4663);
+  assert.equal(robinhood.chain.marketplaceStatus,"live");
+  assert.equal(robinhood.address,"0xD9883fDdf57Ca58f775Bdab96C0e7c3F1c918af3");
+  assert.equal(robinhood.deployBlock,"75504936");
   const arc=chainConfig({},5042);
   assert.equal(arc.chain.currency,"USDC");
   assert.equal(arc.chain.marketplaceStatus,"live");
@@ -46,6 +50,10 @@ test("V8 configuration retains the earlier marketplace address and block",async(
     assert.equal(legacyChainConfig(stale,chainId)?.address,previous);
     assert.equal(legacyChainConfig(stale,chainId)?.deployBlock,previousBlock);
   }
+  assert.equal(legacyChainConfig({},137)?.address,"0x3C626ff68e9a69526117B22D288ab71bdA2B377a");
+  assert.equal(legacyChainConfig({},137)?.deployBlock,"94475428");
+  assert.equal(legacyChainConfig({},7777777)?.address,"0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab");
+  assert.equal(legacyChainConfig({},7777777)?.deployBlock,"51861519");
   assert.equal(legacyChainConfig({},8453)?.address,"0x50489Fdc2352917595359667b34b384b33184b91");
   assert.equal(legacyChainConfig({},8453)?.deployBlock,"51813478");
   const old=legacyChainConfig({BASE_MARKETPLACE_ADDRESS:next,BASE_MARKETPLACE_DEPLOY_BLOCK:"52000000"},8453);
@@ -68,7 +76,7 @@ test("V8 configuration retains the earlier marketplace address and block",async(
 });
 test("coming-soon networks expose no live marketplace listings",async()=>{
   const {GET}=await loadModule("app/api/indexer/route.ts");
-  for(const chainId of [1,4663]){
+  for(const chainId of [1]){
     const response=await GET(new Request(`http://localhost/api/indexer?chainId=${chainId}`));
     const body=await response.json();
     assert.equal(response.status,200);
@@ -89,7 +97,7 @@ test("NFT price history keeps only recorded listing and settlement prices in tim
 });
 test("coming-soon NFT price history returns a truthful empty state",async()=>{
   const {GET}=await loadModule("app/api/nft-price-history/route.ts");
-  const response=await GET(new Request("http://localhost/api/nft-price-history?chainId=4663&contract=0x1111111111111111111111111111111111111111&tokenId=7"));
+  const response=await GET(new Request("http://localhost/api/nft-price-history?chainId=1&contract=0x1111111111111111111111111111111111111111&tokenId=7"));
   assert.equal(response.status,200);
   const body=await response.json();
   assert.deepEqual(body.points,[]);
