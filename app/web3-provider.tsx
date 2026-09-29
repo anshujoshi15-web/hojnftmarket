@@ -4,7 +4,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 import { getDefaultConfig, midnightTheme, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
-import { createConfig, http, WagmiProvider } from "wagmi";
+import { createConfig, fallback, http, WagmiProvider } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { defineChain } from "viem";
 import { apeChain, base, cronos, mainnet, polygon, zora } from "viem/chains";
@@ -41,7 +41,11 @@ const transport = {
   [shibarium.id]: http(shibarium.rpcUrls.default.http[0]),
   [mainnet.id]: http(),
   [polygon.id]: http(),
-  [base.id]: http(),
+  // Wallet reads and preflight simulations must survive a busy public Base RPC.
+  [base.id]: fallback([
+    http("https://base-rpc.publicnode.com",{timeout:12_000,retryCount:1}),
+    http("https://mainnet.base.org",{timeout:12_000,retryCount:1}),
+  ]),
   [cronos.id]: http(cronos.rpcUrls.default.http[0]),
   [robinhood.id]: http(robinhood.rpcUrls.default.http[0]),
   [zora.id]: http(zora.rpcUrls.default.http[0]),
