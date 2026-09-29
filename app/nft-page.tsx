@@ -144,8 +144,8 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
         const query=new URLSearchParams({owner:address!,chainId:String(chainId)});
         const response=await fetch(`/api/wallet-nfts?${query}`,{cache:"no-store",signal:controller.signal});
         if(!response.ok)throw new Error("Wallet NFTs are unavailable.");
-        const body=await response.json() as {complete?:boolean;nfts?:Array<{contractAddress:string;tokenId:string;quantity:string;name:string|null;imageUrl:string|null}>};
-        if(active){setWalletCollectionMessage(body.complete===false?"Some wallet NFTs could not be checked yet. Refresh to try again.":"");setWalletCollectionItems((body.nfts??[])
+        const body=await response.json() as {complete?:boolean;coverage?:string;nfts?:Array<{contractAddress:string;tokenId:string;quantity:string;name:string|null;imageUrl:string|null}>};
+        if(active){setWalletCollectionMessage(body.coverage==="indexed-collections"?"Showing NFTs from indexed collections; some may be missing.":body.complete===false?"Some wallet NFTs could not be checked yet. Refresh to try again.":"");setWalletCollectionItems((body.nfts??[])
           .filter(item=>item.contractAddress.toLowerCase()===contract.toLowerCase()&&item.tokenId!==tokenId&&BigInt(item.quantity)>0n)
           .map(item=>({tokenId:item.tokenId,name:item.name??`Token #${item.tokenId}`,imageUrl:item.imageUrl??`/api/nft-image?${new URLSearchParams({chainId:String(chainId),contract,tokenId:item.tokenId})}`})));}
       }catch{if(active){setWalletCollectionItems([]);setWalletCollectionMessage("Wallet NFTs could not be loaded. Refresh to try again.");}}

@@ -64,6 +64,14 @@ type AlchemyNft = {
 
 type AlchemyPage = { ownedNfts?: AlchemyNft[]; pageKey?: string | null };
 
+type EbisuNft = {
+  nftId?: string; nftAddress?: string; chain?: number; owner?: string; burnt?: boolean;
+  is1155?: boolean; balance?: string; collectionName?: string;
+  collection?: { name?: string }; name?: string; image?: string; original_image?: string;
+  description?: string; attributes?: ExplorerAttribute[];
+};
+type EbisuPage = { nfts?: EbisuNft[]; page?: number; totalPages?: number; totalCount?: number };
+
 type WalletNft = {
   contractAddress: string;
   tokenId: string;
@@ -291,6 +299,39 @@ async function fetchFromAlchemy(address: string, chainId: MarketplaceChainId, ap
   return {nfts:[...nfts.values()],complete,warning:complete?"":warning||"Alchemy pagination limit reached; some holdings may be missing."};
 }
 
+async function fetchFromEbisu(address:string){
+  const nfts=new Map<string,WalletNft>();
+  let complete=false,warning="";
+  try{
+    for(let page=1;page<=MAX_PAGES;page++){
+      const params=new URLSearchParams({wallet:address,page:String(page),pageSize:"100"});
+      const response=await fetchNftProvider(`https://api.ebisusbay.com/v2/wallets?${params}`);
+      if(!response.ok)throw new Error(`Cronos wallet provider returned ${response.status}`);
+      const payload=await response.json() as EbisuPage;
+      const totalPages=payload.totalPages;
+      if(!Array.isArray(payload.nfts)||typeof totalPages!=="number"||!Number.isInteger(totalPages)||totalPages<1||payload.page!==page)
+        throw new Error("Cronos wallet provider returned an invalid page");
+      for(const item of payload.nfts){
+        if(item.chain!==25||item.burnt||item.owner?.toLowerCase()!==address.toLowerCase()||!item.nftAddress||!item.nftId||!/^\d+$/.test(item.nftId))continue;
+        let contract:string;
+        try{contract=getAddress(item.nftAddress);}catch{continue;}
+        const quantity=item.is1155?item.balance??"0":"1";
+        if(!/^\d+$/.test(quantity)||BigInt(quantity)===0n)continue;
+        const tokenId=item.nftId,source=mediaUrl(item.original_image??item.image);
+        nfts.set(`${contract.toLowerCase()}:${tokenId}`,{
+          contractAddress:contract,tokenId,tokenType:item.is1155?"ERC-1155":"ERC-721",quantity,
+          name:item.name??null,collection:item.collectionName??item.collection?.name??null,
+          imageUrl:marketplaceImageUrl(source,25,contract,tokenId),description:item.description??null,
+          externalUrl:null,explorerUrl:tokenUrl(25,contract,tokenId),chainId:25,
+          traits:(item.attributes??[]).flatMap(attribute=>attribute.trait_type&&attribute.value!==null&&attribute.value!==undefined?[{type:attribute.trait_type,value:String(attribute.value)}]:[]),
+        });
+      }
+      if(page>=totalPages){complete=true;break;}
+    }
+  }catch(error){warning=error instanceof Error?error.message:"Cronos wallet pagination interrupted";}
+  return {nfts:[...nfts.values()],complete,warning:complete?"":warning||"Cronos wallet provider pagination limit reached"};
+}
+
 type RpcLog = { address?: string; topics?: string[] };
 type RpcResponse<T> = { result?: T; error?: { message?: string } };
 
@@ -412,6 +453,16 @@ export async function GET(request: Request) {
       const message = error instanceof Error ? error.message : "unknown Alchemy error";
       warnings.push(`Alchemy: ${message}`);
     }
+  }
+
+  if(chainId===25&&!runtime.CRONOS_EXPLORER_API_URL&&!runtime.BLOCKSCOUT_API_KEY){
+    const result=await fetchFromEbisu(address);
+    if(result.complete){
+      return Response.json({owner:address,chainId,nfts:result.nfts,complete:false,coverage:"indexed-collections",source:"ebisus-bay",explorerAddressUrl:`${chain.explorerUrl}/address/${address}`,warnings:["Cronos holdings shown from indexed collections; other NFTs may need a dedicated wallet indexer."]},{headers:{"Cache-Control":"private, max-age=30"}});
+    }
+    if(result.warning)warnings.push(result.warning);
+    mergeNfts(holdings,result.nfts);
+    sources.push("ebisus-bay-partial");
   }
 
   for (const candidate of explorerCandidates(chainId)) {

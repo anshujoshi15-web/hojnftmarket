@@ -66,7 +66,7 @@ BASE_EXPLORER_API_URL=https://.../api/v2
 ROBINHOOD_EXPLORER_API_URL=https://robinhoodchain.blockscout.com/api/v2
 ```
 
-The older `MARKETPLACE_ADDRESS` and `MARKETPLACE_DEPLOY_BLOCK` variables remain supported as Shibarium-only aliases. Cronos NFT wallet discovery uses the RPC ownership fallback and metadata fetching; complete ERC-721/1155 enumeration needs a compatible NFT indexer API, such as a configured `CRONOS_EXPLORER_API_URL` or server-side `BLOCKSCOUT_API_KEY`. Complete Zora NFT holdings need server-side `ALCHEMY_API_KEY`; the configured public Zora explorer NFT endpoint does not work. Set `OPENSEA_API_KEY` on the server to show supported OpenSea orders on NFT pages and enable compatible native-currency Seaport checkout. Never place these API keys in `NEXT_PUBLIC_` variables or in a committed file.
+The older `MARKETPLACE_ADDRESS` and `MARKETPLACE_DEPLOY_BLOCK` variables remain supported as Shibarium-only aliases. Cronos wallet discovery uses Ebisu's Bay's paginated holdings API when no dedicated indexer is configured. It covers indexed collections, so other Cronos NFTs may still be absent; full ERC-721/1155 enumeration needs a compatible NFT indexer API, such as `CRONOS_EXPLORER_API_URL` or server-side `BLOCKSCOUT_API_KEY`. Complete Zora NFT holdings need server-side `ALCHEMY_API_KEY`; the configured public Zora explorer NFT endpoint does not work. Set `OPENSEA_API_KEY` on the server to show supported OpenSea orders on NFT pages and enable compatible native-currency Seaport checkout. Never place these API keys in `NEXT_PUBLIC_` variables or in a committed file.
 
 Listings, activity, and indexer cursors are stored with chain-specific IDs in the `multichain_listings` and `multichain_marketplace_activity` tables. The API contract is:
 

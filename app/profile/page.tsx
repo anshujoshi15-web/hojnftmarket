@@ -64,6 +64,7 @@ type IndexerResponse = {
 
 type WalletNftResponse = {
   complete?: boolean;
+  coverage?: "indexed-collections";
   nfts?: WalletNft[];
   error?: string;
   warnings?: string[];
@@ -105,6 +106,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [selectedChain, setSelectedChain] = useState<MarketplaceChainId | "all" | "wallet">("all");
   const [explorerFallbacks, setExplorerFallbacks] = useState<ExplorerFallback[]>([]);
+  const [indexedCoverage, setIndexedCoverage] = useState<string[]>([]);
   const [retry, setRetry] = useState(0);
   const [notificationSettings, setNotificationSettings] = useState({
     email: "",
@@ -164,6 +166,7 @@ export default function ProfilePage() {
 
         const allNfts: WalletNft[] = [];
         const failedExplorers: ExplorerFallback[] = [];
+        const limitedSources:string[]=[];
         nftResponses.forEach((result, index) => {
           if (result.status === "fulfilled" && result.value) {
             const data = result.value as WalletNftResponse;
@@ -172,7 +175,9 @@ export default function ProfilePage() {
               const chainId = chainIds[index];
               allNfts.push(...data.nfts.map(nft => ({ ...nft, chainId })));
             }
-            if (data.complete === false || data.error) {
+            if(data.coverage==="indexed-collections"){
+              limitedSources.push(getMarketplaceChain(chainIds[index]).name);
+            }else if (data.complete === false || data.error) {
               const reason=data.error??data.warnings?.join("; ")??"The NFT provider could not verify the full wallet history.";
               failedExplorers.push({
                 chainId: chainIds[index],
@@ -194,6 +199,7 @@ export default function ProfilePage() {
 
         setWalletNfts(allNfts);
         setExplorerFallbacks(failedExplorers);
+        setIndexedCoverage(limitedSources);
         setLoading(false);
 
       } catch (error) {
@@ -403,6 +409,7 @@ export default function ProfilePage() {
       </section>
 
       <section className="royal-profile-content">
+        {indexedCoverage.length>0&&<p className="royal-holdings-coverage-note">{indexedCoverage.join(", ")} NFTs are shown from indexed collections. Some collections may not appear without a dedicated wallet indexer.</p>}
         {explorerFallbacks.length > 0 && (
           <div className="royal-explorer-fallbacks" role="status">
             <div>

@@ -12032,3 +12032,4 @@ article.royal-profile-nft > a {
 .opensea-listing-actions button { background:#c7a44a; color:#15110a; cursor:pointer; }
 .opensea-listing-actions button:disabled { opacity:.5; cursor:wait; }
 .opensea-listing-actions a { background:#171614; color:#e8d9bc; }
+.royal-holdings-coverage-note { margin:0 0 16px; color:#a89e8d; font-size:13px; line-height:1.5; }

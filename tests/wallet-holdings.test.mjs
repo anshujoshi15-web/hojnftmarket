@@ -46,3 +46,28 @@ test("wallet holdings keep a partial page but never label it complete",async()=>
     assert.ok(body.warnings.length>0);
   }finally{globalThis.fetch=originalFetch;}
 });
+
+test("Cronos wallet holdings use paginated indexed collections without a false completeness claim",async()=>{
+  const {GET}=await loadModule("app/api/wallet-nfts/route.ts");
+  const originalFetch=globalThis.fetch;
+  const pages=[];
+  globalThis.fetch=async input=>{
+    const url=new URL(input);
+    assert.equal(url.hostname,"api.ebisusbay.com");
+    const page=Number(url.searchParams.get("page"));pages.push(page);
+    return Response.json({page,totalPages:2,totalCount:2,nfts:[{
+      nftId:String(page),nftAddress:contract,chain:25,owner:owner.toLowerCase(),burnt:false,
+      is1155:page===2,balance:page===2?"3":undefined,name:`Cronos #${page}`,
+      image:"ipfs://bafyexample/image.png",collectionName:"Cronos Collection",
+    }]});
+  };
+  try{
+    const response=await GET(new Request(`http://localhost/api/wallet-nfts?owner=${owner}&chainId=25`));
+    const body=await response.json();
+    assert.equal(response.status,200);
+    assert.equal(body.coverage,"indexed-collections");
+    assert.equal(body.complete,false);
+    assert.deepEqual(pages,[1,2]);
+    assert.deepEqual(body.nfts.map(nft=>[nft.tokenId,nft.tokenType,nft.quantity]),[["1","ERC-721","1"],["2","ERC-1155","3"]]);
+  }finally{globalThis.fetch=originalFetch;}
+});

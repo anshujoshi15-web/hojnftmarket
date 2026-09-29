@@ -53,10 +53,12 @@ Cronos EVM V5 is deployed at `0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875`
 from block `95919348` (chain ID 25). It reports version 5, a 2% fee, and
 treasury `0x6736d2eA9807297F0e56967361B9410854B86a5f`.
 The Cronos wallet selector, listing index, NFT metadata and transaction flows
-use the Cronos EVM RPC. Full wallet NFT discovery, especially ERC-1155, needs a
-supported NFT indexer API; the free Cronos EVM RPC alone cannot enumerate every
-NFT in a wallet. Set `CRONOS_EXPLORER_API_URL` to a compatible Blockscout v2
-endpoint or provide `BLOCKSCOUT_API_KEY` for Blockscout's multichain API.
+use the Cronos EVM RPC. Without a configured indexer, wallet holdings use the
+paginated Ebisu's Bay API for its indexed collections. Other Cronos NFTs can be
+missing. Full wallet NFT discovery, especially ERC-1155 outside those
+collections, needs a compatible indexer. Set `CRONOS_EXPLORER_API_URL` to a
+compatible Blockscout v2 endpoint or provide `BLOCKSCOUT_API_KEY` for
+Blockscout's multichain API.
 
 Shibarium V5 is deployed at `0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875`
 from block `19143354`. It reports version 5, a 2% fee, and the same treasury.
