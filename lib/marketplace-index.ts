@@ -1,4 +1,4 @@
-import { createPublicClient, decodeEventLog, erc721Abi, erc1155Abi, fallback, http, type Address, type Hex } from "viem";
+import { BaseError, ContractFunctionRevertedError, createPublicClient, decodeEventLog, erc721Abi, erc1155Abi, fallback, http, type Address, type Hex } from "viem";
 import { marketplaceAbi, type IndexedOffer } from "./marketplace-abi";
 import type { MarketplaceChainId } from "./marketplace-chains";
 import type { chainConfig } from "./server-marketplace-config";
@@ -143,22 +143,19 @@ type Config = ReturnType<typeof chainConfig>;
 export function indexClient(config:Config){
   // Cronos's default RPC limits log requests to 2,000 blocks. PublicNode
   // accepts the indexer's 8,000-block ranges, including the older V7 market.
-  const rpcUrl=config.chain.id===25&&config.rpcUrl==="https://evm.cronos.org"?"https://cronos-evm-rpc.publicnode.com":config.rpcUrl;
+  const rpcUrl=config.chain.id===25&&config.rpcUrl==="https://evm.cronos.org"?"https://cronos-evm-rpc.publicnode.com":config.chain.id===8453&&config.rpcUrl==="https://base-rpc.publicnode.com"?"https://mainnet.base.org":config.rpcUrl;
   const primary=http(rpcUrl,{timeout:12_000,retryCount:1});
-  // Base's public RPC can reject historical log ranges or throttle bursts.
-  // Keep an independent public provider available even when no API key is set.
-  // Historical scans are too expensive for shared public RPCs on these chains.
-  // Prefer the configured dedicated endpoint, while retaining public fallbacks.
-  const dedicatedFirst=(config.chain.id===137||config.chain.id===8453)&&!!config.fallbackRpcUrl;
+  // Alchemy's free tier limits eth_getLogs to 10 blocks. It cannot serve this
+  // indexer's historical ranges, even though ordinary eth_call reads work.
+  const dedicatedFirst=config.chain.id===137&&!!config.fallbackRpcUrl;
   const transports=dedicatedFirst?[http(config.fallbackRpcUrl!,{timeout:12_000,retryCount:1}),primary]:[primary];
-  if(rpcUrl!==config.rpcUrl)transports.push(http(config.rpcUrl,{timeout:12_000,retryCount:1}));
-  if(config.chain.id===8453)
-    transports.push(http(config.rpcUrl==="https://base-rpc.publicnode.com"?"https://mainnet.base.org":"https://base-rpc.publicnode.com",{timeout:12_000,retryCount:1}));
+  if(rpcUrl!==config.rpcUrl&&config.chain.id!==8453)transports.push(http(config.rpcUrl,{timeout:12_000,retryCount:1}));
+  if(config.chain.id===8453&&rpcUrl!=="https://mainnet.base.org")transports.push(http("https://mainnet.base.org",{timeout:12_000,retryCount:1}));
   // Arc's primary public endpoint can throttle log scans even at modest volume.
   // Arcscan's independent public gateway serves the same mainnet and log history.
   if(config.chain.id===5042&&config.rpcUrl!=="https://rpc.arc-scan.org")
     transports.push(http("https://rpc.arc-scan.org",{timeout:12_000,retryCount:1}));
-  if(config.fallbackRpcUrl&&!dedicatedFirst)transports.push(http(config.fallbackRpcUrl,{timeout:12_000,retryCount:1}));
+  if(config.fallbackRpcUrl&&!dedicatedFirst&&config.chain.id!==8453)transports.push(http(config.fallbackRpcUrl,{timeout:12_000,retryCount:1}));
   const transport=transports.length>1?fallback(transports,{shouldThrow:()=>false}):primary;
   return createPublicClient({transport});
 }
@@ -210,8 +207,9 @@ export function eventStatements(db:D1Database,scope:string,events:Activity[]){
   return statements;
 }
 
-const CHUNK_SIZE=8_000, MAX_CHUNKS=8, MAX_STATELESS_CHUNKS=256;
+const CHUNK_SIZE=8_000, BASE_CHUNK_SIZE=2_000, MAX_CHUNKS=8, MAX_STATELESS_CHUNKS=256;
 const isRateLimited=(error:unknown)=>/429|rate limit|too many requests|compute units/i.test(String(error));
+const isContractRevert=(error:unknown)=>error instanceof BaseError&&error.walk(cause=>cause instanceof ContractFunctionRevertedError) instanceof ContractFunctionRevertedError;
 const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 async function withRateLimitRetry<T>(read:()=>Promise<T>):Promise<T>{
   for(let attempt=0;;attempt++){
@@ -251,13 +249,14 @@ export async function loadMarketplaceIndex(config:Config,db?:D1Database){
 
 async function buildIndex(config:Config,scope:string,db?:D1Database){
   const client=indexClient(config), address=config.address as Address, chainId=config.chain.id as MarketplaceChainId;
-  const rpcConcurrency=chainId===137||chainId===8453?2:6;
+  const chunkSize=chainId===8453?BASE_CHUNK_SIZE:CHUNK_SIZE;
+  const rpcConcurrency=chainId===8453?1:chainId===137?2:6;
   // A durable index keeps a confirmation buffer before committing events. The
   // stateless path replays its window on every read, so it can show mined
   // listings and sales immediately and self-correct after a reorg.
   const safeLatest=Math.max(0,Number(await withRateLimitRetry(()=>client.getBlockNumber()))-(db?config.chain.confirmations:0));
   const deployBlock=Number(config.deployBlock);
-  let start=Math.max(deployBlock,safeLatest-CHUNK_SIZE*MAX_STATELESS_CHUNKS+1);
+  let start=Math.max(deployBlock,safeLatest-chunkSize*MAX_STATELESS_CHUNKS+1);
   if(db){await schema(db);const state=await db.prepare("SELECT last_block AS lastBlock FROM indexer_state WHERE id=?").bind(scope).first<{lastBlock:number}>();start=Math.max(deployBlock,(state?.lastBlock??deployBlock-1)+1);}
   const fromBlock=start, events:Activity[]=[];
   if(!db){
@@ -272,8 +271,8 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
   let chunks=0,logsProcessed=0;
   if(!db){
     const ranges:Array<[number,number]>=[];
-    for(let from=start;from<=safeLatest&&ranges.length<MAX_STATELESS_CHUNKS;from+=CHUNK_SIZE)
-      ranges.push([from,Math.min(from+CHUNK_SIZE-1,safeLatest)]);
+    for(let from=start;from<=safeLatest&&ranges.length<MAX_STATELESS_CHUNKS;from+=chunkSize)
+      ranges.push([from,Math.min(from+chunkSize-1,safeLatest)]);
     const results=await mapLimit(ranges,rpcConcurrency,async([from,to])=>rangeLogs(client,address,from,to));
     const decoded=results.flatMap(result=>decodeMarketplaceLogs(chainId,result.logs));
     const times=new Map<number,number>();
@@ -283,7 +282,7 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
     logsProcessed=results.reduce((sum,result)=>sum+result.logs.length,0);
     start=results.length?results[results.length-1].through+1:start;
   }else while(start<=safeLatest&&chunks++<MAX_CHUNKS){
-    const {logs,through:end}=await rangeLogs(client,address,start,Math.min(start+CHUNK_SIZE-1,safeLatest));
+    const {logs,through:end}=await rangeLogs(client,address,start,Math.min(start+chunkSize-1,safeLatest));
     const decoded=decodeMarketplaceLogs(chainId,logs as RpcLog[]);
     const times=new Map<number,number>();
     await mapLimit([...new Set(decoded.map(e=>e.blockNumber))],rpcConcurrency,async block=>{times.set(block,Number((await withRateLimitRetry(()=>client.getBlock({blockNumber:BigInt(block)}))).timestamp));});
@@ -318,14 +317,15 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
         const quantity=current.quantity<balance?current.quantity:balance;
         return quantity>0n&&current.unitPrice>0n&&approved?{...item,quantity:String(quantity),price:String(current.unitPrice)}:null;
       }
-      const [current,owner,approved,approvedForAll]=await withRateLimitRetry(()=>Promise.all([
-        client.readContract({address,abi:marketplaceAbi,functionName:"getListing",args}),
-        client.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"ownerOf",args:[args[1]]}),
-        client.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"getApproved",args:[args[1]]}),
-        client.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"isApprovedForAll",args:[item.seller,address]}),
-      ]));
-      return current.price>0n&&current.price===BigInt(item.price)&&current.seller.toLowerCase()===item.seller.toLowerCase()&&owner.toLowerCase()===item.seller.toLowerCase()&&(approved.toLowerCase()===address.toLowerCase()||approvedForAll)?item:null;
-    }catch{verificationFailed=true;return null;}
+      const current=await withRateLimitRetry(()=>client.readContract({address,abi:marketplaceAbi,functionName:"getListing",args}));
+      if(current.price===0n||current.price!==BigInt(item.price)||current.seller.toLowerCase()!==item.seller.toLowerCase())return null;
+      const owner=await withRateLimitRetry(()=>client.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"ownerOf",args:[args[1]]}));
+      if(owner.toLowerCase()!==item.seller.toLowerCase())return null;
+      const approvedForAll=await withRateLimitRetry(()=>client.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"isApprovedForAll",args:[item.seller,address]}));
+      if(approvedForAll)return item;
+      const approved=await withRateLimitRetry(()=>client.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"getApproved",args:[args[1]]}));
+      return approved.toLowerCase()===address.toLowerCase()?item:null;
+    }catch(error){if(!isContractRevert(error))verificationFailed=true;return null;}
   });
   const active=verified.filter((item):item is Listing=>item!==null).sort((a,b)=>b.updatedBlock-a.updatedBlock);
   const caughtUp=start>safeLatest&&(!!db||fromBlock===deployBlock);

@@ -1,4 +1,6 @@
-export const MARKETPLACE_REFRESH_INTERVAL = 10_000;
+// Confirmed local transactions refresh immediately through announceMarketplaceUpdate.
+// Polling every chain every ten seconds overwhelms shared historical RPCs.
+export const MARKETPLACE_REFRESH_INTERVAL = 30_000;
 const EVENT_NAME = "hoj-marketplace-updated";
 const CHANNEL_NAME = "hoj-marketplace-updates";
 

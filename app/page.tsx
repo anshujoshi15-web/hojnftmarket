@@ -154,6 +154,7 @@ export default function Home() {
   const [activeChain,setActiveChain]=useState<MarketplaceChainId|"all">("all");
   const visibleCollections=listedCollections.filter(collection=>activeChain==="all"||collection.chainId===activeChain);
   const visibleNFTs=featuredNFTs.filter(item=>activeChain==="all"||item.chainId===activeChain).slice(0,12);
+  const visibleActivity=recentActivity.filter(item=>activeChain==="all"||item.chainId===activeChain).slice(0,6);
 
   useEffect(() => {
     let mounted = true;
@@ -219,11 +220,12 @@ export default function Home() {
         });
         
         setFeaturedNFTs(sortedListings);
-        const sales = allActivity.filter(a => (["sold","offer_accepted"].includes(a.eventType)));
-        setRecentActivity(sales.slice(0, 6));
+        const sales = allActivity.filter(a => (["sold","offer_accepted"].includes(a.eventType)))
+          .sort((a,b)=>(b.timestamp??0)-(a.timestamp??0)||b.blockNumber-a.blockNumber||b.logIndex-a.logIndex);
+        setRecentActivity(sales);
         
         // Sort collections by sales count (trending)
-        setListedCollections(collections.sort((a, b) => Number(b.salesCount - a.salesCount) || Number(b.salesVolume - a.salesVolume)));
+        setListedCollections(collections.sort((a, b) => b.salesCount-a.salesCount || b.listingCount-a.listingCount));
         
         if (allListings.length || collections.length) setLoading(false);
     }
@@ -387,7 +389,7 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            recentActivity.map((activity) => {
+            visibleActivity.length===0?<p className="royal-market-empty">No recorded sales on this network yet.</p>:visibleActivity.map((activity) => {
               const chain = getMarketplaceChain(activity.chainId);
               return (
                 <div key={activity.id} className="royal-activity-item">
