@@ -240,7 +240,7 @@ export default function Home() {
     try {
       const cached = JSON.parse(window.sessionStorage.getItem("hoj-discover-listings") ?? "null") as {at:number;data:IndexerResponse[]}|null;
       if (cached && Date.now() - cached.at < 60_000 && Array.isArray(cached.data)) {
-        cached.data.forEach(data => { if (liveChains.includes(data.chainId)) responses.set(`${data.chainId}:${data.legacy?"legacy":"current"}`, data); });
+        cached.data.forEach(data => { if (liveChains.includes(data.chainId)&&!data.legacy) responses.set(`${data.chainId}:current`, data); });
         if (responses.size) renderMarketplaceData();
       }
     } catch { /* A fresh network read will replace an unavailable snapshot. */ }
@@ -257,15 +257,7 @@ export default function Home() {
         if (!res.ok) return;
         responses.set(`${chainId}:current`, data);
         renderMarketplaceData();
-        if(data.legacyMarketplaceAddress){
-          try{
-            const oldResponse=await fetch(`/api/indexer?chainId=${chainId}&legacy=1`,{cache:"no-store"});
-            const old=await oldResponse.json() as IndexerResponse;
-            if(oldResponse.ok){
-              responses.set(`${chainId}:legacy`,{...old,legacy:true,listings:old.listings.map(item=>({...item,legacy:true}))});
-            }
-          }catch{/* Keep current listings visible when older history is unavailable. */}
-        }else responses.delete(`${chainId}:legacy`);
+        responses.delete(`${chainId}:legacy`);
         renderMarketplaceData();
         try { window.sessionStorage.setItem("hoj-discover-listings", JSON.stringify({at:Date.now(),data:[...responses.values()]})); }
         catch { /* Keep the current view when storage is unavailable. */ }

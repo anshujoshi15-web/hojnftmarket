@@ -455,7 +455,7 @@ export default function ProfilePage() {
                           <h3>{nft.name || `Token #${nft.tokenId}`}</h3>
                           <div className="royal-nft-status">
                             {activeListing ? (
-                              <span className="listed">{activeListing.legacy?"Earlier market":"Listed"} · {formatEther(BigInt(activeListing.price))} {getMarketplaceChain(nftChainId).currency}</span>
+                              <span className="listed">{activeListing.legacy?"Manage older listing":`Listed · ${formatEther(BigInt(activeListing.price))} ${getMarketplaceChain(nftChainId).currency}`}</span>
                             ) : (
                               <span className="not-listed">Not Listed</span>
                             )}
@@ -482,8 +482,8 @@ export default function ProfilePage() {
                     return (
                       <div key={listing.id} className="royal-listing-card">
                         <div className="royal-listing-price">
-                          <span>Price</span>
-                          <strong>{formatEther(BigInt(listing.price))} {chain.currency}</strong>
+                          <span>{listing.legacy?"Older contract":"Price"}</span>
+                          <strong>{listing.legacy?"Manage listing":`${formatEther(BigInt(listing.price))} ${chain.currency}`}</strong>
                         </div>
                         <div className="royal-listing-details">
                           <small>{chain.name}</small>

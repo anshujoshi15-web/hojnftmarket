@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatEther } from "viem";
 import Link from "next/link";
 import Image from "next/image";
-import { getMarketplaceChain, isMarketplaceLive, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
+import { getMarketplaceChain, isMarketplaceLive, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:string; tokenId:string; seller:string; price:string; transactionHash:string };
@@ -102,7 +102,6 @@ export function NetworkMarketplace({ chainId }: { chainId: MarketplaceChainId })
           <span>LIVE MARKETPLACE</span>
           <h1>{chain.name} NFT Marketplace</h1>
           <p>Trade NFTs securely on {chain.name} with instant settlements and low fees.</p>
-          {chainData?.legacyMarketplaceAddress&&<p><Link href={`/legacy?chainId=${chainId}`}>Browse listings on the earlier marketplace <ArrowUpRight size={15}/></Link></p>}
         </div>
         <div className="network-stats">
           <div>

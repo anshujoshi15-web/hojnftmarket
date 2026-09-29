@@ -1,3 +1,3 @@
-import { Portal } from "../portal";
+import { redirect } from "next/navigation";
 
-export default function LegacyMarketPage(){return <Portal view="market" legacy/>}
+export default function LegacyMarketPage(){redirect("/market")}
