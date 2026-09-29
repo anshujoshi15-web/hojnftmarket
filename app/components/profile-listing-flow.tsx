@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { erc721Abi, formatEther, isAddress, type Address } from "viem";
 import { useAccount, usePublicClient } from "wagmi";
 import { marketplaceAbi, parseNativeAmount } from "@/lib/marketplace-abi";
+import { readErc721Owner } from "@/lib/prepare-listing";
 import { marketplaceChains, transactionUrl, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { useMarketplaceTransaction, TransactionStatus } from "./use-marketplace-transaction";
 
@@ -54,7 +55,7 @@ export function ProfileListingFlow({chainId,collection,items,onRemove,onClear}:P
       if(version<8n)throw new Error("This network is not connected to a V8 marketplace contract.");
       if(new Set(items.map(item=>item.tokenId)).size!==items.length||items.some(item=>item.contractAddress.toLowerCase()!==collection.toLowerCase()))throw new Error("Select unique NFTs from one collection.");
       for(const tokenId of tokenIds){
-        const owner=await client.readContract({address:collection as Address,abi:erc721Abi,functionName:"ownerOf",args:[tokenId]});
+        const owner=await readErc721Owner(client,collection as Address,tokenId);
         if(owner.toLowerCase()!==address.toLowerCase())throw new Error(`You no longer own token #${tokenId}. Refresh Profile.`);
         const current=await client.readContract({address:market,abi:marketplaceAbi,functionName:"getListing",args:[collection as Address,tokenId]});
         if(current.price>0n&&current.seller.toLowerCase()===address.toLowerCase())throw new Error(`Token #${tokenId} is already listed here. Cancel that listing first.`);

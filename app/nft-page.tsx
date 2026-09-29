@@ -64,10 +64,11 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
   const nftAddress=contract as Address;
   const parsedTokenId=valid?BigInt(tokenId):0n;
   const displayTokenId=tokenId.length>20?`#${tokenId.slice(0,8)}…${tokenId.slice(-6)}`:`#${tokenId}`;
-  const{data:isEdition}=useReadContract({address:nftAddress,abi:erc1155Abi,functionName:"supportsInterface",args:["0xd9b67a26"],chainId:marketChainId,query:{enabled:valid}});
+  const{data:isEdition,isError:standardReadFailed}=useReadContract({address:nftAddress,abi:erc1155Abi,functionName:"supportsInterface",args:["0xd9b67a26"],chainId:marketChainId,query:{enabled:valid}});
   const{data:editionSupply}=useReadContract({address:nftAddress,abi:erc1155SupplyAbi,functionName:"totalSupply",args:[parsedTokenId],chainId:marketChainId,query:{enabled:valid&&isEdition===true}});
-  const{data:owner,refetch:refetchOwner}=useReadContract({address:nftAddress,abi:erc721Abi,functionName:"ownerOf",args:[parsedTokenId],chainId:marketChainId,query:{enabled:valid&&!isEdition,refetchInterval:30_000}});
-  const{data:directListing,refetch:refetchListing,isLoading:listingLoading}=useReadContract({address:marketplaceAddress,abi:marketplaceAbi,functionName:"getListing",args:[nftAddress,parsedTokenId],chainId:marketChainId,query:{enabled:valid&&marketplaceLive&&marketplaceAddress!==zeroAddress&&!isEdition,refetchInterval:MARKETPLACE_REFRESH_INTERVAL}});
+  const erc721Candidate=isEdition===false||standardReadFailed;
+  const{data:owner,refetch:refetchOwner}=useReadContract({address:nftAddress,abi:erc721Abi,functionName:"ownerOf",args:[parsedTokenId],chainId:marketChainId,query:{enabled:valid&&erc721Candidate,refetchInterval:30_000}});
+  const{data:directListing,refetch:refetchListing,isLoading:listingLoading}=useReadContract({address:marketplaceAddress,abi:marketplaceAbi,functionName:"getListing",args:[nftAddress,parsedTokenId],chainId:marketChainId,query:{enabled:valid&&marketplaceLive&&marketplaceAddress!==zeroAddress&&erc721Candidate,refetchInterval:MARKETPLACE_REFRESH_INTERVAL}});
   const{data:marketVersion}=useReadContract({address:marketplaceAddress,abi:marketplaceAbi,functionName:"marketplaceVersion",chainId:marketChainId,query:{enabled:valid&&marketplaceLive&&marketplaceAddress!==zeroAddress}});
 
   useEffect(()=>{

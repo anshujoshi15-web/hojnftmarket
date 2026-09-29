@@ -1,9 +1,18 @@
-import { erc721Abi, type Address, type PublicClient } from "viem";
+import { erc721Abi, erc1155Abi, type Address, type PublicClient } from "viem";
 import { marketplaceAbi } from "./marketplace-abi";
 
+export async function readErc721Owner(client:PublicClient,nft:Address,token:bigint):Promise<Address>{
+  try{return await client.readContract({address:nft,abi:erc721Abi,functionName:"ownerOf",args:[token]});}
+  catch{
+    const edition=await client.readContract({address:nft,abi:erc1155Abi,functionName:"supportsInterface",args:["0xd9b67a26"]}).catch(()=>false);
+    if(edition)throw new Error("This NFT is an ERC-1155 edition. Open its NFT page to list a quantity.");
+    throw new Error(`Ownership could not be verified for token #${token}. Check that the NFT contract, token ID, and network are correct, then try again.`);
+  }
+}
+
 export async function inspectListing(client:PublicClient,market:Address,nft:Address,token:bigint,account:Address){
-  const [owner,listing,approved,all]=await Promise.all([
-    client.readContract({address:nft,abi:erc721Abi,functionName:"ownerOf",args:[token]}),
+  const owner=await readErc721Owner(client,nft,token);
+  const [listing,approved,all]=await Promise.all([
     client.readContract({address:market,abi:marketplaceAbi,functionName:"getListing",args:[nft,token]}),
     client.readContract({address:nft,abi:erc721Abi,functionName:"getApproved",args:[token]}),
     client.readContract({address:nft,abi:erc721Abi,functionName:"isApprovedForAll",args:[account,market]}),
