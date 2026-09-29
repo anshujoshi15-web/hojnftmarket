@@ -2,6 +2,14 @@ export const SHIB_MAGAZINE_CONTRACT = "0x007bbf85988caf18cf4222c9214e4fa019b3e00
 
 type Cover = { edition: number; imageUrl: string; articleUrl: string };
 
+// The publisher's token metadata bucket denies public reads for these older
+// editions. These are the matching covers published on magazine.shib.io; both
+// images have their edition number printed on the artwork.
+const verifiedOlderCovers: Record<number, Cover> = {
+  25: { edition: 25, imageUrl: "https://magazine.shib.io/wp-content/uploads/2025/04/Qma4AJSAeEjipztE3FRigQGXpkF5LP6HQShV8xagsyc744-1163x1536.png", articleUrl: "https://magazine.shib.io/a-bold-new-shib/" },
+  26: { edition: 26, imageUrl: "https://magazine.shib.io/wp-content/uploads/2025/04/Qmbm3RhEzzfBYj6PbUFKCcumpiXyyZwN42JfdwXCVekM2P-1163x1536.png", articleUrl: "https://magazine.shib.io/shib-eyes-wall-street/" },
+};
+
 export function shibMagazineEdition(chainId: number, contract: string, tokenId: string) {
   if (chainId !== 109 || contract.toLowerCase() !== SHIB_MAGAZINE_CONTRACT || !/^\d+$/.test(tokenId)) return null;
   // The magazine mints up to 3,000 serials per edition; e.g. #330923 is edition 33.
@@ -34,6 +42,7 @@ export function parseShibMagazineCovers(html: string): Cover[] {
 }
 
 export async function officialShibMagazineCover(edition: number, refresh = false) {
+  if (verifiedOlderCovers[edition]) return verifiedOlderCovers[edition];
   const response = await fetch("https://magazine.shib.io/magazine-editions/", {
     headers: { accept: "text/html" },
     signal: AbortSignal.timeout(12_000),

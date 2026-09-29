@@ -15,5 +15,16 @@ test("magazine cover fallback uses only explicitly numbered publisher images", a
   assert.deepEqual(covers.map(cover => cover.edition), [105, 103, 77]);
   assert.match(covers[1].imageUrl, /\/Cover-103-1\.jpg$/);
   assert.equal(shibMagazineEdition(109, "0x007Bbf85988cAF18Cf4222C9214e4fa019b3e002", "1030923"), 103);
+  assert.equal(shibMagazineEdition(109, "0x007Bbf85988cAF18Cf4222C9214e4fa019b3e002", "250104"), 25);
+  assert.equal(shibMagazineEdition(109, "0x007Bbf85988cAF18Cf4222C9214e4fa019b3e002", "261754"), 26);
   assert.equal(shibMagazineEdition(109, "0x007Bbf85988cAF18Cf4222C9214e4fa019b3e002", "1033000"), null);
+});
+
+test("published older covers resolve when token metadata is inaccessible", async () => {
+  const { officialShibMagazineCover } = await loadModule("lib/shib-magazine-cover.ts");
+  const cover25 = await officialShibMagazineCover(25);
+  const cover26 = await officialShibMagazineCover(26);
+  assert.match(cover25.imageUrl, /magazine\.shib\.io\/wp-content\/uploads\/.*\.png$/);
+  assert.match(cover26.imageUrl, /magazine\.shib\.io\/wp-content\/uploads\/.*\.png$/);
+  assert.notEqual(cover25.imageUrl, cover26.imageUrl);
 });

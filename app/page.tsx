@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Sparkles, TrendingUp, Clock, Search, ImageIcon, Maximize2, X, Share2, Download } from "lucide-react";
+import { ArrowUpRight, Sparkles, TrendingUp, Clock, Search, ImageIcon, Maximize2, X } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -152,17 +152,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [activeChain,setActiveChain]=useState<MarketplaceChainId|"all">("all");
-  const [shareCopied,setShareCopied]=useState(false);
   const visibleCollections=listedCollections.filter(collection=>activeChain==="all"||collection.chainId===activeChain);
   const visibleNFTs=featuredNFTs.filter(item=>activeChain==="all"||item.chainId===activeChain).slice(0,12);
-
-  async function shareDiscover(){
-    const data={title:"House of Joshi · Discover NFTs",text:"Explore NFTs across House of Joshi marketplaces.",url:window.location.origin+"/"};
-    try{
-      if(navigator.share)await navigator.share(data);
-      else {await navigator.clipboard.writeText(data.url);setShareCopied(true);window.setTimeout(()=>setShareCopied(false),3000);}
-    }catch(error){if((error as Error).name!=="AbortError")console.error("Could not share Discover",error);}
-  }
 
   useEffect(() => {
     let mounted = true;
@@ -280,10 +271,6 @@ export default function Home() {
       <section className="discover-intro">
         <div className="discover-intro-head">
           <div><span className="royal-section-label">HOUSE OF JOSHI · NFT MARKETPLACE</span><h1>Discover</h1><p>Find work across live networks. Explore collections and listings, then trade from your wallet.</p></div>
-          <div className="discover-intro-actions">
-            <button type="button" onClick={()=>void shareDiscover()}><Share2 size={16}/>{shareCopied?"Link copied":"Share Discover"}</button>
-            <a href="/social-share-cover.png" download="house-of-joshi-marketplace.png"><Download size={16}/>Share image</a>
-          </div>
         </div>
         <div className="discover-chain-pills" aria-label="Filter by network">
           <button type="button" aria-pressed={activeChain==="all"} onClick={()=>setActiveChain("all")}>All networks</button>
