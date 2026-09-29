@@ -229,7 +229,7 @@ function MarketListingCard({item,currency,chain,legacy,account,onBuy,inCart,onTo
   const isSeller=account?.toLowerCase()===item.seller.toLowerCase();
   return <article className="market-listing">
     <Link href={href} className={`market-listing-art ${showArt?"has-image":""}`}>
-      {showArt?<Image src={nft.imageUrl!} alt={nft.name??`NFT #${item.tokenId}`} fill unoptimized sizes="(max-width: 700px) 50vw, 220px" style={{objectFit:"cover"}} onError={()=>setArtFailed(true)}/>:<><span>{chain} · {item.tokenType??"ERC-721"}</span><strong>#{item.tokenId}</strong><i>Artwork unavailable</i></>}
+      {showArt?<Image src={nft.imageUrl!} alt={nft.name??`NFT #${item.tokenId}`} fill unoptimized sizes="(max-width: 700px) 50vw, 220px" style={{objectFit:"contain"}} onError={()=>setArtFailed(true)}/>:<><span>{chain} · {item.tokenType??"ERC-721"}</span><strong>#{item.tokenId}</strong><i>Artwork unavailable</i></>}
     </Link>
     <button className={`market-favorite ${saved.favorite?"active":""}`} onClick={saved.toggle} aria-label={saved.favorite?"Remove from favorites":"Add to favorites"}><Heart size={15} fill={saved.favorite?"currentColor":"none"}/></button>
     <div>

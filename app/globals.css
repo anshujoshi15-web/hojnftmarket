@@ -12003,6 +12003,48 @@ article.royal-profile-nft > a {
 
 .nft-card-with-action > :first-child { flex:1; }
 
+/* Match NFT browsing cards to the profile's compact grid and square artwork. */
+.royal-nft-grid.grid,
+.royal-homepage .royal-nfts-grid,
+.portal-market .market-listings-grid,
+.royal-profile-content .royal-portfolio-grid,
+.royal-content .royal-portfolio-grid,
+.chain-listings.grid {
+  grid-template-columns:repeat(auto-fill,minmax(168px,1fr));
+  gap:12px;
+}
+.royal-nft-grid.grid .royal-nft-card,
+.royal-homepage .royal-nft-card,
+.portal-market .market-listing,
+.chain-listings.grid .chain-listing { min-width:0; }
+.royal-nft-grid.grid .royal-nft-image,
+.royal-homepage .royal-nft-card .royal-nft-image,
+.royal-profile-content .royal-profile-nft .royal-nft-image,
+.royal-content .royal-profile-nft .royal-nft-image,
+.portal-market .market-listing-art,
+.chain-listings.grid .chain-listing-art {
+  width:100%;
+  aspect-ratio:1;
+  min-height:0;
+  max-height:none;
+  overflow:hidden;
+  background-color:#171715;
+  background-position:center;
+  background-size:contain;
+  background-repeat:no-repeat;
+}
+.royal-nft-grid.grid .royal-nft-image img { width:100%; height:100%; max-width:none; max-height:none; object-fit:contain; }
+.royal-nft-grid.grid .royal-nft-details { padding:10px 11px 12px; }
+.royal-nft-grid.grid .royal-nft-header strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+@media (max-width:620px) {
+  .royal-nft-grid.grid,
+  .royal-homepage .royal-nfts-grid,
+  .portal-market .market-listings-grid,
+  .royal-profile-content .royal-portfolio-grid,
+  .royal-content .royal-portfolio-grid,
+  .chain-listings.grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+}
+
 .nft-card-buy-now {
   display:flex;
   align-items:center;
