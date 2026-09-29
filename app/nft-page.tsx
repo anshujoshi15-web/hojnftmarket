@@ -16,6 +16,7 @@ import { OffersPanel } from "./components/offers-panel";
 import { EditionTrading } from "./components/edition-trading";
 import { NftPriceHistory } from "./components/nft-price-history";
 import { OpenSeaListingPanel } from "./components/opensea-listing";
+import { notifyNFTPurchased } from "@/lib/notifications";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type Nft={name:string|null;collection:string|null;imageUrl:string|null;description:string|null;externalUrl:string|null;traits:Array<{type:string;value:string}>;error?:string};
@@ -210,7 +211,10 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
   },[marketChainId,refetchOwner,refetchListing,legacy]);
   async function buy(){
     if(!address||!listing||!owner||owner.toLowerCase()!==listing.seller.toLowerCase())return;
-    const ok=await transaction.run("Purchase",async send=>{await send({address:marketplaceAddress,abi:marketplaceAbi,functionName:"buyItem",args:[listing.nftAddress,BigInt(listing.tokenId)],value:BigInt(listing.price)});});
+    const ok=await transaction.run("Purchase",async send=>{
+      const receipt=await send({address:marketplaceAddress,abi:marketplaceAbi,functionName:"buyItem",args:[listing.nftAddress,BigInt(listing.tokenId)],value:BigInt(listing.price)});
+      notifyNFTPurchased(address,nft?.name??`Token #${tokenId}`,formatEther(BigInt(listing.price)),chain.currency,marketChainId,receipt.transactionHash,nftAddress,tokenId);
+    });
     if(ok){setIndexer(current=>current?{...current,listings:current.listings.filter(item=>item.id!==listing.id)}:current);refreshTrading();}
   }
   async function cancelListing(){

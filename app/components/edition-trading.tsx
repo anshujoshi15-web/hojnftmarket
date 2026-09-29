@@ -8,6 +8,7 @@ import { erc1155Abi, formatEther, maxUint256, zeroAddress, type Address } from "
 import { marketplaceAbi, parseNativeAmount, type IndexedOffer } from "@/lib/marketplace-abi";
 import { getMarketplaceChain, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { TransactionStatus, useMarketplaceTransaction } from "./use-marketplace-transaction";
+import { notifyNFTPurchased } from "@/lib/notifications";
 
 type Edition={seller:Address;price:string;quantity?:string;tokenType?:string};
 export function EditionTrading({chainId,market,nft,tokenId,listings,offers=[],onChanged}:{chainId:MarketplaceChainId;market:Address;nft:Address;tokenId:bigint;listings:Edition[];offers?:IndexedOffer[];onChanged:()=>void}){
@@ -48,7 +49,10 @@ export function EditionTrading({chainId,market,nft,tokenId,listings,offers=[],on
   }
   async function buy(item:Edition){
     if(!supported||purchaseUnits<=0n||purchaseUnits>BigInt(item.quantity??"0")||purchaseUnits*BigInt(item.price)>maxUint256)return;
-    const ok=await tx.run("Edition purchase",async send=>{await send({address:market,abi:marketplaceAbi,functionName:"buyEdition",args:[nft,tokenId,item.seller,purchaseUnits,BigInt(item.price)],value:purchaseUnits*BigInt(item.price)});});if(ok)refresh();
+    const ok=await tx.run("Edition purchase",async send=>{
+      const receipt=await send({address:market,abi:marketplaceAbi,functionName:"buyEdition",args:[nft,tokenId,item.seller,purchaseUnits,BigInt(item.price)],value:purchaseUnits*BigInt(item.price)});
+      if(address)notifyNFTPurchased(address,`${purchaseUnits} edition${purchaseUnits===1n?"":"s"} of token #${tokenId}`,formatEther(purchaseUnits*BigInt(item.price)),chain.currency,chainId,receipt.transactionHash,nft,String(tokenId));
+    });if(ok)refresh();
   }
   async function makeOffer(){
     if(!address||!client||!offerSupported||offeredUnits<=0n||offerValue<=0n)return;

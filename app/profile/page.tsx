@@ -620,6 +620,7 @@ export default function ProfilePage() {
                 <div className="royal-notification-info">
                   <h3><Bell size={20} /> Notification Information</h3>
                   <ul>
+                    <li><strong>Purchase Notifications:</strong> Confirmed purchases made through this site appear in the notification bell on this device.</li>
                     <li><strong>Sale Notifications:</strong> You&apos;ll receive an email when your listed NFT is sold</li>
                     <li><strong>Offer Notifications:</strong> Get notified when someone makes an offer on your NFT</li>
                     <li><strong>Transaction Details:</strong> Each email includes price, buyer, and transaction links</li>

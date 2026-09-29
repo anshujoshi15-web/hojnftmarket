@@ -100,19 +100,19 @@ export function GlobalHeader() {
 
   // Listen for new notifications
   useEffect(()=>{
-    const handleNewNotification=(event:CustomEvent)=>{
+    const handleNewNotification=()=>{
       if(address){
-        const notification=event.detail;
-        const newNotifications=[notification,...notifications];
-        localStorage.setItem(`hoj:notifications:${address.toLowerCase()}`,JSON.stringify(newNotifications));
-        setNotifications(newNotifications);
-        setNotificationCount(prev=>prev+1);
+        try{
+          const saved=JSON.parse(localStorage.getItem(`hoj:notifications:${address.toLowerCase()}`)??"[]") as Array<{id:string;type:string;message:string;timestamp:number;read:boolean}>;
+          setNotifications(saved);
+          setNotificationCount(saved.filter(item=>!item.read).length);
+        }catch{/* Keep the previous notification state. */}
       }
     };
     
     window.addEventListener("hoj-new-notification",handleNewNotification as EventListener);
     return()=>window.removeEventListener("hoj-new-notification",handleNewNotification as EventListener);
-  },[address,notifications]);
+  },[address]);
 
   // Mark notification as read
   const markAsRead=(id:string)=>{

@@ -10,16 +10,19 @@ type Notification = {
 export function addNotification(
   walletAddress: string,
   type: string,
-  message: string
+  message: string,
+  id?: string
 ) {
   if (typeof window === 'undefined') return;
 
   try {
     const key = `hoj:notifications:${walletAddress.toLowerCase()}`;
-    const existing = JSON.parse(localStorage.getItem(key) || '[]');
+    const parsed:unknown = JSON.parse(localStorage.getItem(key) || '[]');
+    const existing:Notification[] = Array.isArray(parsed)?parsed:[];
+    if(id&&existing.some(notification=>notification.id===id))return;
     
     const newNotification = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: id??`${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       type,
       message,
       timestamp: Date.now(),
@@ -71,11 +74,12 @@ export function notifyOfferAccepted(walletAddress: string, nftName: string, pric
   );
 }
 
-export function notifyNFTPurchased(walletAddress: string, nftName: string, price: string, currency: string) {
+export function notifyNFTPurchased(walletAddress: string, nftName: string, price: string, currency: string, chainId:number, transactionHash:string, contract:string, tokenId:string) {
   addNotification(
     walletAddress,
     "PURCHASE",
-    `You successfully purchased "${nftName}" for ${price} ${currency}`
+    `You bought "${nftName}" for ${price} ${currency}`,
+    `purchase:${chainId}:${transactionHash.toLowerCase()}:${contract.toLowerCase()}:${tokenId}`
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Check, Trash2, Wallet, TrendingUp, Gift, Heart } from "lucide-react";
+import { Bell, Check, Trash2, Wallet, TrendingUp, Gift, Heart, ShoppingBag } from "lucide-react";
 import { useAccount } from "wagmi";
 import { useState, useEffect } from "react";
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, clearNotifications } from "@/lib/notifications";
@@ -52,6 +52,8 @@ export default function NotificationsPage() {
         return <Wallet size={20} />;
       case "SALE":
         return <TrendingUp size={20} />;
+      case "PURCHASE":
+        return <ShoppingBag size={20} />;
       case "OFFER":
         return <Gift size={20} />;
       case "FAVORITE":

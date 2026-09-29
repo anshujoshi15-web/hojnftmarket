@@ -12,6 +12,7 @@ import { marketplaceAbi as abi, parseNativeAmount } from "@/lib/marketplace-abi"
 import { TransactionStatus, useMarketplaceTransaction } from "./components/use-marketplace-transaction";
 import { favoriteId, useFavorite } from "./favorites";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
+import { notifyNFTPurchased } from "@/lib/notifications";
 
 type View = "market" | "activity" | "account" | "protocol";
 type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:`0x${string}`; tokenId:string; seller:`0x${string}`; price:string; transactionHash:`0x${string}`; updatedBlock:number; tokenType?:"ERC-721"|"ERC-1155"; quantity?:string };
@@ -109,14 +110,16 @@ export function Portal({ view,legacy=false }: { view:View;legacy?:boolean }) {
     const ok=await transaction.run("Purchase",async send=>{
       if(item.chainId!==selectedChainId)throw new Error("Select the NFT's network before buying.");
       if(item.tokenType==="ERC-1155")throw new Error("Open this NFT to choose an edition quantity.");
-      await send({address:data.marketplaceAddress!,abi,functionName:"buyItem",args:[item.nftAddress,BigInt(item.tokenId)],value:BigInt(item.price)});
+      const receipt=await send({address:data.marketplaceAddress!,abi,functionName:"buyItem",args:[item.nftAddress,BigInt(item.tokenId)],value:BigInt(item.price)});
+      if(address)notifyNFTPurchased(address,`Token #${item.tokenId}`,formatEther(BigInt(item.price)),data.currency,selectedChainId,receipt.transactionHash,item.nftAddress,item.tokenId);
     });if(ok){removePurchasedFromCart(selectedChainId,[item.id],legacy);void refresh();}
   }
   async function batchBuy(items:Listing[]){
     if(!data.marketplaceAddress||!advancedMarketplace||!items.length)return;
     const ok=await transaction.run("Batch purchase",async send=>{
       if(items.some(item=>item.chainId!==selectedChainId||item.tokenType==="ERC-1155"))throw new Error("A checkout must contain NFTs from one network.");
-      await send({address:data.marketplaceAddress!,abi,functionName:"batchBuy",args:[items.map(item=>item.nftAddress),items.map(item=>BigInt(item.tokenId))],value:items.reduce((sum,item)=>sum+BigInt(item.price),0n)});
+      const receipt=await send({address:data.marketplaceAddress!,abi,functionName:"batchBuy",args:[items.map(item=>item.nftAddress),items.map(item=>BigInt(item.tokenId))],value:items.reduce((sum,item)=>sum+BigInt(item.price),0n)});
+      if(address)for(const item of items)notifyNFTPurchased(address,`Token #${item.tokenId}`,formatEther(BigInt(item.price)),data.currency,selectedChainId,receipt.transactionHash,item.nftAddress,item.tokenId);
     });if(ok){removePurchasedFromCart(selectedChainId,items.map(item=>item.id),legacy);void refresh();}
   }
   async function makeOffer(item:Listing,amount:string){

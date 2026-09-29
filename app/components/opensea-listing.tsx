@@ -8,6 +8,7 @@ import { useAccount } from "wagmi";
 import { basicOrderAbi, openSeaChains, parseBasicOrder, type OpenSeaListing } from "@/lib/opensea";
 import { isMarketplaceLive, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { TransactionStatus, useMarketplaceTransaction } from "./use-marketplace-transaction";
+import { notifyNFTPurchased } from "@/lib/notifications";
 
 export function OpenSeaListingPanel({chainId,contract,tokenId}:{chainId:MarketplaceChainId;contract:string;tokenId:string}){
   const [listing,setListing]=useState<OpenSeaListing|null>(null);
@@ -46,7 +47,8 @@ export function OpenSeaListingPanel({chainId,contract,tokenId}:{chainId:Marketpl
       const parameters=parseBasicOrder(body.parameters);
       if(!body.to||!body.value||!parameters)throw new Error("OpenSea checkout data was incomplete.");
       const ok=await transaction.run("OpenSea purchase",async send=>{
-        await send({address:body.to!,abi:basicOrderAbi,functionName:"fulfillBasicOrder_efficient_6GL6yc",args:[parameters],value:BigInt(body.value!)});
+        const receipt=await send({address:body.to!,abi:basicOrderAbi,functionName:"fulfillBasicOrder_efficient_6GL6yc",args:[parameters],value:BigInt(body.value!)});
+        notifyNFTPurchased(address,`Token #${tokenId}`,formatUnits(BigInt(listing.price),listing.decimals),listing.currency,chainId,receipt.transactionHash,contract,tokenId);
       });
       if(ok)void refresh();
     }catch(error){setMessage(error instanceof Error?error.message:"OpenSea checkout is unavailable.");void refresh();}
