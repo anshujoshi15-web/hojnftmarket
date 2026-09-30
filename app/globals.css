@@ -12116,8 +12116,9 @@ article.royal-profile-nft > a {
 .discover-chain-pills button { flex:none; min-height:40px; padding:8px 16px; border:1px solid #3c382f; border-radius:24px; background:#181715; color:#c8c0b3; font:600 12px var(--font-sans); cursor:pointer; }
 .discover-chain-pills button[aria-pressed="true"] { background:#d1ac62; border-color:#d1ac62; color:#19140e; }
 .discover-chain-pills button:focus-visible { outline:2px solid #fff; outline-offset:2px; }
-.royal-homepage .discover-showcase { order:1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; min-height:280px; padding:10px clamp(18px,5vw,72px) 28px; background:#0c0c0c; }
+.royal-homepage .discover-showcase { order:1; display:grid; grid-auto-flow:column; grid-auto-columns:minmax(280px,calc((100vw - 2 * clamp(18px,5vw,72px) - 28px) / 3)); gap:14px; min-height:280px; overflow-x:auto; overscroll-behavior-inline:contain; scroll-snap-type:x mandatory; scroll-padding-inline:clamp(18px,5vw,72px); padding:10px clamp(18px,5vw,72px) 28px; background:#0c0c0c; -webkit-overflow-scrolling:touch; }
 .discover-showcase-card { position:relative; display:block; min-width:0; min-height:300px; overflow:hidden; border:1px solid #514737; border-radius:12px; background:#24221e; color:#fff; text-decoration:none; }
+.discover-showcase-card { scroll-snap-align:start; }
 .discover-showcase-card img { object-fit:cover; transition:transform .25s ease; }
 .discover-showcase-card:hover img { transform:scale(1.04); }
 .discover-showcase-shade { position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,.5),transparent 35%,rgba(0,0,0,.88)); }
@@ -12131,5 +12132,25 @@ article.royal-profile-nft > a {
 .discover-showcase-copy strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#fff; font-size:12px; }
 .discover-showcase-fallback { position:absolute; inset:0; display:grid; place-items:center; color:#a98d59; background:radial-gradient(circle at center,#393025,#181715); }
 .discover-showcase-loading { grid-column:1/-1; display:grid; place-items:center; color:#bfb5a3; }
-@media (max-width:900px) { .royal-homepage .discover-showcase { grid-template-columns:repeat(2,minmax(0,1fr)); } .discover-showcase-card:nth-child(3) { display:none; } }
-@media (max-width:620px) { .discover-intro-head { align-items:start; flex-direction:column; } .royal-homepage .discover-showcase { grid-template-columns:1fr; } .discover-showcase-card { min-height:300px; } .discover-showcase-card:nth-child(2) { display:none; } }
+@media (max-width:900px) { .royal-homepage .discover-showcase { grid-auto-columns:minmax(260px,44vw); } }
+@media (max-width:620px) { .discover-intro-head { align-items:start; flex-direction:column; } .royal-homepage .discover-showcase { grid-auto-columns:min(82vw,360px); } .discover-showcase-card { min-height:300px; } }
+
+/* Keep navigation tabs in one swipeable row on phones. */
+@media (max-width:768px) {
+  .discover-chain-pills,
+  .royal-profile-tabs,
+  .royal-collection-tabs,
+  .royal-activity-tabs,
+  .royal-rankings-tabs,
+  .market-tabs {
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    overscroll-behavior-inline:contain;
+    -webkit-overflow-scrolling:touch;
+  }
+  .royal-profile-tabs > *,
+  .royal-collection-tabs > *,
+  .royal-activity-tabs > *,
+  .royal-rankings-tabs > *,
+  .market-tabs > * { flex-shrink:0; white-space:nowrap; }
+}

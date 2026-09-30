@@ -280,7 +280,7 @@ export default function Home() {
         </div>
       </section>
       <section className="discover-showcase" aria-label="Featured collections">
-        {loading?<div className="discover-showcase-loading">Loading collections…</div>:visibleCollections.length===0?<div className="discover-showcase-loading">No active collections on this network yet.</div>:visibleCollections.slice(0,3).map((collection,index)=><DiscoverShowcaseCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>)}
+        {loading?<div className="discover-showcase-loading">Loading collections…</div>:visibleCollections.length===0?<div className="discover-showcase-loading">No active collections on this network yet.</div>:visibleCollections.slice(0,5).map((collection,index)=><DiscoverShowcaseCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>)}
       </section>
 
       {/* Trending Collections based on sales */}
