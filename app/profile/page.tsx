@@ -8,7 +8,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useState, useEffect } from "react";
 import { formatEther } from "viem";
 import Link from "next/link";
-import { getMarketplaceChain, marketplaceChains, transactionUrl, type MarketplaceChainId } from "@/lib/marketplace-chains";
+import { getMarketplaceChain, isMarketplaceChainId, isMarketplaceLive, marketplaceChains, transactionUrl, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 import { ProfileListingFlow } from "../components/profile-listing-flow";
 
@@ -435,6 +435,10 @@ export default function ProfilePage() {
                   filteredNfts.map((nft) => {
                     const nftChainId = nft.chainId || 109; // Default to Shibarium if not set
                     const activeListing=listings.find(l=>l.chainId===nftChainId&&l.nftAddress.toLowerCase()===nft.contractAddress.toLowerCase()&&l.tokenId===nft.tokenId);
+                    const tokenStandard=(nft.tokenType??"ERC-721").toUpperCase().replace(/[^A-Z0-9]/g,"");
+                    const isEdition=tokenStandard==="ERC1155"||tokenStandard==="CRC1155";
+                    const selectionReason=isEdition?"Bulk selection supports ERC-721 NFTs only. Open this NFT to list editions.":activeListing?"This NFT is already listed.":!isMarketplaceChainId(nftChainId)||!isMarketplaceLive(nftChainId)?`Bulk listing is not live on ${getMarketplaceChain(nftChainId).name}.`:null;
+                    const selected=bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&bulkSelection.tokenIds.includes(nft.tokenId);
                     
                     return (
                       <div key={`${nftChainId}-${nft.contractAddress}-${nft.tokenId}`} className="royal-profile-nft-choice"><Link href={`/nft/${nftChainId}/${nft.contractAddress}/${nft.tokenId}?from=profile`} className="royal-profile-nft">
@@ -450,7 +454,7 @@ export default function ProfilePage() {
                             )}
                           </div>
                         </div>
-                      </Link>{(nftChainId===25||nftChainId===109||nftChainId===5042||nftChainId===8453)&&nft.tokenType!=="ERC-1155"&&!activeListing&&<label className="royal-profile-select" title="Select for listing"><input type="checkbox" aria-label={`Select ${nft.name||`token #${nft.tokenId}`} for listing`} checked={bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&bulkSelection.tokenIds.includes(nft.tokenId)} disabled={selectedCount>=20&&bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&!bulkSelection.tokenIds.includes(nft.tokenId)} onChange={event=>toggleBulkNft(nft,nftChainId,event.target.checked)}/></label>}</div>
+                      </Link><label className="royal-profile-select" title={selectionReason??"Select for listing"}><input type="checkbox" aria-label={selectionReason??`Select ${nft.name||`token #${nft.tokenId}`} for listing`} checked={!!selected} disabled={!!selectionReason||(selectedCount>=20&&!selected)} onChange={event=>{if(isMarketplaceChainId(nftChainId))toggleBulkNft(nft,nftChainId,event.target.checked);}}/></label></div>
                     );
                   })
                 ) : (

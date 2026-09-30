@@ -12,9 +12,8 @@ export async function readErc721Owner(client:PublicClient,nft:Address,token:bigi
 
 export async function inspectListing(client:PublicClient,market:Address,nft:Address,token:bigint,account:Address){
   const owner=await readErc721Owner(client,nft,token);
-  const [listing,approved,all]=await Promise.all([
+  const [listing,all]=await Promise.all([
     client.readContract({address:market,abi:marketplaceAbi,functionName:"getListing",args:[nft,token]}),
-    client.readContract({address:nft,abi:erc721Abi,functionName:"getApproved",args:[token]}),
     client.readContract({address:nft,abi:erc721Abi,functionName:"isApprovedForAll",args:[account,market]}),
   ]);
   if(owner.toLowerCase()!==account.toLowerCase())throw new Error("Only the current owner can list this NFT.");
@@ -23,5 +22,7 @@ export async function inspectListing(client:PublicClient,market:Address,nft:Addr
     const version=await client.readContract({address:market,abi:marketplaceAbi,functionName:"marketplaceVersion"}).catch(()=>0n);
     if(version<3n)throw new Error("This older marketplace has a stale listing from the previous owner. The previous seller must cancel it, or this network must move to the updated marketplace.");
   }
-  return {needsApproval:!all&&approved.toLowerCase()!==market.toLowerCase()};
+  if(all)return {needsApproval:false};
+  const approved=await client.readContract({address:nft,abi:erc721Abi,functionName:"getApproved",args:[token]});
+  return {needsApproval:approved.toLowerCase()!==market.toLowerCase()};
 }

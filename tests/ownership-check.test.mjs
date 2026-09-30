@@ -27,3 +27,17 @@ test("unknown ownership failure names the token and asks for contract and networ
   }};
   await assert.rejects(readErc721Owner(client,nft,42n),/token #42.*contract, token ID, and network/);
 });
+
+test("collection-wide approval permits listing without a token approval read",async()=>{
+  const {inspectListing}=await loadModule("lib/prepare-listing.ts");
+  const calls=[];
+  const client={readContract:async request=>{
+    calls.push(request.functionName);
+    if(request.functionName==="ownerOf")return owner;
+    if(request.functionName==="getListing")return {price:0n,seller:owner};
+    if(request.functionName==="isApprovedForAll")return true;
+    throw new Error(`Unexpected ${request.functionName}`);
+  }};
+  assert.deepEqual(await inspectListing(client,market,nft,1n,owner),{needsApproval:false});
+  assert.equal(calls.includes("getApproved"),false);
+});

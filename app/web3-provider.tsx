@@ -40,7 +40,10 @@ export const supportedChains = [shibarium, mainnet, polygon, base, cronos, robin
 const transport = {
   [shibarium.id]: http(shibarium.rpcUrls.default.http[0]),
   [mainnet.id]: http(),
-  [polygon.id]: http(),
+  [polygon.id]: fallback([
+    http("https://polygon-bor-rpc.publicnode.com",{timeout:12_000,retryCount:1}),
+    http("https://polygon.drpc.org",{timeout:12_000,retryCount:1}),
+  ]),
   // Wallet reads and preflight simulations must survive a busy public Base RPC.
   [base.id]: fallback([
     http("https://base-rpc.publicnode.com",{timeout:12_000,retryCount:1}),
