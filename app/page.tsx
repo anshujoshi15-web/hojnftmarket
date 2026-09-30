@@ -288,8 +288,7 @@ export default function Home() {
         <div className="royal-section-header">
           <div>
             <span className="royal-section-label">TRENDING</span>
-            <h2>Top Collections by Sales</h2>
-            <p>Collections with the most sales across all networks</p>
+            <h2>Top Collections</h2>
           </div>
           <Link href="/collections" className="royal-view-all">
             View All
