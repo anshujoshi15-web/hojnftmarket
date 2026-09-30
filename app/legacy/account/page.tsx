@@ -1,3 +1,3 @@
-import { Portal } from "../../portal";
+import { redirect } from "next/navigation";
 
-export default function LegacyAccountPage(){return <Portal view="account" legacy/>}
+export default function LegacyAccountPage(){redirect("/profile")}

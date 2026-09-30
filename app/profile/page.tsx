@@ -37,7 +37,6 @@ type IndexedListing = {
   transactionHash: `0x${string}`;
   createdBlock: number;
   updatedBlock: number;
-  legacy?: boolean;
 };
 
 type IndexedActivity = {
@@ -57,7 +56,6 @@ type IndexedActivity = {
 type IndexerResponse = {
   listings: IndexedListing[];
   activity: IndexedActivity[];
-  legacyMarketplaceAddress?: string | null;
   configured?: boolean;
   syncError?: string | null;
 };
@@ -234,15 +232,6 @@ export default function ProfilePage() {
           const data=await response.json() as IndexerResponse;
           if(!active)return;
           responses.set(`${chainId}:current`,data);
-          if(data.legacyMarketplaceAddress){
-            try{
-              const earlierResponse=await fetch(`/api/indexer?chainId=${chainId}&legacy=1`,{cache:"no-store"});
-              if(earlierResponse.ok&&active){
-                const earlier=await earlierResponse.json() as IndexerResponse;
-                responses.set(`${chainId}:legacy`,{...earlier,listings:(earlier.listings??[]).map(item=>({...item,legacy:true}))});
-              }
-            }catch(error){console.error(`Could not refresh earlier ${getMarketplaceChain(chainId).name} listings`,error);}
-          }
           const all=[...responses.values()];
           setListings(all.flatMap(data=>data.listings??[]).filter(item=>item.seller.toLowerCase()===wallet));
           setActivity(all.flatMap(data=>data.activity??[]).filter(item=>item.seller?.toLowerCase()===wallet||item.buyer?.toLowerCase()===wallet).sort((a,b)=>b.blockNumber-a.blockNumber||b.logIndex-a.logIndex));
@@ -448,14 +437,14 @@ export default function ProfilePage() {
                     const activeListing=listings.find(l=>l.chainId===nftChainId&&l.nftAddress.toLowerCase()===nft.contractAddress.toLowerCase()&&l.tokenId===nft.tokenId);
                     
                     return (
-                      <div key={`${nftChainId}-${nft.contractAddress}-${nft.tokenId}`} className="royal-profile-nft-choice"><Link href={activeListing?.legacy?`/legacy/account?chainId=${nftChainId}`:`/nft/${nftChainId}/${nft.contractAddress}/${nft.tokenId}?from=profile`} className="royal-profile-nft">
+                      <div key={`${nftChainId}-${nft.contractAddress}-${nft.tokenId}`} className="royal-profile-nft-choice"><Link href={`/nft/${nftChainId}/${nft.contractAddress}/${nft.tokenId}?from=profile`} className="royal-profile-nft">
                         <NftArtwork key={nft.imageUrl ?? "no-image"} imageUrl={nft.imageUrl} name={nft.name || `Token #${nft.tokenId}`} />
                         <div className="royal-nft-details">
                           <small>{getMarketplaceChain(nftChainId).name} · {nft.collection || `${nft.contractAddress.slice(0, 8)}…`}</small>
                           <h3>{nft.name || `Token #${nft.tokenId}`}</h3>
                           <div className="royal-nft-status">
                             {activeListing ? (
-                              <span className="listed">{activeListing.legacy?"Manage older listing":`Listed · ${formatEther(BigInt(activeListing.price))} ${getMarketplaceChain(nftChainId).currency}`}</span>
+                              <span className="listed">Listed · {formatEther(BigInt(activeListing.price))} {getMarketplaceChain(nftChainId).currency}</span>
                             ) : (
                               <span className="not-listed">Not Listed</span>
                             )}
@@ -482,12 +471,12 @@ export default function ProfilePage() {
                     return (
                       <div key={listing.id} className="royal-listing-card">
                         <div className="royal-listing-price">
-                          <span>{listing.legacy?"Older contract":"Price"}</span>
-                          <strong>{listing.legacy?"Manage listing":`${formatEther(BigInt(listing.price))} ${chain.currency}`}</strong>
+                          <span>Price</span>
+                          <strong>{formatEther(BigInt(listing.price))} {chain.currency}</strong>
                         </div>
                         <div className="royal-listing-details">
                           <small>{chain.name}</small>
-                          <h3>#{listing.tokenId}</h3><Link href={listing.legacy?`/legacy/account?chainId=${listing.chainId}`:`/nft/${listing.chainId}/${listing.nftAddress}/${listing.tokenId}?from=profile`}>Manage {listing.legacy?"earlier ":""}listing</Link>
+                          <h3>#{listing.tokenId}</h3><Link href={`/nft/${listing.chainId}/${listing.nftAddress}/${listing.tokenId}?from=profile`}>Manage listing</Link>
                           <p>{listing.nftAddress.slice(0, 8)}…</p>
                         </div>
                       </div>
