@@ -11,7 +11,7 @@ import { TransactionStatus, useMarketplaceTransaction } from "./use-marketplace-
 import { notifyNFTPurchased } from "@/lib/notifications";
 
 type Edition={seller:Address;price:string;quantity?:string;tokenType?:string};
-export function EditionTrading({chainId,market,nft,tokenId,listings,offers=[],onChanged}:{chainId:MarketplaceChainId;market:Address;nft:Address;tokenId:bigint;listings:Edition[];offers?:IndexedOffer[];onChanged:()=>void}){
+export function EditionTrading({chainId,market,nft,tokenId,listings,offers=[],collectionFloorWei,completeFloor,onChanged}:{chainId:MarketplaceChainId;market:Address;nft:Address;tokenId:bigint;listings:Edition[];offers?:IndexedOffer[];collectionFloorWei:bigint|null;completeFloor:boolean;onChanged:()=>void}){
   const {address}=useAccount(),client=usePublicClient({chainId}),tx=useMarketplaceTransaction(chainId);
   const chain=getMarketplaceChain(chainId);
   const [quantity,setQuantity]=useState("1"),[price,setPrice]=useState(""),[buyQuantity,setBuyQuantity]=useState("1");
@@ -30,6 +30,7 @@ export function EditionTrading({chainId,market,nft,tokenId,listings,offers=[],on
   const purchaseUnits=parseQuantity(buyQuantity);
   const offeredUnits=parseQuantity(offerQuantity);
   let amount=0n;try{amount=parseNativeAmount(price);}catch{}
+  const belowFloor=collectionFloorWei!==null&&collectionFloorWei>0n&&amount>0n&&amount<collectionFloorWei;
   let offerValue=0n;try{offerValue=parseNativeAmount(offerAmount);}catch{}
   function refresh(){void balance.refetch();void own.refetch();void ownOffer.refetch();void proceeds.refetch();onChanged();}
   async function list(){
@@ -111,6 +112,7 @@ export function EditionTrading({chainId,market,nft,tokenId,listings,offers=[],on
           <p>You own {balance.data?.toString()??"…"} editions. Set a quantity and price per edition.</p>
           <label>Quantity to list<input inputMode="numeric" value={quantity} onChange={event=>setQuantity(event.target.value)}/></label>
           <label>Price per edition ({chain.currency})<input inputMode="decimal" value={price} onChange={event=>setPrice(event.target.value)}/></label>
+          {belowFloor&&<p className="listing-below-floor-alert" role="alert">Your price per edition is below the {completeFloor?"current marketplace floor":"lowest listing currently observed"} of {formatEther(collectionFloorWei)} {chain.currency}. Review it before listing.</p>}
           <div className="royal-fee-info"><div className="royal-fee-row"><span>Total if all sell</span><strong>{formatEther(units*amount)} {chain.currency}</strong></div><div className="royal-fee-row"><span>Marketplace fee on sale</span><strong>2% plus applicable creator royalties</strong></div></div>
           <div className="royal-modal-actions"><button type="button" disabled={tx.pending} onClick={()=>setShowListModal(false)}>Cancel</button><button className="royal-primary" disabled={tx.pending||units<=0n||units>(balance.data??0n)||amount<=0n||units*amount>maxUint256}>{tx.pending?"Confirming…":own.data?.quantity?"Update listing":"Approve & list"}</button></div>
         </form>

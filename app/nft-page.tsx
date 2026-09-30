@@ -350,7 +350,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
           </div>
         </div>
 
-        {!marketplaceLive?<div className="royal-nft-action-section"><div className="royal-not-listed"><span>MARKETPLACE STATUS</span><strong>Coming soon on {chain.name}</strong></div><p>You can view this NFT, but HOJ listing, buying, and offers are not yet available on this network.</p></div>:isEdition?<EditionTrading chainId={marketChainId} market={marketplaceAddress} nft={nftAddress} tokenId={parsedTokenId} listings={indexer?.listings.filter(item=>item.nftAddress.toLowerCase()===contract.toLowerCase()&&item.tokenId===tokenId)??[]} offers={indexer?.offers?.filter(item=>item.nftAddress.toLowerCase()===contract.toLowerCase()&&item.tokenId===tokenId)??[]} onChanged={refreshTrading}/>:<div className="royal-nft-action-section">
+        {!marketplaceLive?<div className="royal-nft-action-section"><div className="royal-not-listed"><span>MARKETPLACE STATUS</span><strong>Coming soon on {chain.name}</strong></div><p>You can view this NFT, but HOJ listing, buying, and offers are not yet available on this network.</p></div>:isEdition?<EditionTrading chainId={marketChainId} market={marketplaceAddress} nft={nftAddress} tokenId={parsedTokenId} listings={indexer?.listings.filter(item=>item.nftAddress.toLowerCase()===contract.toLowerCase()&&item.tokenId===tokenId)??[]} offers={indexer?.offers?.filter(item=>item.nftAddress.toLowerCase()===contract.toLowerCase()&&item.tokenId===tokenId)??[]} collectionFloorWei={collectionFloorWei} completeFloor={completeFloor} onChanged={refreshTrading}/>:<div className="royal-nft-action-section">
           {listing?<>
             <div className="royal-current-price">
               <span>CURRENT PRICE</span>
@@ -509,8 +509,9 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
             <h4>Pricing</h4>
             <div className="royal-fee-info" role="status">
               <div className="royal-fee-row"><span>{completeFloor?"Current marketplace floor":"Observed listing low"}</span><strong>{collectionFloor?`${collectionFloor} ${chain.currency}`:completeFloor?"No active listings":"Unavailable"}</strong></div>
-              {floorDifference!==null&&<div className="royal-fee-row"><span>Your price vs. floor</span><strong>{floorDifference===0?"At floor":`${Math.abs(floorDifference).toFixed(1)}% ${floorDifference>0?"above":"below"}`}</strong></div>}
+              {floorDifference!==null&&<div className={`royal-fee-row${floorDifference<0?" listing-below-floor-text":""}`}><span>Your price vs. floor</span><strong>{floorDifference===0?"At floor":`${Math.abs(floorDifference).toFixed(1)}% ${floorDifference>0?"above":"below"}`}</strong></div>}
             </div>
+            {floorDifference!==null&&floorDifference<0&&<p className="listing-below-floor-alert" role="alert">Your price is below the {completeFloor?"current marketplace floor":"lowest listing currently observed"} of {collectionFloor} {chain.currency}. Review it before listing.</p>}
             {!completeFloor&&<p className="royal-listing-note">The indexer has not verified the full listing history on {chain.name}; this is the lowest listing currently observed.</p>}
             <div className="royal-pricing-options">
               <div className="royal-pricing-option">

@@ -12135,6 +12135,11 @@ article.royal-profile-nft > a {
 @media (max-width:900px) { .royal-homepage .discover-showcase { grid-auto-columns:minmax(260px,44vw); } }
 @media (max-width:620px) { .discover-intro-head { align-items:start; flex-direction:column; } .royal-homepage .discover-showcase { grid-auto-columns:min(82vw,360px); } .discover-showcase-card { min-height:300px; } }
 
+.listing-below-floor-alert { margin:12px 0; padding:11px 13px; border:1px solid #d65a5a; border-radius:8px; background:rgba(170,38,38,.17); color:#ffd0d0!important; font-size:13px; line-height:1.45; }
+.listing-below-floor-text,.listing-below-floor-text strong { color:#ff8f8f!important; }
+.profile-listing-row.listing-below-floor-row { border-left:3px solid #d65a5a; padding-left:9px; background:rgba(170,38,38,.1); }
+.profile-listing-row.listing-below-floor-row input { border-color:#d65a5a; }
+
 /* Keep navigation tabs in one swipeable row on phones. */
 @media (max-width:768px) {
   .discover-chain-pills,

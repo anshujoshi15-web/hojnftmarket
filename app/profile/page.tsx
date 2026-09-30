@@ -626,7 +626,7 @@ export default function ProfilePage() {
           </>
         )}
       </section>
-      {bulkSelection&&<ProfileListingFlow chainId={bulkSelection.chainId} collection={bulkSelection.collection} items={bulkSelection.tokenIds.map(tokenId=>walletNfts.find(nft=>nft.chainId===bulkSelection.chainId&&nft.contractAddress.toLowerCase()===bulkSelection.collection.toLowerCase()&&nft.tokenId===tokenId)).filter((nft):nft is WalletNft=>!!nft)} onRemove={tokenId=>setBulkSelection(current=>{const remaining=current?.tokenIds.filter(id=>id!==tokenId)??[];return current&&remaining.length?{...current,tokenIds:remaining}:null;})} onClear={()=>setBulkSelection(null)}/>}
+      {bulkSelection&&<ProfileListingFlow key={`${bulkSelection.chainId}:${bulkSelection.collection.toLowerCase()}`} chainId={bulkSelection.chainId} collection={bulkSelection.collection} items={bulkSelection.tokenIds.map(tokenId=>walletNfts.find(nft=>nft.chainId===bulkSelection.chainId&&nft.contractAddress.toLowerCase()===bulkSelection.collection.toLowerCase()&&nft.tokenId===tokenId)).filter((nft):nft is WalletNft=>!!nft)} onRemove={tokenId=>setBulkSelection(current=>{const remaining=current?.tokenIds.filter(id=>id!==tokenId)??[];return current&&remaining.length?{...current,tokenIds:remaining}:null;})} onClear={()=>setBulkSelection(null)}/>}
     </main>
   );
 }
