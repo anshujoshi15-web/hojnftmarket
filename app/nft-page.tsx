@@ -104,13 +104,12 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
     if(!valid){setError("This NFT link is not valid.");return;}
     const[metadataResult,indexerResult]=await Promise.allSettled([
       loadMetadata(),
-      fetch(`/api/indexer?chainId=${chainId}${legacy?"&legacy=1":""}`,{cache:"no-store"}).then(async response=>{const body=await response.json() as Indexer;if(!response.ok&&!body.configured)throw new Error("Marketplace activity is unavailable.");console.log(`Indexer data loaded: ${body.listings.length} listings, ${body.activity.length} activity events`);return body;}),
+      fetch(`/api/indexer?chainId=${chainId}${legacy?"&legacy=1":""}`,{cache:"no-store"}).then(async response=>{if(!response.ok)throw new Error("Marketplace activity is unavailable.");return await response.json() as Indexer;}),
     ]);
     if(!active)return;
     if(metadataResult.status==="rejected")setError(metadataResult.reason instanceof Error?metadataResult.reason.message:"NFT metadata is unavailable.");
     if(indexerResult.status==="fulfilled"){
       setIndexer(indexerResult.value);
-      console.log(`Indexer set with ${indexerResult.value.listings.length} listings`);
     }
   })();return()=>{active=false;};},[chainId,loadMetadata,valid,legacy]);
 
@@ -512,7 +511,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
               {floorDifference!==null&&<div className={`royal-fee-row${floorDifference<0?" listing-below-floor-text":""}`}><span>Your price vs. floor</span><strong>{floorDifference===0?"At floor":`${Math.abs(floorDifference).toFixed(1)}% ${floorDifference>0?"above":"below"}`}</strong></div>}
             </div>
             {floorDifference!==null&&floorDifference<0&&<p className="listing-below-floor-alert" role="alert">Your price is below the {completeFloor?"current marketplace floor":"lowest listing currently observed"} of {collectionFloor} {chain.currency}. Review it before listing.</p>}
-            {!completeFloor&&<p className="royal-listing-note">The indexer has not verified the full listing history on {chain.name}; this is the lowest listing currently observed.</p>}
+            {indexer&&!completeFloor&&collectionFloorWei!==null&&<p className="royal-listing-note">The indexer has not verified the full listing history on {chain.name}; this is the lowest listing currently observed.</p>}
             <div className="royal-pricing-options">
               <div className="royal-pricing-option">
                 <label>Price ({chain.currency})</label>
