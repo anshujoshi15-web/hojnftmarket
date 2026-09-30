@@ -8,7 +8,7 @@ import { getAdminConfig, type AdminConfig } from "@/lib/admin-config";
 
 // Admin wallet addresses (in production, this should be in a database or environment variable)
 const ADMIN_WALLETS = [
-  "0x69Bf308E5e30158072Cf9d2c6DE7b86F5Ae2f9B4", // Admin wallet
+  "0x69bf308e5e30158072cf9d2c6de7b86f5ae2f9b4", // Admin wallet
 ];
 
 export default function AdminPage() {

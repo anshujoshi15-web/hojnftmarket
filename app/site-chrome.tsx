@@ -48,7 +48,7 @@ export function GlobalHeader() {
   
   const isAdmin = useMemo(() => {
     const ADMIN_WALLETS = [
-      "0x69Bf308E5e30158072Cf9d2c6DE7b86F5Ae2f9B4", // Admin wallet
+      "0x69bf308e5e30158072cf9d2c6de7b86f5ae2f9b4", // Admin wallet
     ];
     return address ? ADMIN_WALLETS.includes(address.toLowerCase()) : false;
   }, [address]);
