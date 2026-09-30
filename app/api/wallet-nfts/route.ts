@@ -123,7 +123,9 @@ function explorerCandidates(chainId: MarketplaceChainId) {
   const blockscoutKey = runtime.BLOCKSCOUT_API_KEY;
   const candidates: Array<{ url: string; apiKey?: string }> = [];
 
-  for (const url of [configured, chain.explorerApiUrl]) {
+  // The old cronos.blockscout.com endpoint is no longer an NFT API (404).
+  // Keep user-configured endpoints and the keyed multichain API available.
+  for (const url of [configured, chainId === 25 ? undefined : chain.explorerApiUrl]) {
     if (url && !candidates.some((candidate) => candidate.url === url)) candidates.push({ url });
   }
 
@@ -304,7 +306,9 @@ async function fetchFromEbisu(address:string){
   let complete=false,warning="";
   try{
     for(let page=1;page<=MAX_PAGES;page++){
-      const params=new URLSearchParams({wallet:address,page:String(page),pageSize:"100"});
+      // Include unreviewed collections (code 4) in wallet holdings. Ebisu's
+      // default 0,1 filter hides NFTs that a wallet actually owns.
+      const params=new URLSearchParams({wallet:address,page:String(page),pageSize:"100",blacklist:"0,1,4"});
       const response=await fetchNftProvider(`https://api.ebisusbay.com/v2/wallets?${params}`);
       if(!response.ok)throw new Error(`Cronos wallet provider returned ${response.status}`);
       const payload=await response.json() as EbisuPage;
@@ -355,7 +359,9 @@ async function fetchRecentErc721FromRpc(chainId: MarketplaceChainId, address: st
   const latest = Number(BigInt(latestHex));
   const first = Math.max(0, latest - scanBlocks);
   const ownerTopic = `0x${address.toLowerCase().slice(2).padStart(64, "0")}`;
-  const chunkSize = 100_000;
+  // Cronos's public RPC accepts 2,000-block log windows; 100,000-block
+  // requests were rejected, making its fallback return no wallet NFTs.
+  const chunkSize = chainId === 25 ? 2_000 : 100_000;
   const ranges: Array<[number, number]> = [];
   for (let from = first; from <= latest; from += chunkSize) ranges.push([from, Math.min(latest, from + chunkSize - 1)]);
 
@@ -455,14 +461,14 @@ export async function GET(request: Request) {
     }
   }
 
-  if(chainId===25&&!runtime.CRONOS_EXPLORER_API_URL&&!runtime.BLOCKSCOUT_API_KEY){
+  if(chainId===25){
     const result=await fetchFromEbisu(address);
-    if(result.complete){
+    if(result.complete&&!runtime.CRONOS_EXPLORER_API_URL&&!runtime.BLOCKSCOUT_API_KEY&&result.nfts.length>0){
       return Response.json({owner:address,chainId,nfts:result.nfts,complete:false,coverage:"indexed-collections",source:"ebisus-bay",explorerAddressUrl:`${chain.explorerUrl}/address/${address}`,warnings:["Cronos holdings shown from indexed collections; other NFTs may need a dedicated wallet indexer."]},{headers:{"Cache-Control":"private, max-age=30"}});
     }
     if(result.warning)warnings.push(result.warning);
     mergeNfts(holdings,result.nfts);
-    sources.push("ebisus-bay-partial");
+    sources.push(result.complete?"ebisus-bay":"ebisus-bay-partial");
   }
 
   for (const candidate of explorerCandidates(chainId)) {
@@ -492,8 +498,8 @@ export async function GET(request: Request) {
 
   if (!providerSucceeded && holdings.size === 0) {
     try {
-      const configuredBlocks = Number(runtime[`${chain.slug.toUpperCase()}_RPC_SCAN_BLOCKS`] ?? (chainId === 109 ? 5_000_000 : 500_000));
-      const scanBlocks = Math.min(5_000_000, Math.max(100_000, Number.isFinite(configuredBlocks) ? configuredBlocks : 500_000));
+      const configuredBlocks = Number(runtime[`${chain.slug.toUpperCase()}_RPC_SCAN_BLOCKS`] ?? (chainId === 109 ? 5_000_000 : chainId === 25 ? 20_000 : 500_000));
+      const scanBlocks = Math.min(5_000_000, Math.max(chainId === 25 ? 2_000 : 100_000, Number.isFinite(configuredBlocks) ? configuredBlocks : 500_000));
       const nfts = await fetchRecentErc721FromRpc(chainId, address, runtime[`${chain.slug.toUpperCase()}_RPC_URL`] ?? chain.rpcUrl, scanBlocks);
       mergeNfts(holdings, nfts);
       sources.push(`${chain.slug}-rpc-recent`);

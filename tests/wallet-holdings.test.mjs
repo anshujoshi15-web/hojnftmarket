@@ -54,6 +54,7 @@ test("Cronos wallet holdings use paginated indexed collections without a false c
   globalThis.fetch=async input=>{
     const url=new URL(input);
     assert.equal(url.hostname,"api.ebisusbay.com");
+    assert.equal(url.searchParams.get("blacklist"),"0,1,4");
     const page=Number(url.searchParams.get("page"));pages.push(page);
     return Response.json({page,totalPages:2,totalCount:2,nfts:[{
       nftId:String(page),nftAddress:contract,chain:25,owner:owner.toLowerCase(),burnt:false,
@@ -69,5 +70,32 @@ test("Cronos wallet holdings use paginated indexed collections without a false c
     assert.equal(body.complete,false);
     assert.deepEqual(pages,[1,2]);
     assert.deepEqual(body.nfts.map(nft=>[nft.tokenId,nft.tokenType,nft.quantity]),[["1","ERC-721","1"],["2","ERC-1155","3"]]);
+  }finally{globalThis.fetch=originalFetch;}
+});
+
+test("Cronos falls back to supported RPC log windows when indexed collections are empty",async()=>{
+  const {GET}=await loadModule("app/api/wallet-nfts/route.ts");
+  const originalFetch=globalThis.fetch;
+  let logQueries=0;
+  globalThis.fetch=async (input,options)=>{
+    if(String(input).includes("api.ebisusbay.com"))return Response.json({page:1,totalPages:1,totalCount:0,nfts:[]});
+    const request=JSON.parse(options.body);
+    if(request.method==="eth_blockNumber")return Response.json({jsonrpc:"2.0",id:1,result:"0x5000"});
+    if(request.method==="eth_getLogs"){
+      logQueries++;
+      const [from,to]=[request.params[0].fromBlock,request.params[0].toBlock].map(value=>Number(BigInt(value)));
+      assert.ok(to-from<2000);
+      return Response.json({jsonrpc:"2.0",id:1,result:logQueries===1?[{address:contract,topics:["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","0x"+"0".repeat(64),"0x"+owner.slice(2).toLowerCase().padStart(64,"0"),"0x"+"0".repeat(63)+"7"]}]:[]});
+    }
+    if(request.method==="eth_call")return Response.json({jsonrpc:"2.0",id:1,result:"0x"+owner.slice(2).toLowerCase().padStart(64,"0")});
+    throw new Error(`Unexpected RPC method ${request.method}`);
+  };
+  try{
+    const response=await GET(new Request(`http://localhost/api/wallet-nfts?owner=${owner}&chainId=25`));
+    const body=await response.json();
+    assert.equal(response.status,200);
+    assert.equal(body.complete,false);
+    assert.ok(logQueries>1&&logQueries<=11);
+    assert.deepEqual(body.nfts.map(nft=>nft.tokenId),["7"]);
   }finally{globalThis.fetch=originalFetch;}
 });
