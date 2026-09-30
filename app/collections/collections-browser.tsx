@@ -1,12 +1,11 @@
 "use client";
 
-import { ArrowUpRight, ExternalLink, Flame, Grid2X2, List, Search } from "lucide-react";
+import { ArrowUpRight, ExternalLink, Flame, Grid2X2, ImageIcon, List, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { formatEther } from "viem";
 import Link from "next/link";
 import Image from "next/image";
 import { getMarketplaceChain, isMarketplaceLive, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
-import { shibEcosystemNfts } from "@/lib/shib-ecosystem-nfts";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type Mint = {
@@ -23,7 +22,7 @@ type TrendingCollection = { key:string; chainId:MarketplaceChainId; nftAddress:s
 const chainIds = Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[];
 const liveChainIds = chainIds.filter(isMarketplaceLive);
 const short = (value:string) => `${value.slice(0,6)}…${value.slice(-4)}`;
-const ipfs = (value:string|null) => value?.startsWith("ipfs://")?`https://ipfs.io/ipfs/${value.slice(7)}`:value;
+const ipfs = (value:string|null) => value?.startsWith("ipfs://")?`https://gateway.pinata.cloud/ipfs/${value.slice(7)}`:value;
 
 export function CollectionsBrowser(){
   const [malkuta,setMalkuta]=useState<MalkutaData|null>(null);
@@ -111,24 +110,7 @@ export function CollectionsBrowser(){
 
     <section className="featured-collection">
       <header><div><span>TRENDING · BASE</span><h2>Malkuta Mandalas</h2><p>Verified canonical mints from the Kingdom Within Malkuta Protocol.</p></div><dl><div><dt>MINTED</dt><dd>{malkuta?.collectionTotal??(loading?"…":"—")}</dd></div><div><dt>NETWORK</dt><dd>BASE</dd></div></dl></header>
-      {malkuta?.latestMints?.length?<div className="malkuta-grid">{malkuta.latestMints.map(mint=><article className="malkuta-card" key={mint.tokenId}><a className="malkuta-art" href={`https://kingdomwithin.thehouseofjoshi.com/verify?token=${mint.tokenId}`} target="_blank" rel="noreferrer" style={ipfs(mint.imageURI)?{backgroundImage:`url(${ipfs(mint.imageURI)})`}:undefined}><span>#{mint.tokenId.slice(0,8)}…</span><small>{mint.verificationStatus==="verified"?"✓ VERIFIED":"METADATA PENDING"}</small></a><div><span>MALKUTA MANDALA</span><h3>{mint.sourceText.split("\n")[0]||`Signal ${mint.numericalSignature}`}</h3><dl><div><dt>SIGNATURE</dt><dd>Σ {mint.numericalSignature}</dd></div><div><dt>SYMMETRY</dt><dd>{mint.symmetry} PETALS</dd></div></dl><a href={`https://kingdomwithin.thehouseofjoshi.com/verify?token=${mint.tokenId}`} target="_blank" rel="noreferrer">Verify NFT <ArrowUpRight size={13}/></a></div></article>)}</div>:<div className="collection-loading">{loading?"Reading verified Malkuta mints…":"The official mint archive is temporarily unavailable."}</div>}
-    </section>
-
-    <section className="shib-ecosystem-collections" aria-labelledby="shib-ecosystem-heading">
-      <header><div><span>SHIBA INU ECOSYSTEM</span><h2 id="shib-ecosystem-heading">Known NFT contracts</h2><p>Collections named by Shib. These are contract references, not HOJ listings; wallet holdings and sale status are checked on-chain.</p></div><a href="https://shib.io/ecosystem/nfts" target="_blank" rel="noreferrer">Official directory <ExternalLink size={14}/></a></header>
-      <div className="shib-ecosystem-contracts">{shibEcosystemNfts.map(collection=>{
-        const chain=getMarketplaceChain(collection.chainId);
-        return <article key={`${collection.chainId}:${collection.contract}`}>
-          <small>{chain.name}{isMarketplaceLive(collection.chainId)?" · Live":" · Marketplace coming soon"}</small>
-          <h3>{collection.name}</h3>
-          <code title={collection.contract}>{collection.contract}</code>
-          <div>{isMarketplaceLive(collection.chainId)
-            ?<Link href={`/collection/${collection.chainId}/${collection.contract}`}>View HOJ listings <ArrowUpRight size={13}/></Link>
-            :<a href={`${chain.explorerUrl}/token/${collection.contract}`} target="_blank" rel="noreferrer">View contract <ExternalLink size={13}/></a>}
-            <a href={collection.source} target="_blank" rel="noreferrer">Collection source <ExternalLink size={13}/></a></div>
-        </article>;
-      })}</div>
-      <p>Metaverse land is also featured in the Shib directory, but no single NFT contract is identified there; explore it through <a href="https://shibthemetaverse.io/" target="_blank" rel="noreferrer">the official Metaverse site</a>.</p>
+      {malkuta?.latestMints?.length?<div className="royal-portfolio-grid malkuta-grid">{malkuta.latestMints.map(mint=><MalkutaCard mint={mint} key={mint.tokenId}/>)}</div>:<div className="collection-loading">{loading?"Reading verified Malkuta mints…":"The official mint archive is temporarily unavailable."}</div>}
     </section>
 
     {(loading||trending.length>0)&&<section className="trending-collections">
@@ -151,6 +133,16 @@ export function CollectionsBrowser(){
       </div>
     </section>
   </main>;
+}
+
+function MalkutaCard({mint}:{mint:Mint}){
+  const [artFailed,setArtFailed]=useState(false);
+  const imageUrl=ipfs(mint.imageURI);
+  const title=mint.sourceText.split("\n")[0].trim()||`Mandala #${mint.tokenId.slice(0,8)}`;
+  return <a className="royal-profile-nft malkuta-card" href={`https://kingdomwithin.thehouseofjoshi.com/verify?token=${mint.tokenId}`} target="_blank" rel="noreferrer">
+    <div className="royal-nft-image">{imageUrl&&!artFailed?<Image src={imageUrl} alt={title} width={400} height={400} unoptimized onError={()=>setArtFailed(true)}/>:<div className="royal-nft-artwork-fallback"><ImageIcon size={30} aria-hidden="true"/><span>Artwork unavailable</span></div>}</div>
+    <div className="royal-nft-details"><small>Base · Malkuta Mandalas</small><h3 title={title}>{title}</h3><div className="royal-nft-status"><span className="not-listed">{mint.verificationStatus==="verified"?"Verified NFT":"Metadata pending"}</span></div></div>
+  </a>;
 }
 
 function TrendingCollectionCard({item,rank}:{item:TrendingCollection;rank:number}){
