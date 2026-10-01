@@ -41,7 +41,7 @@ export function CollectionsBrowser(){
       // Load Shibarium first for instant content
       const shibariumResult = await Promise.allSettled([
         fetch("/api/malkuta",{cache:"no-store"}).then(response=>response.ok?response.json():Promise.reject()),
-        fetch(`/api/indexer?chainId=109`,{cache:"no-store"}).then(response=>response.ok?response.json():Promise.reject()),
+        fetch(`/api/indexer?chainId=109`).then(response=>response.ok?response.json():Promise.reject()),
       ]);
       
       if(!active){refreshing=false;return;}
@@ -53,7 +53,7 @@ export function CollectionsBrowser(){
       // Load other chains in background
       const otherChains = liveChainIds.filter(id => id !== 109);
       const otherResults = await Promise.allSettled(
-        otherChains.map(chainId=>fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"}).then(response=>response.ok?response.json():Promise.reject()))
+        otherChains.map(chainId=>fetch(`/api/indexer?chainId=${chainId}`).then(response=>response.ok?response.json():Promise.reject()))
       );
       
       if(active){

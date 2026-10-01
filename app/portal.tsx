@@ -46,7 +46,7 @@ function useIndexer(chainId:MarketplaceChainId,legacy=false) {
   const refresh=useCallback(async function refresh(force=false) {
     if(pendingChains.current.has(chainId)){if(force)queuedChains.current.add(chainId);return;}
     pendingChains.current.add(chainId);
-    try { const response=await fetch(`/api/indexer?chainId=${chainId}${legacy?"&legacy=1":""}`,{cache:"no-store"}); const body=await response.json() as IndexerData;if(!response.ok)throw new Error("Indexer unavailable");if(selectedChain.current===chainId)setData(body); }
+    try { const response=await fetch(`/api/indexer?chainId=${chainId}${legacy?"&legacy=1":""}`); const body=await response.json() as IndexerData;if(!response.ok)throw new Error("Indexer unavailable");if(selectedChain.current===chainId)setData(body); }
     catch(error){if(selectedChain.current===chainId)setData(current=>({...(current.chainId===chainId&&current.configured?current:fallback),syncError:error instanceof Error?error.message:"Indexer temporarily unavailable"}));}
     finally { pendingChains.current.delete(chainId); if(selectedChain.current===chainId)setLoading(false); if(queuedChains.current.delete(chainId))void refresh(); }
   },[chainId,fallback,legacy]);

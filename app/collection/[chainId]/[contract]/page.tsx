@@ -171,7 +171,7 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
         console.log(`Loading collection data for contract ${contract} on chain ${chainId}`);
 
         // Load indexer data
-        const indexerResponse = await fetch(`/api/indexer?chainId=${chainId}`, { cache: "no-store" });
+        const indexerResponse = await fetch(`/api/indexer?chainId=${chainId}`);
         const indexerData = indexerResponse.ok ? await indexerResponse.json() as IndexerResponse : null;
 
         if (indexerData) {

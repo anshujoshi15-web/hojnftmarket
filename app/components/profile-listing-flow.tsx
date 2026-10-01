@@ -42,7 +42,7 @@ export function ProfileListingFlow({chainId,collection,items,onRemove,onClear}:P
   useEffect(()=>{
     if(!open)return;
     let active=true;
-    void fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"})
+    void fetch(`/api/indexer?chainId=${chainId}`)
       .then(response=>response.ok?response.json() as Promise<{collections?:Array<{nftAddress:string;floorPrice:string}>;listings?:Array<{nftAddress:string;price:string}>;sync?:{caughtUp:boolean}|null;syncError?:string|null}>:null)
       .then(data=>{
         if(!active)return;

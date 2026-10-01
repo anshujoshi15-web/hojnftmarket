@@ -1,6 +1,6 @@
 // Confirmed local transactions refresh immediately through announceMarketplaceUpdate.
-// Polling every chain every ten seconds overwhelms shared historical RPCs.
-export const MARKETPLACE_REFRESH_INTERVAL = 30_000;
+// Poll less often to reduce origin transfer and shared historical RPC load.
+export const MARKETPLACE_REFRESH_INTERVAL = 60_000;
 const EVENT_NAME = "hoj-marketplace-updated";
 const CHANNEL_NAME = "hoj-marketplace-updates";
 

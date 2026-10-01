@@ -227,7 +227,7 @@ export default function ProfilePage() {
       refreshing=true;
       try{
         await Promise.allSettled(liveIds.filter(id=>onlyChainId===undefined||id===onlyChainId).map(async chainId=>{
-          const response=await fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"});
+          const response=await fetch(`/api/indexer?chainId=${chainId}`);
           if(!response.ok||!active)return;
           const data=await response.json() as IndexerResponse;
           if(!active)return;

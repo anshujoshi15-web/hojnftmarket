@@ -104,7 +104,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
     if(!valid){setError("This NFT link is not valid.");return;}
     const[metadataResult,indexerResult]=await Promise.allSettled([
       loadMetadata(),
-      fetch(`/api/indexer?chainId=${chainId}${legacy?"&legacy=1":""}`,{cache:"no-store"}).then(async response=>{if(!response.ok)throw new Error("Marketplace activity is unavailable.");return await response.json() as Indexer;}),
+      fetch(`/api/indexer?chainId=${chainId}${legacy?"&legacy=1":""}`).then(async response=>{if(!response.ok)throw new Error("Marketplace activity is unavailable.");return await response.json() as Indexer;}),
     ]);
     if(!active)return;
     if(metadataResult.status==="rejected")setError(metadataResult.reason instanceof Error?metadataResult.reason.message:"NFT metadata is unavailable.");
@@ -120,7 +120,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
       if(document.visibilityState!=="visible"||pending)return;
       pending=true;
       try{
-        const response=await fetch(`/api/indexer?chainId=${chainId}${legacy?"&legacy=1":""}`,{cache:"no-store"});
+        const response=await fetch(`/api/indexer?chainId=${chainId}${legacy?"&legacy=1":""}`);
         if(response.ok){const body=await response.json() as Indexer;if(active)setIndexer(body);}
       }catch{/* Keep the last verified floor while the indexer is temporarily unavailable. */}
       finally{pending=false;}
@@ -206,7 +206,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
     setHistoryRefreshKey(key=>key+1);
     void refetchOwner();
     void refetchListing();
-    void fetch(`/api/indexer?chainId=${marketChainId}${legacy?"&legacy=1":""}`,{cache:"no-store"}).then(async response=>{if(response.ok)setIndexer(await response.json() as Indexer);}).catch(()=>{});
+    void fetch(`/api/indexer?chainId=${marketChainId}${legacy?"&legacy=1":""}`).then(async response=>{if(response.ok)setIndexer(await response.json() as Indexer);}).catch(()=>{});
   },[marketChainId,refetchOwner,refetchListing,legacy]);
   async function buy(){
     if(!address||!listing||!owner||owner.toLowerCase()!==listing.seller.toLowerCase())return;

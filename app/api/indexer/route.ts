@@ -18,7 +18,7 @@ export async function GET(request:Request){
   if(!isAddress(selected.address,{strict:false})||!/^\d+$/.test(selected.deployBlock))return Response.json({...base,configured:false,listings:[],collections:[],activity:[],offers:[],sync:null});
   try{
     const result=await loadMarketplaceIndex(selected,runtime.DB);
-    return Response.json({...base,configured:true,marketplaceAddress:selected.address,legacyMarketplaceAddress:old?.address??null,...result},{headers:{"cache-control":"no-store"}});
+    return Response.json({...base,configured:true,marketplaceAddress:selected.address,legacyMarketplaceAddress:old?.address??null,...result},{headers:{"cache-control":"public, max-age=0, s-maxage=15, stale-while-revalidate=30"}});
   }catch(error){
     // viem errors contain full RPC URLs, which can embed private API credentials.
     const message=String(error);

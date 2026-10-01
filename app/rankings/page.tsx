@@ -19,7 +19,7 @@ export default function RankingsPage(){
     let active=true;
     const chains=Object.values(marketplaceChains).filter(chain=>chain.marketplaceStatus==="live");
     void Promise.allSettled(chains.map(async chain=>{
-      const response=await fetch(`/api/indexer?chainId=${chain.id}`,{cache:"no-store",signal:AbortSignal.timeout(15_000)});
+      const response=await fetch(`/api/indexer?chainId=${chain.id}`,{signal:AbortSignal.timeout(15_000)});
       if(!response.ok)throw new Error(`${chain.name} indexer unavailable`);
       return {chainId:chain.id as MarketplaceChainId,data:await response.json() as Indexer};
     })).then(results=>{

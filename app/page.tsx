@@ -244,7 +244,7 @@ export default function Home() {
       try {
       await Promise.allSettled(liveChains.filter(chainId => onlyChainId === undefined || chainId === onlyChainId).map(async chainId => {
         try {
-        const res = await fetch(`/api/indexer?chainId=${chainId}`, { cache: "no-store" });
+        const res = await fetch(`/api/indexer?chainId=${chainId}`);
         const data = await res.json() as IndexerResponse;
         if (!mounted) return;
         if (!res.ok) return;

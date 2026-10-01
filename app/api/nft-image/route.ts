@@ -7,6 +7,9 @@ import { officialShibMagazineCover, shibMagazineEdition } from "@/lib/shib-magaz
 export const dynamic = "force-dynamic";
 
 const CACHE_SECONDS = 60 * 60 * 24;
+const imageCacheControl = (refresh: boolean) => refresh
+  ? "no-store"
+  : `public, max-age=3600, s-maxage=${CACHE_SECONDS}, stale-while-revalidate=3600`;
 const ALCHEMY_NETWORKS: Partial<Record<number, string>> = {
   1: "eth-mainnet",
   137: "polygon-mainnet",
@@ -177,13 +180,13 @@ async function fetchExplorerImage(chainId: number, contract: Address, tokenId: s
   const sources = [item.metadata?.image, item.metadata?.image_url, item.metadata?.image_data, item.media_url, item.image_url, item.thumbnails?.image_url, item.thumbnails?.image].filter((source): source is string => !!source);
   for (const source of sources) {
     try {
-      if (source.startsWith("data:image/")) return inlineImage(source);
+      if (source.startsWith("data:image/")) return inlineImage(source, refresh);
       if (source.trimStart().startsWith("<svg")) {
-        return new NextResponse(source, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": `public, max-age=${CACHE_SECONDS}` } });
+        return new NextResponse(source, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": imageCacheControl(refresh) } });
       }
       const image = await fetchFirstImage(source, tokenId, refresh);
       return new NextResponse(image.body, {
-        headers: { "Content-Type": image.headers.get("content-type") ?? "image/jpeg", "Cache-Control": `public, max-age=${CACHE_SECONDS}` },
+        headers: { "Content-Type": image.headers.get("content-type") ?? "image/jpeg", "Cache-Control": imageCacheControl(refresh) },
       });
     } catch {
       // An explorer can return a stale image URL next to a working thumbnail.
@@ -192,14 +195,14 @@ async function fetchExplorerImage(chainId: number, contract: Address, tokenId: s
   throw new Error("Explorer metadata has no usable image");
 }
 
-function inlineImage(value: string) {
+function inlineImage(value: string, refresh = false) {
   const comma = value.indexOf(",");
   if (comma < 0) throw new Error("Invalid image data URI");
   const header = value.slice(5, comma);
   const mime = header.split(";")[0] || "image/svg+xml";
   const body = value.slice(comma + 1);
   const bytes = header.includes(";base64") ? Buffer.from(body, "base64") : Buffer.from(decodeURIComponent(body));
-  return new NextResponse(bytes, { headers: { "Content-Type": mime, "Cache-Control": `public, max-age=${CACHE_SECONDS}` } });
+  return new NextResponse(bytes, { headers: { "Content-Type": mime, "Cache-Control": imageCacheControl(refresh) } });
 }
 
 export async function GET(request: NextRequest) {
@@ -230,7 +233,7 @@ export async function GET(request: NextRequest) {
         return new NextResponse(image.body, {
           headers: {
             "Content-Type": image.headers.get("content-type") ?? "image/jpeg",
-            "Cache-Control": `public, max-age=${CACHE_SECONDS}`,
+            "Cache-Control": imageCacheControl(refresh),
             "X-Artwork-Source": "official-magazine-edition-cover",
           },
         });
@@ -239,13 +242,13 @@ export async function GET(request: NextRequest) {
       }
     }
     if (requestedSource) {
-      if (requestedSource.startsWith("data:image/")) return inlineImage(requestedSource);
+      if (requestedSource.startsWith("data:image/")) return inlineImage(requestedSource, refresh);
       try {
         const sourceResponse = await fetchFirstImage(requestedSource, requestedTokenId, refresh);
         return new NextResponse(sourceResponse.body, {
           headers: {
             "Content-Type": sourceResponse.headers.get("content-type") ?? "image/jpeg",
-            "Cache-Control": `public, max-age=${CACHE_SECONDS}`,
+            "Cache-Control": imageCacheControl(refresh),
           },
         });
       } catch {
@@ -265,9 +268,9 @@ export async function GET(request: NextRequest) {
 
     const rawImage = metadata.image ?? metadata.image_url ?? metadata.image_data;
     if (!rawImage) throw new Error("NFT metadata has no image");
-    if (rawImage.startsWith("data:image/")) return inlineImage(rawImage);
+    if (rawImage.startsWith("data:image/")) return inlineImage(rawImage, refresh);
     if (rawImage.trimStart().startsWith("<svg")) {
-      return new NextResponse(rawImage, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": `public, max-age=${CACHE_SECONDS}` } });
+      return new NextResponse(rawImage, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": imageCacheControl(refresh) } });
     }
 
     const normalizedImage = gatewayUrl(rawImage, requestedTokenId);
@@ -277,7 +280,7 @@ export async function GET(request: NextRequest) {
     const imageResponse = await fetchFirstImage(imageUrl.toString(), requestedTokenId, refresh);
     const contentType = imageResponse.headers.get("content-type") ?? "image/jpeg";
     return new NextResponse(imageResponse.body, {
-      headers: { "Content-Type": contentType, "Cache-Control": `public, max-age=${CACHE_SECONDS}` },
+      headers: { "Content-Type": contentType, "Cache-Control": imageCacheControl(refresh) },
     });
   } catch {
     try {
@@ -290,7 +293,7 @@ export async function GET(request: NextRequest) {
       return new NextResponse(fallback.body, {
         headers: {
           "Content-Type": fallback.headers.get("content-type") ?? "image/jpeg",
-          "Cache-Control": `public, max-age=${CACHE_SECONDS}`,
+          "Cache-Control": imageCacheControl(refresh),
         },
       });
     } catch {
@@ -304,7 +307,7 @@ export async function GET(request: NextRequest) {
           return new NextResponse(image.body, {
             headers: {
               "Content-Type": image.headers.get("content-type") ?? "image/jpeg",
-              "Cache-Control": `public, max-age=${CACHE_SECONDS}`,
+              "Cache-Control": imageCacheControl(refresh),
               "X-Artwork-Source": "official-magazine-edition-cover",
             },
           });
@@ -312,7 +315,7 @@ export async function GET(request: NextRequest) {
           // Never substitute a different edition or an unverified image.
         }
       }
-      return new NextResponse(null, { status: 404, headers: { "Cache-Control": "public, max-age=300" } });
+      return new NextResponse(null, { status: 404, headers: { "Cache-Control": refresh ? "no-store" : "public, max-age=60, s-maxage=300" } });
     }
   }
 }

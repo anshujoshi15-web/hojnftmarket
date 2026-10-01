@@ -51,7 +51,7 @@ export default function ActivityPage() {
       refreshing=true;
       try {
         await Promise.allSettled(liveChains.filter(chainId=>onlyChainId===undefined||chainId===onlyChainId).map(async chainId=>{
-          const response=await fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"});
+          const response=await fetch(`/api/indexer?chainId=${chainId}`);
           if(!response.ok)return;
           const data=await response.json() as IndexerResponse;
           if(!active)return;

@@ -21,7 +21,7 @@ export default function StatsPage(){
       refreshing=true;
       try{
         await Promise.allSettled(chainIds.filter(id=>onlyChainId===undefined||id===onlyChainId).map(async chainId=>{
-          const response=await fetch(`/api/indexer?chainId=${chainId}`,{cache:"no-store"});
+          const response=await fetch(`/api/indexer?chainId=${chainId}`);
           if(!response.ok||!active)return;
           const data=await response.json() as IndexerData;
           if(!active)return;

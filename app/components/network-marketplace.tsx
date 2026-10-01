@@ -29,7 +29,7 @@ export function NetworkMarketplace({ chainId }: { chainId: MarketplaceChainId })
       if (refreshing) return;
       refreshing = true;
       try {
-        const response = await fetch(`/api/indexer?chainId=${chainId}`, { cache: "no-store" });
+        const response = await fetch(`/api/indexer?chainId=${chainId}`);
         if (response.ok) {
           const data = await response.json();
           if (active) setChainData(data as ChainData);
