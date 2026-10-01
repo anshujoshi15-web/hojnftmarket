@@ -220,6 +220,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // The publisher's metadata host often stalls or denies reads. Resolve the
+    // edition from the token ID and serve its official cover before trying it.
+    const magazineEdition = shibMagazineEdition(requestedChainId, contract, requestedTokenId);
+    if (magazineEdition !== null) {
+      try {
+        const cover = await officialShibMagazineCover(magazineEdition, refresh);
+        const image = await fetchFirstImage(cover.imageUrl, requestedTokenId, refresh);
+        return new NextResponse(image.body, {
+          headers: {
+            "Content-Type": image.headers.get("content-type") ?? "image/jpeg",
+            "Cache-Control": `public, max-age=${CACHE_SECONDS}`,
+            "X-Artwork-Source": "official-magazine-edition-cover",
+          },
+        });
+      } catch {
+        // Keep the token metadata and explorer paths for unpublished editions.
+      }
+    }
     if (requestedSource) {
       if (requestedSource.startsWith("data:image/")) return inlineImage(requestedSource);
       try {
