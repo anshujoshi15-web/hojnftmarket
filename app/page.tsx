@@ -222,14 +222,14 @@ export default function Home() {
   const [recentActivity, setRecentActivity] = useState<IndexedActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  const [activeChain,setActiveChain]=useState<MarketplaceChainId|"all"|"pick">("pick");
+  const [activeChain,setActiveChain]=useState<MarketplaceChainId|"all">("all");
   useEffect(()=>{
-    let saved:MarketplaceChainId|"all"|"pick"="pick";
+    let saved:MarketplaceChainId|"all"="all";
     try{
       const value=window.sessionStorage.getItem("hoj-marketplace-network");
       if(value==="all")saved="all";
       else if(value&&isMarketplaceChainId(Number(value)))saved=Number(value) as MarketplaceChainId;
-    }catch{/* Start with Pick one when session storage is unavailable. */}
+    }catch{/* Show all networks when session storage is unavailable. */}
     queueMicrotask(()=>setActiveChain(saved));
   },[]);
   function chooseNetwork(chain:MarketplaceChainId|"all"){
@@ -238,7 +238,7 @@ export default function Home() {
   }
   const visibleCollections=listedCollections.filter(collection=>activeChain==="all"||collection.chainId===activeChain);
   const liveChainIds=(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live");
-  const visibleChainIds=activeChain==="pick"?[]:activeChain==="all"?liveChainIds:liveChainIds.filter(id=>id===activeChain);
+  const visibleChainIds=activeChain==="all"?liveChainIds:liveChainIds.filter(id=>id===activeChain);
   const visibleActivity=recentActivity.filter(item=>activeChain==="all"||item.chainId===activeChain).slice(0,6);
 
   useEffect(()=>{
@@ -408,7 +408,7 @@ export default function Home() {
           <div><span className="royal-section-label">HOUSE OF JOSHI · NFT MARKETPLACE</span><h1>Discover</h1><p>Find work across live networks. Explore collections and listings, then trade from your wallet.</p></div>
         </div>
         <div className="discover-chain-pills" aria-label="Filter by network">
-          <span className="discover-chain-label">Pick one</span>
+          <span className="discover-chain-label">Networks</span>
           <button type="button" aria-pressed={activeChain==="all"} onClick={()=>chooseNetwork("all")}>All networks</button>
           {(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live").map(id=><button key={id} type="button" aria-pressed={activeChain===id} onClick={()=>chooseNetwork(id)}>{marketplaceChains[id].name}</button>)}
         </div>
@@ -420,7 +420,7 @@ export default function Home() {
         <button type="submit">Search NFTs</button>
       </form>
       <section className="discover-showcase" aria-label="Featured collections">
-        {activeChain==="pick"?<div className="discover-showcase-loading">Pick a network above to explore NFTs.</div>:loading?<div className="discover-showcase-loading">Loading collections…</div>:visibleCollections.length===0?<div className="discover-showcase-loading">No active collections on this network yet.</div>:visibleCollections.slice(0,5).map((collection,index)=><DiscoverShowcaseCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>)}
+        {loading?<div className="discover-showcase-loading">Loading collections…</div>:visibleCollections.length===0?<div className="discover-showcase-loading">No active collections on this network yet.</div>:visibleCollections.slice(0,5).map((collection,index)=><DiscoverShowcaseCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>)}
       </section>
 
       {/* Trending Collections based on sales */}
@@ -443,7 +443,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="royal-collections-grid">
-            {visibleCollections.length === 0 && <p className="royal-market-empty">{activeChain==="pick"?"Pick a network above to see collections.":"No collections have active indexed listings on this network yet."}</p>}
+            {visibleCollections.length === 0 && <p className="royal-market-empty">No collections have active indexed listings on this network yet.</p>}
             {visibleCollections.map((collection, index) => (
               <ListedCollectionCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>
             ))}
@@ -452,7 +452,7 @@ export default function Home() {
       </section>
 
       {/* Four rotating NFTs from each live network. */}
-      {activeChain==="pick"?<section className="royal-section royal-section-alt royal-featured-section"><p className="royal-market-empty">Pick a network above to see NFTs.</p></section>:visibleChainIds.map(chainId=>{
+      {visibleChainIds.map(chainId=>{
         const chain=getMarketplaceChain(chainId);
         const nfts=randomNftsByChain[chainId]??[];
         return <section className="royal-section royal-section-alt royal-featured-section discover-network-section" key={chainId} aria-label={`${chain.name} NFTs`}>
@@ -485,7 +485,7 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            visibleActivity.length===0?<p className="royal-market-empty">{activeChain==="pick"?"Pick a network above to see recent sales.":"No recorded sales on this network yet."}</p>:visibleActivity.map((activity) => {
+            visibleActivity.length===0?<p className="royal-market-empty">No recorded sales on this network yet.</p>:visibleActivity.map((activity) => {
               const chain = getMarketplaceChain(activity.chainId);
               return (
                 <div key={activity.id} className="royal-activity-item">
