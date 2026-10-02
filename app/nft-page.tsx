@@ -4,7 +4,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronDown, Copy, ExternalLink, Heart, ImageIcon, RefreshCw, Share2, ShieldCheck, ShoppingCart, Tag, Wallet, TrendingUp, Activity, Layers, History, Info, Plus, X } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatEther, parseEther, erc1155Abi, zeroAddress, type Address } from "viem";
 import { useAccount, usePublicClient, useReadContract } from "wagmi";
 import { favoriteId, useFavorite } from "./favorites";
@@ -44,6 +44,8 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
   const[nft,setNft]=useState<Nft|null>(null);
   const[indexer,setIndexer]=useState<Indexer|null>(null);
   const[walletCollectionItems,setWalletCollectionItems]=useState<Array<{tokenId:string;name:string;imageUrl:string}>>([]);
+  const[collectionItems,setCollectionItems]=useState<Array<{tokenId:string;name:string;imageUrl:string}>>([]);
+  const thumbnailStripRef=useRef<HTMLDivElement>(null);
   const[walletCollectionLoading,setWalletCollectionLoading]=useState(false);
   const[walletCollectionMessage,setWalletCollectionMessage]=useState("");
   const marketplaceAddress=(indexer?.marketplaceAddress??(legacy?zeroAddress:chain.marketplaceAddress)) as Address;
@@ -157,6 +159,16 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
     return()=>{active=false;controller.abort();window.removeEventListener("focus",onFocus);};
   },[address,chainId,contract,tokenId,valid]);
 
+  useEffect(()=>{
+    if(!valid)return;
+    const controller=new AbortController();
+    void fetch(`/api/collection-nfts?${new URLSearchParams({chainId:String(chainId),contract})}`,{signal:controller.signal})
+      .then(response=>response.ok?response.json() as Promise<{items?:Array<{tokenId:string;name:string;imageUrl:string}>}>:null)
+      .then(body=>{if(!controller.signal.aborted)setCollectionItems(body?.items??[]);})
+      .catch(()=>{if(!controller.signal.aborted)setCollectionItems([]);});
+    return()=>controller.abort();
+  },[chainId,contract,valid]);
+
   async function refreshMetadata(){
     if(refreshing||!valid)return;
     setRefreshing(true);
@@ -180,7 +192,26 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
   },[indexer,contract,tokenId,directListing,isEdition,marketChainId]);
   const activity=useMemo(()=>indexer?.activity.filter(item=>item.nftAddress?.toLowerCase()===contract.toLowerCase()&&item.tokenId===tokenId)??[],[indexer,contract,tokenId]);
   const relatedItems=walletCollectionItems;
-  const galleryItems=relatedItems.slice(0,6);
+  const galleryItems=useMemo(()=>{
+    const items=new Map<string,{tokenId:string;name:string;imageUrl:string}>();
+    const image=(id:string)=>`/api/nft-image?${new URLSearchParams({chainId:String(chainId),contract,tokenId:id})}`;
+    for(const item of collectionItems)items.set(item.tokenId,item);
+    for(const item of walletCollectionItems)items.set(item.tokenId,item);
+    for(const item of indexer?.listings??[]){
+      if(item.nftAddress.toLowerCase()===contract.toLowerCase()&&!items.has(item.tokenId))items.set(item.tokenId,{tokenId:item.tokenId,name:`Token #${item.tokenId}`,imageUrl:image(item.tokenId)});
+    }
+    items.set(tokenId,{tokenId,name:nft?.name??`Token #${tokenId}`,imageUrl:nft?.imageUrl??image(tokenId)});
+    return [...items.values()].filter(item=>/^\d+$/.test(item.tokenId)).sort((a,b)=>BigInt(a.tokenId)<BigInt(b.tokenId)?-1:BigInt(a.tokenId)>BigInt(b.tokenId)?1:0);
+  },[collectionItems,walletCollectionItems,indexer,chainId,contract,tokenId,nft?.name,nft?.imageUrl]);
+  const galleryIndex=galleryItems.findIndex(item=>item.tokenId===tokenId);
+  const previousItem=galleryItems.length>1?galleryItems[(galleryIndex-1+galleryItems.length)%galleryItems.length]:null;
+  const nextItem=galleryItems.length>1?galleryItems[(galleryIndex+1)%galleryItems.length]:null;
+  const galleryHref=(id:string)=>`/nft/${chainId}/${contract}/${id}${legacy?"?legacy=1":returnTo==="/profile"?"?from=profile":""}`;
+  useEffect(()=>{
+    const strip=thumbnailStripRef.current;
+    const active=strip?.querySelector<HTMLElement>('[aria-current="page"]');
+    if(strip&&active)strip.scrollTo({left:active.offsetLeft-strip.offsetLeft-(strip.clientWidth-active.clientWidth)/2,behavior:"smooth"});
+  },[tokenId,galleryItems]);
   const lastSale=activity.find(item=>(["sold","offer_accepted"].includes(item.eventType))&&item.price);
   const isSeller=!!address&&!!listing&&address.toLowerCase()===listing.seller.toLowerCase();
   const isOwner=!!address&&!!owner&&address.toLowerCase()===owner.toLowerCase();
@@ -269,18 +300,16 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
     <div className="royal-nft-stage">
     <nav className="royal-nft-nav">
       <div className="royal-nft-gallery-nav">
-        <Link href={returnHref} className="royal-nft-gallery-back" aria-label="Back to previous page"><ArrowLeft size={18}/></Link>
-        <div className="royal-nft-thumbnails" aria-label="More NFTs from this collection">
-          {nft?.imageUrl&&!artFailed?<span className="royal-nft-thumb active"><Image src={nft.imageUrl} alt="Current NFT" fill unoptimized sizes="52px"/></span>:<span className="royal-nft-thumb active"><ImageIcon size={20}/></span>}
-          {galleryItems.map(item=><Link key={item.tokenId} className="royal-nft-thumb" href={`/nft/${chainId}/${contract}/${item.tokenId}${legacy?"?legacy=1":returnTo==="/profile"?"?from=profile":""}`} title={item.name}><Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/></Link>)}
+        {previousItem?<Link href={galleryHref(previousItem.tokenId)} className="royal-nft-gallery-back" aria-label="Previous NFT in this collection" title="Previous NFT"><ArrowLeft size={18}/></Link>:<button type="button" className="royal-nft-gallery-back" aria-label="Previous NFT in this collection" disabled><ArrowLeft size={18}/></button>}
+        <div ref={thumbnailStripRef} className="royal-nft-thumbnails" aria-label={`More NFTs from this collection on ${chain.name}`}>
+          {galleryItems.map(item=>item.tokenId===tokenId?<span key={item.tokenId} className="royal-nft-thumb active" aria-current="page" title={item.name}>{item.imageUrl&&!artFailed?<Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/>:<ImageIcon size={20}/>}</span>:<Link key={item.tokenId} className="royal-nft-thumb" href={galleryHref(item.tokenId)} title={item.name}><Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/></Link>)}
         </div>
-        {galleryItems.length>0&&<Link href={`/nft/${chainId}/${contract}/${galleryItems[0].tokenId}${legacy?"?legacy=1":returnTo==="/profile"?"?from=profile":""}`} className="royal-nft-gallery-next" aria-label="View another NFT in this collection"><ArrowRight size={18}/></Link>}
+        {nextItem?<Link href={galleryHref(nextItem.tokenId)} className="royal-nft-gallery-next" aria-label="Next NFT in this collection" title="Next NFT"><ArrowRight size={18}/></Link>:<button type="button" className="royal-nft-gallery-next" aria-label="Next NFT in this collection" disabled><ArrowRight size={18}/></button>}
       </div>
       <div className="royal-nft-nav-actions">
         <div className="nft-share-wrap">
-          <button onClick={()=>setShareOpen(open=>!open)} aria-label="Share NFT" aria-expanded={shareOpen}>
+          <button onClick={()=>setShareOpen(open=>!open)} aria-label="Share NFT" title="Share NFT" aria-expanded={shareOpen}>
             <Share2 size={16}/>
-            <span>Share</span>
           </button>
           {shareOpen&&<div className="nft-share-menu" role="menu">
             <button onClick={()=>{void share();setShareOpen(false);}} role="menuitem"><Share2 size={14}/> Device share</button>
@@ -290,9 +319,8 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
             <button onClick={async()=>{await navigator.clipboard.writeText(window.location.href);setStatus("NFT link copied.");setShareOpen(false);}} role="menuitem"><Copy size={14}/> Copy link</button>
           </div>}
         </div>
-        <button className={favorite.favorite?"active":""} onClick={favorite.toggle}>
+        <button className={favorite.favorite?"active":""} onClick={favorite.toggle} aria-label={favorite.favorite?"Remove from favorites":"Add to favorites"} title={favorite.favorite?"Remove from favorites":"Add to favorites"}>
           <Heart size={16} fill={favorite.favorite?"currentColor":"none"}/>
-          <span>{favorite.favorite?"Saved":"Favorite"}</span>
         </button>
         <Link href={returnHref} className="royal-nft-gallery-close" aria-label="Close NFT view"><X size={19}/></Link>
       </div>

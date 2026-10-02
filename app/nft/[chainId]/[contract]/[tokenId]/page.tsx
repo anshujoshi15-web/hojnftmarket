@@ -5,5 +5,5 @@ export default async function Page({params,searchParams}:{params:Promise<{chainI
   const value=await params;
   const query=await searchParams;
   if(query.legacy==="1")redirect(`/nft/${value.chainId}/${value.contract}/${value.tokenId}`);
-  return <NftPage chainId={Number(value.chainId)} contract={value.contract} tokenId={value.tokenId} returnTo={query.from==="profile"?"/profile":"/market"}/>;
+  return <NftPage key={`${value.chainId}:${value.contract}:${value.tokenId}`} chainId={Number(value.chainId)} contract={value.contract} tokenId={value.tokenId} returnTo={query.from==="profile"?"/profile":"/market"}/>;
 }

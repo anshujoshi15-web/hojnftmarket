@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     });
     if (!response.ok) throw new Error("Collection lookup failed");
     const body = await response.json() as { items?: Instance[] };
-    const items = (body.items ?? []).filter(item => typeof item.id === "string" && /^\d+$/.test(item.id)).slice(0, 24).map(item => ({
+    const items = (body.items ?? []).filter(item => typeof item.id === "string" && /^\d+$/.test(item.id)).slice(0, 50).map(item => ({
       tokenId: item.id!,
       name: item.metadata?.name ?? `Token #${item.id}`,
       imageUrl: `/api/nft-image?${new URLSearchParams({ chainId: String(chainId), contract, tokenId: item.id! })}`,
