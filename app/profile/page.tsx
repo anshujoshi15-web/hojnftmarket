@@ -275,7 +275,8 @@ export default function ProfilePage() {
     const isListed = listings.some(l => 
       l.chainId === nft.chainId &&
       l.nftAddress.toLowerCase() === nft.contractAddress.toLowerCase() && 
-      l.tokenId === nft.tokenId
+      l.tokenId === nft.tokenId &&
+      (!isEditionNft(nft) || l.seller.toLowerCase() === address?.toLowerCase())
     );
     
     if (statusFilter === "listed") return isListed;
