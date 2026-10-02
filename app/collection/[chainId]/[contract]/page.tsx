@@ -180,6 +180,13 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
             (l: IndexedListing) => l.nftAddress.toLowerCase() === contract.toLowerCase()
           );
           setAllListings(collectionListings);
+          const initialNfts: ListedNft[] = collectionListings.slice(0, 20).map(listing => ({
+            listing, name: null, collection: null, description: null, externalUrl: null, traits: [],
+            imageUrl: `/api/nft-image?${new URLSearchParams({chainId:String(chainId),contract:listing.nftAddress,tokenId:listing.tokenId})}`,
+          }));
+          setNfts(initialNfts);
+          setCollectionData({name:`${contract.slice(0, 6)}…${contract.slice(-4)} collection`,description:null,banner:null,avatar:initialNfts[0]?.imageUrl??null,externalUrl:null,socialLinks:{},verified:false,creator:null,royaltyRecipient:null,royaltyPercentage:null,totalSupply:null,mintedDate:null,contractType:null,standard:null});
+          setLoading(false);
           const collectionActivity = indexerData.activity.filter(
             (a: IndexedActivity) => a.nftAddress?.toLowerCase() === contract.toLowerCase()
           );
@@ -234,9 +241,16 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
 
           // Load NFT metadata for listed items
           const nftMetadata = await Promise.all(
-            collectionListings.slice(0, 20).map(async (listing: IndexedListing) => {
-              const res = await fetch(`/api/nft?contract=${listing.nftAddress}&tokenId=${listing.tokenId}&chainId=${chainId}`, { cache: "no-store" });
-              return res.ok ? { ...(await res.json()) as NftMetadata, listing } : null;
+            collectionListings.slice(0, 20).map(async (listing: IndexedListing, index: number) => {
+              const initial = initialNfts[index];
+              try {
+                const res = await fetch(`/api/nft?contract=${listing.nftAddress}&tokenId=${listing.tokenId}&chainId=${chainId}`);
+                if (!res.ok) return initial;
+                const metadata = await res.json() as NftMetadata;
+                const resolved = { ...initial, ...metadata, imageUrl: metadata.imageUrl ?? initial.imageUrl };
+                setNfts(current => current.map(item => item.listing.id === listing.id ? resolved : item));
+                return resolved;
+              } catch { return initial; }
             })
           );
           const resolvedMetadata = nftMetadata.filter(Boolean) as ListedNft[];

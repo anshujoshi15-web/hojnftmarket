@@ -24,6 +24,7 @@ export default function SearchPage(){
       if(!details){
         try{const params=new URLSearchParams({chainId:String(listing.chainId),contract:listing.nftAddress,tokenId:listing.tokenId});const response=await fetch(`/api/nft?${params}`,{cache:"no-store"});details=response.ok?await response.json() as Pick<SearchItem,"name"|"collection"|"imageUrl">:{name:null,collection:null,imageUrl:null};}
         catch{details={name:null,collection:null,imageUrl:null};}
+        details={...details,imageUrl:details.imageUrl??`/api/nft-image?${new URLSearchParams({chainId:String(listing.chainId),contract:listing.nftAddress,tokenId:listing.tokenId})}`};
         metadata.set(listing.id,details);
       }
       return {...listing,...details};
@@ -39,8 +40,11 @@ export default function SearchPage(){
           if(!active)return;
           responses.set(chainId,data.listings??[]);
           const sequence=++update;
-          const enriched=await Promise.all([...responses.values()].flat().map(enrich));
-          if(active&&sequence===update){setItems(enriched);setLoading(false);}
+          const listings=[...responses.values()].flat();
+          setItems(listings.map(listing=>({...listing,name:metadata.get(listing.id)?.name??null,collection:metadata.get(listing.id)?.collection??null,imageUrl:metadata.get(listing.id)?.imageUrl??`/api/nft-image?${new URLSearchParams({chainId:String(listing.chainId),contract:listing.nftAddress,tokenId:listing.tokenId})}`})));
+          setLoading(false);
+          const enriched=await Promise.all(listings.map(enrich));
+          if(active&&sequence===update)setItems(enriched);
         }));
       }finally{refreshing=false;if(active)setLoading(false);}
     }

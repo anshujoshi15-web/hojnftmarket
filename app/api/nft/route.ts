@@ -99,7 +99,29 @@ async function onchainMetadataResponse(chainId: number, contract: `0x${string}`,
   }, { headers: { "Cache-Control": refresh ? "no-store" : "public, max-age=60" } });
 }
 
+const metadataCache = new Map<string, { expires: number; response: Promise<NextResponse> }>();
+const METADATA_CACHE_MS = 5 * 60_000;
+
 export async function GET(request: NextRequest) {
+  if (request.nextUrl.searchParams.get("refresh") === "1") return loadNft(request);
+  const key = request.nextUrl.searchParams.toString();
+  const cached = metadataCache.get(key);
+  if (cached && cached.expires > Date.now()) return (await cached.response).clone();
+  if (cached) metadataCache.delete(key);
+  const response = loadNft(request);
+  if (metadataCache.size >= 500) metadataCache.delete(metadataCache.keys().next().value!);
+  metadataCache.set(key, { expires: Date.now() + METADATA_CACHE_MS, response });
+  try {
+    const result = await response;
+    if (!result.ok || (await result.clone().json() as { metadataUnavailable?: boolean }).metadataUnavailable) metadataCache.delete(key);
+    return result.clone();
+  } catch (error) {
+    metadataCache.delete(key);
+    throw error;
+  }
+}
+
+async function loadNft(request: NextRequest) {
   const contract = request.nextUrl.searchParams.get("contract");
   const tokenId = request.nextUrl.searchParams.get("tokenId");
   const chainId = Number(request.nextUrl.searchParams.get("chainId") ?? 109);

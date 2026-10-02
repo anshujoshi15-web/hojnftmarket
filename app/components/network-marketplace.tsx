@@ -221,10 +221,10 @@ function ListedNft({ item, chain }: { item: Listing; chain: ReturnType<typeof ge
     <div className="nft-card-with-action">
     <Link href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}`} className="network-listing">
       <div className="network-listing-art">
-        {nft?.imageUrl && !artFailed ? (
+        {!artFailed ? (
           <Image
-            src={nft.imageUrl}
-            alt={nft.name ?? `NFT #${item.tokenId}`}
+            src={nft?.imageUrl ?? `/api/nft-image?${new URLSearchParams({chainId:String(item.chainId),contract:item.nftAddress,tokenId:item.tokenId})}`}
+            alt={nft?.name ?? `NFT #${item.tokenId}`}
             fill
             unoptimized
             sizes="(max-width: 700px) 100vw, 220px"

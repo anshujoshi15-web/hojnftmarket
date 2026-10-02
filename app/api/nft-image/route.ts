@@ -68,7 +68,7 @@ function safeRemoteUrl(value: string) {
 async function fetchWithTimeout(url: URL, refresh = false) {
   return fetch(url, {
     headers: { accept: "application/json,image/*,*/*;q=0.8" },
-    signal: AbortSignal.timeout(12_000),
+    signal: AbortSignal.timeout(6_000),
     ...(refresh ? {cache: "no-store" as const} : {next: {revalidate: CACHE_SECONDS}}),
   });
 }
@@ -95,37 +95,24 @@ function remoteCandidates(value: string, tokenId?: string) {
 }
 
 async function fetchFirstRemote(value: string, tokenId?: string, refresh = false) {
-  let lastStatus = 0;
-  for (const candidate of remoteCandidates(value, tokenId)) {
-    try {
-      const response = await fetchWithTimeout(candidate, refresh);
-      if (response.ok) return response;
-      lastStatus = response.status;
-    } catch {
-      // Continue to the next public gateway.
-    }
-  }
-  throw new Error(`Remote asset returned ${lastStatus || "no response"}`);
+  return Promise.any(remoteCandidates(value, tokenId).map(async candidate => {
+    const response = await fetchWithTimeout(candidate, refresh);
+    if (!response.ok) throw new Error(`Remote asset returned ${response.status}`);
+    return response;
+  }));
 }
 
 async function fetchFirstImage(value: string, tokenId?: string, refresh = false) {
-  let lastStatus = 0;
-  for (const candidate of remoteCandidates(value, tokenId)) {
-    try {
-      const response = await fetchWithTimeout(candidate, refresh);
-      if (!response.ok) { lastStatus = response.status; continue; }
-      const type = response.headers.get("content-type")?.toLowerCase() ?? "";
-      if (type && !type.startsWith("image/") && !type.startsWith("application/octet-stream") && !type.startsWith("binary/octet-stream")) {
-        lastStatus = 415;
-        await response.body?.cancel();
-        continue;
-      }
-      return response;
-    } catch {
-      // Try another gateway when the image host times out or returns HTML.
+  return Promise.any(remoteCandidates(value, tokenId).map(async candidate => {
+    const response = await fetchWithTimeout(candidate, refresh);
+    if (!response.ok) throw new Error(`Image asset returned ${response.status}`);
+    const type = response.headers.get("content-type")?.toLowerCase() ?? "";
+    if (type && !type.startsWith("image/") && !type.startsWith("application/octet-stream") && !type.startsWith("binary/octet-stream")) {
+      await response.body?.cancel();
+      throw new Error("Image host returned non-image content");
     }
-  }
-  throw new Error(`Image asset returned ${lastStatus || "no response"}`);
+    return response;
+  }));
 }
 
 async function fetchAlchemyImage(chainId: number, contract: Address, tokenId: string, refresh = false) {

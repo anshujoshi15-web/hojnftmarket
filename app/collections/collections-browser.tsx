@@ -174,7 +174,7 @@ function ListedNft({item}:{item:Listing}){
   const chain=getMarketplaceChain(item.chainId);
   useEffect(()=>{let active=true;void fetch(`/api/nft?contract=${item.nftAddress}&tokenId=${item.tokenId}&chainId=${item.chainId}`).then(response=>response.ok?response.json():null).then(value=>{if(active)setNft(value as NftMetadata|null)}).catch(()=>{});return()=>{active=false};},[item]);
   return <Link href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}`} className="chain-listing">
-    <div className="chain-listing-art">{nft?.imageUrl&&!artFailed?<Image src={nft.imageUrl} alt={nft.name??`NFT #${item.tokenId}`} fill unoptimized sizes="(max-width: 700px) 100vw, 220px" style={{objectFit:"cover"}} onError={()=>setArtFailed(true)}/>:<strong>#{item.tokenId}<small>Artwork unavailable</small></strong>}<span>{chain.name}</span></div>
+    <div className="chain-listing-art">{!artFailed?<Image src={nft?.imageUrl??`/api/nft-image?${new URLSearchParams({chainId:String(item.chainId),contract:item.nftAddress,tokenId:item.tokenId})}`} alt={nft?.name??`NFT #${item.tokenId}`} fill unoptimized sizes="(max-width: 700px) 100vw, 220px" style={{objectFit:"cover"}} onError={()=>setArtFailed(true)}/>:<strong>#{item.tokenId}<small>Artwork unavailable</small></strong>}<span>{chain.name}</span></div>
     <div><small>{nft?.collection??short(item.nftAddress)}</small><h3>{nft?.name??`Token #${item.tokenId}`}</h3><p><span>LISTING PRICE</span><strong>{formatEther(BigInt(item.price))} {chain.currency}<UsdEstimate wei={item.price} currency={chain.currency}/></strong></p><span>View NFT <ArrowUpRight size={13}/></span></div>
   </Link>;
 }
