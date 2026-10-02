@@ -12,7 +12,7 @@ import { UsdEstimate } from "./usd-estimate";
 type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:string; tokenId:string; seller:string; price:string; transactionHash:string };
 type Activity = { id:string; chainId:MarketplaceChainId; eventType:string; nftAddress:string|null; tokenId:string|null; price:string|null; blockNumber:number };
 type ChainData = { chainId:MarketplaceChainId; chain:string; currency:string; configured:boolean; legacyMarketplaceAddress?:string|null; listings:Listing[]; activity:Activity[] };
-type NftMetadata = { name:string|null; collection:string|null; imageUrl:string|null };
+type NftMetadata = { name:string|null; collection:string|null; imageUrl:string|null; videoUrl?:string|null };
 
 export function NetworkMarketplace({ chainId }: { chainId: MarketplaceChainId }) {
   const [chainData, setChainData] = useState<ChainData | null>(null);
@@ -207,6 +207,7 @@ export function NetworkMarketplace({ chainId }: { chainId: MarketplaceChainId })
 function ListedNft({ item, chain }: { item: Listing; chain: ReturnType<typeof getMarketplaceChain> }) {
   const [nft, setNft] = useState<NftMetadata | null>(null);
   const [artFailed, setArtFailed] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -221,7 +222,7 @@ function ListedNft({ item, chain }: { item: Listing; chain: ReturnType<typeof ge
     <div className="nft-card-with-action">
     <Link href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}`} className="network-listing">
       <div className="network-listing-art">
-        {!artFailed ? (
+        {nft?.videoUrl&&!videoFailed ? <video src={nft.videoUrl} poster={nft.imageUrl??undefined} muted playsInline preload="metadata" aria-label={nft.name??`NFT #${item.tokenId}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setVideoFailed(true)}/> : !artFailed ? (
           <Image
             src={nft?.imageUrl ?? `/api/nft-image?${new URLSearchParams({chainId:String(item.chainId),contract:item.nftAddress,tokenId:item.tokenId})}`}
             alt={nft?.name ?? `NFT #${item.tokenId}`}

@@ -68,18 +68,19 @@ function shortAddress(address: string) {
 }
 
 function ListedCollectionCard({collection,rank}:{collection:ListedCollection;rank:number}) {
-  const [metadata,setMetadata]=useState<{collection?:string}|null>(null);
+  const [metadata,setMetadata]=useState<{collection?:string;imageUrl?:string|null;videoUrl?:string|null}|null>(null);
   const [failed,setFailed]=useState(false);
+  const [videoFailed,setVideoFailed]=useState(false);
   const chain = getMarketplaceChain(collection.chainId);
   const artworkUrl = `/api/nft-image?chainId=${collection.chainId}&contract=${collection.address}&tokenId=${collection.sampleTokenId}`;
   useEffect(()=>{
     const controller=new AbortController();
     void fetch(`/api/nft?chainId=${collection.chainId}&contract=${collection.address}&tokenId=${collection.sampleTokenId}`,{signal:controller.signal})
-      .then(response=>response.ok?response.json() as Promise<{collection?:string}>:null).then(data=>setMetadata(data)).catch(()=>{});
+      .then(response=>response.ok?response.json() as Promise<{collection?:string;imageUrl?:string|null;videoUrl?:string|null}>:null).then(data=>setMetadata(data)).catch(()=>{});
     return()=>controller.abort();
   },[collection.chainId,collection.address,collection.sampleTokenId]);
   return <Link href={`/collection/${collection.chainId}/${collection.address}`} className="hoj-listed-collection">
-    <div className="hoj-listed-art">{!failed?<Image src={artworkUrl} alt={metadata?.collection??"Collection artwork"} width={112} height={112} unoptimized onError={()=>setFailed(true)}/>:<ImageIcon size={30} aria-label="Artwork unavailable"/>}</div>
+    <div className="hoj-listed-art">{metadata?.videoUrl&&!videoFailed?<video src={metadata.videoUrl} poster={metadata.imageUrl??undefined} muted playsInline preload="metadata" aria-label={metadata.collection??"Collection artwork"} onError={()=>setVideoFailed(true)}/>:!failed?<Image src={metadata?.imageUrl??artworkUrl} alt={metadata?.collection??"Collection artwork"} width={112} height={112} unoptimized onError={()=>setFailed(true)}/>:<ImageIcon size={30} aria-label="Artwork unavailable"/>}</div>
     <div className="hoj-listed-content">
       <div className="hoj-listed-heading"><span className="hoj-trending-badge"><TrendingUp size={14}/> #{String(rank).padStart(2,"0")}</span><span>{chain.name}</span><ArrowUpRight size={17} aria-hidden="true"/></div>
       <h3>{metadata?.collection??shortAddress(collection.address)}</h3>
@@ -94,44 +95,54 @@ function ListedCollectionCard({collection,rank}:{collection:ListedCollection;ran
 }
 
 function DiscoverShowcaseCard({collection,rank}:{collection:ListedCollection;rank:number}) {
-  const [name,setName]=useState<string|null>(null);
+  const [metadata,setMetadata]=useState<{collection?:string|null;imageUrl?:string|null;videoUrl?:string|null}|null>(null);
   const [failed,setFailed]=useState(false);
+  const [videoFailed,setVideoFailed]=useState(false);
   const chain=getMarketplaceChain(collection.chainId);
   const artworkUrl=`/api/nft-image?chainId=${collection.chainId}&contract=${collection.address}&tokenId=${collection.sampleTokenId}`;
   useEffect(()=>{
     const controller=new AbortController();
     void fetch(`/api/nft?chainId=${collection.chainId}&contract=${collection.address}&tokenId=${collection.sampleTokenId}`,{signal:controller.signal})
-      .then(response=>response.ok?response.json() as Promise<{collection?:string|null}>:null)
-      .then(data=>setName(data?.collection??null)).catch(()=>{});
+      .then(response=>response.ok?response.json() as Promise<{collection?:string|null;imageUrl?:string|null;videoUrl?:string|null}>:null)
+      .then(data=>setMetadata(data)).catch(()=>{});
     return()=>controller.abort();
   },[collection.chainId,collection.address,collection.sampleTokenId]);
   return <Link className="discover-showcase-card" href={`/collection/${collection.chainId}/${collection.address}`}>
-    {!failed?<Image src={artworkUrl} alt={name??`${chain.name} collection artwork`} fill unoptimized sizes="(max-width: 700px) 85vw, 34vw" onError={()=>setFailed(true)}/>:<div className="discover-showcase-fallback"><ImageIcon size={42}/></div>}
+    {metadata?.videoUrl&&!videoFailed?<video src={metadata.videoUrl} poster={metadata.imageUrl??undefined} muted playsInline preload="metadata" aria-label={metadata.collection??`${chain.name} collection artwork`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setVideoFailed(true)}/>:!failed?<Image src={metadata?.imageUrl??artworkUrl} alt={metadata?.collection??`${chain.name} collection artwork`} fill unoptimized sizes="(max-width: 700px) 85vw, 34vw" onError={()=>setFailed(true)}/>:<div className="discover-showcase-fallback"><ImageIcon size={42}/></div>}
     <span className="discover-showcase-shade"/>
     <div className="discover-showcase-top"><span>FEATURED #{rank}</span><span>{chain.name}</span></div>
-    <div className="discover-showcase-copy"><h2>{name??shortAddress(collection.address)}</h2><div><span><small>LISTED</small><strong>{collection.listingCount}</strong></span><span><small>FLOOR</small><strong>{formatEther(BigInt(collection.floorPrice))} {chain.currency}<UsdEstimate wei={collection.floorPrice} currency={chain.currency}/></strong></span><span><small>SALES</small><strong>{collection.salesCount}</strong></span></div></div>
+    <div className="discover-showcase-copy"><h2>{metadata?.collection??shortAddress(collection.address)}</h2><div><span><small>LISTED</small><strong>{collection.listingCount}</strong></span><span><small>FLOOR</small><strong>{formatEther(BigInt(collection.floorPrice))} {chain.currency}<UsdEstimate wei={collection.floorPrice} currency={chain.currency}/></strong></span><span><small>SALES</small><strong>{collection.salesCount}</strong></span></div></div>
   </Link>;
 }
 
 function FeaturedArtwork({ listing, onExpand }: { listing: IndexedListing; onExpand: (url: string) => void }) {
-  const [failed, setFailed] = useState(false);
+  const [failedUrl, setFailedUrl] = useState<string|null>(null);
+  const [media,setMedia]=useState<{imageUrl?:string|null;videoUrl?:string|null}|null>(null);
   const imageUrl = `/api/nft-image?chainId=${listing.chainId}&contract=${listing.nftAddress}&tokenId=${listing.tokenId}`;
-  return !failed
+  const artworkUrl=media?.videoUrl??media?.imageUrl??imageUrl;
+  useEffect(()=>{
+    const controller=new AbortController();
+    void fetch(`/api/nft?chainId=${listing.chainId}&contract=${listing.nftAddress}&tokenId=${listing.tokenId}`,{signal:controller.signal})
+      .then(response=>response.ok?response.json() as Promise<{imageUrl?:string|null;videoUrl?:string|null}>:null)
+      .then(setMedia).catch(()=>{});
+    return()=>controller.abort();
+  },[listing.chainId,listing.nftAddress,listing.tokenId]);
+  return failedUrl!==artworkUrl
     ? (
       <>
-        <img 
-          src={imageUrl} 
+        {media?.videoUrl?<video src={media.videoUrl} poster={media.imageUrl??undefined} muted playsInline preload="metadata" aria-label={`NFT #${listing.tokenId}`} className="royal-featured-artwork" onError={()=>setFailedUrl(artworkUrl)}/>:<img
+          src={artworkUrl}
           alt={`NFT #${listing.tokenId}`} 
           loading="lazy" 
-          onError={() => setFailed(true)} 
+          onError={() => setFailedUrl(artworkUrl)}
           className="royal-featured-artwork"
           onClick={(e) => {
             e.preventDefault();
             onExpand(imageUrl);
           }}
           style={{ cursor: 'pointer' }}
-        />
-        <button 
+        />}
+        {!media?.videoUrl&&<button
           className="royal-expand-button"
           onClick={(e) => {
             e.preventDefault();
@@ -140,7 +151,7 @@ function FeaturedArtwork({ listing, onExpand }: { listing: IndexedListing; onExp
           aria-label="Expand image"
         >
           <Maximize2 size={20} />
-        </button>
+        </button>}
       </>
     )
     : <div className="royal-nft-placeholder"><ImageIcon size={36} aria-label="Artwork unavailable" /></div>;

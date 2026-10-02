@@ -17,7 +17,7 @@ type MalkutaData = { status:string; collectionTotal:number; indexedThroughBlock:
 type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:string; tokenId:string; seller:string; price:string; transactionHash:string };
 type Activity = { id:string; chainId:MarketplaceChainId; eventType:string; nftAddress:string|null; tokenId:string|null; price:string|null; blockNumber:number };
 type ChainListings = { chainId:MarketplaceChainId; chain:string; currency:string; configured:boolean; listings:Listing[]; activity:Activity[] };
-type NftMetadata = { name:string|null; collection:string|null; imageUrl:string|null };
+type NftMetadata = { name:string|null; collection:string|null; imageUrl:string|null; videoUrl?:string|null };
 type TrendingCollection = { key:string; chainId:MarketplaceChainId; nftAddress:string; sales:number; recentEvents:number; activeListings:number; floorPrice:bigint; representativeTokenId:string };
 
 const chainIds = Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[];
@@ -171,10 +171,11 @@ function TrendingCollectionCard({item,rank}:{item:TrendingCollection;rank:number
 function ListedNft({item}:{item:Listing}){
   const [nft,setNft]=useState<NftMetadata|null>(null);
   const [artFailed,setArtFailed]=useState(false);
+  const [videoFailed,setVideoFailed]=useState(false);
   const chain=getMarketplaceChain(item.chainId);
   useEffect(()=>{let active=true;void fetch(`/api/nft?contract=${item.nftAddress}&tokenId=${item.tokenId}&chainId=${item.chainId}`).then(response=>response.ok?response.json():null).then(value=>{if(active)setNft(value as NftMetadata|null)}).catch(()=>{});return()=>{active=false};},[item]);
   return <Link href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}`} className="chain-listing">
-    <div className="chain-listing-art">{!artFailed?<Image src={nft?.imageUrl??`/api/nft-image?${new URLSearchParams({chainId:String(item.chainId),contract:item.nftAddress,tokenId:item.tokenId})}`} alt={nft?.name??`NFT #${item.tokenId}`} fill unoptimized sizes="(max-width: 700px) 100vw, 220px" style={{objectFit:"cover"}} onError={()=>setArtFailed(true)}/>:<strong>#{item.tokenId}<small>Artwork unavailable</small></strong>}<span>{chain.name}</span></div>
+    <div className="chain-listing-art">{nft?.videoUrl&&!videoFailed?<video src={nft.videoUrl} poster={nft.imageUrl??undefined} muted playsInline preload="metadata" aria-label={nft.name??`NFT #${item.tokenId}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setVideoFailed(true)}/>:!artFailed?<Image src={nft?.imageUrl??`/api/nft-image?${new URLSearchParams({chainId:String(item.chainId),contract:item.nftAddress,tokenId:item.tokenId})}`} alt={nft?.name??`NFT #${item.tokenId}`} fill unoptimized sizes="(max-width: 700px) 100vw, 220px" style={{objectFit:"cover"}} onError={()=>setArtFailed(true)}/>:<strong>#{item.tokenId}<small>Artwork unavailable</small></strong>}<span>{chain.name}</span></div>
     <div><small>{nft?.collection??short(item.nftAddress)}</small><h3>{nft?.name??`Token #${item.tokenId}`}</h3><p><span>LISTING PRICE</span><strong>{formatEther(BigInt(item.price))} {chain.currency}<UsdEstimate wei={item.price} currency={chain.currency}/></strong></p><span>View NFT <ArrowUpRight size={13}/></span></div>
   </Link>;
 }

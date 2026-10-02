@@ -6,6 +6,7 @@ import {
   type MarketplaceChainId,
 } from "@/lib/marketplace-chains";
 import { env } from "@runtime-env";
+import { nftMedia } from "@/lib/nft-media";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ type ExplorerNft = {
     image?: string | null;
     image_url?: string | null;
     image_data?: string | null;
+    animation_url?: string | null;
     description?: string | null;
     external_url?: string | null;
     attributes?: ExplorerAttribute[] | null;
@@ -58,7 +60,7 @@ type AlchemyNft = {
   name?: string | null;
   description?: string | null;
   image?: { cachedUrl?: string | null; thumbnailUrl?: string | null; pngUrl?: string | null; originalUrl?: string | null };
-  raw?: { metadata?: { image?: string | null; external_url?: string | null; attributes?: ExplorerAttribute[] | null } };
+  raw?: { metadata?: { image?: string | null; animation_url?: string | null; external_url?: string | null; attributes?: ExplorerAttribute[] | null } };
   balance?: string;
 };
 
@@ -80,6 +82,7 @@ type WalletNft = {
   name: string | null;
   collection: string | null;
   imageUrl: string | null;
+  videoUrl: string | null;
   description: string | null;
   externalUrl: string | null;
   explorerUrl: string;
@@ -147,6 +150,7 @@ function addExplorerItem(nfts: Map<string, WalletNft>, item: ExplorerNft, chainI
   const explorerImage =
     mediaUrl(item.metadata?.image ?? item.metadata?.image_url ?? item.image_url ?? item.media_url ?? item.thumbnails?.image_url ?? item.thumbnails?.image) ??
     embeddedImage(item.metadata?.image_data);
+  const media = nftMedia(explorerImage, mediaUrl(item.metadata?.animation_url ?? item.media_url));
   nfts.set(key, {
     contractAddress,
     tokenId,
@@ -154,7 +158,8 @@ function addExplorerItem(nfts: Map<string, WalletNft>, item: ExplorerNft, chainI
     quantity: item.value ?? "1",
     name: item.metadata?.name ?? null,
     collection: item.token?.name ?? item.token?.symbol ?? null,
-    imageUrl: marketplaceImageUrl(explorerImage, chainId, contractAddress, tokenId),
+    imageUrl: media.imageUrl ? marketplaceImageUrl(media.imageUrl, chainId, contractAddress, tokenId) : null,
+    videoUrl: media.videoUrl,
     description: item.metadata?.description ?? null,
     externalUrl: mediaUrl(item.metadata?.external_url ?? item.external_app_url),
     explorerUrl: tokenUrl(chainId, contractAddress, tokenId),
@@ -187,6 +192,7 @@ function mergeNfts(target: Map<string, WalletNft>, incoming: WalletNft[]) {
       externalUrl: current.externalUrl ?? nft.externalUrl,
       traits: current.traits.length ? current.traits : nft.traits,
       imageUrl: hasImageSource(current.imageUrl) ? current.imageUrl : nft.imageUrl ?? current.imageUrl,
+      videoUrl: current.videoUrl ?? nft.videoUrl,
     });
   }
 }
@@ -273,6 +279,7 @@ async function fetchFromAlchemy(address: string, chainId: MarketplaceChainId, ap
       const tokenId = item.tokenId.startsWith("0x") ? BigInt(item.tokenId).toString() : String(item.tokenId);
       const key = `${contractAddress.toLowerCase()}:${tokenId}`;
       const source = mediaUrl(item.raw?.metadata?.image ?? item.image?.originalUrl ?? item.image?.cachedUrl ?? item.image?.pngUrl ?? item.image?.thumbnailUrl);
+      const media = nftMedia(source, mediaUrl(item.raw?.metadata?.animation_url));
       nfts.set(key, {
         contractAddress,
         tokenId,
@@ -280,7 +287,8 @@ async function fetchFromAlchemy(address: string, chainId: MarketplaceChainId, ap
         quantity: item.balance ?? "1",
         name: item.name ?? null,
         collection: item.contract?.name ?? item.contract?.symbol ?? null,
-        imageUrl: marketplaceImageUrl(source, chainId, contractAddress, tokenId),
+        imageUrl: media.imageUrl ? marketplaceImageUrl(media.imageUrl, chainId, contractAddress, tokenId) : null,
+        videoUrl: media.videoUrl,
         description: item.description ?? null,
         externalUrl: mediaUrl(item.raw?.metadata?.external_url),
         explorerUrl: tokenUrl(chainId, contractAddress, tokenId),
@@ -325,7 +333,7 @@ async function fetchFromEbisu(address:string){
         nfts.set(`${contract.toLowerCase()}:${tokenId}`,{
           contractAddress:contract,tokenId,tokenType:item.is1155?"ERC-1155":"ERC-721",quantity,
           name:item.name??null,collection:item.collectionName??item.collection?.name??null,
-          imageUrl:marketplaceImageUrl(source,25,contract,tokenId),description:item.description??null,
+          imageUrl:marketplaceImageUrl(source,25,contract,tokenId),videoUrl:null,description:item.description??null,
           externalUrl:null,explorerUrl:tokenUrl(25,contract,tokenId),chainId:25,
           traits:(item.attributes??[]).flatMap(attribute=>attribute.trait_type&&attribute.value!==null&&attribute.value!==undefined?[{type:attribute.trait_type,value:String(attribute.value)}]:[]),
         });
@@ -407,6 +415,7 @@ async function fetchRecentErc721FromRpc(chainId: MarketplaceChainId, address: st
         name: null,
         collection: null,
         imageUrl: metadataImageFallback(chainId, contractAddress, tokenId),
+        videoUrl: null,
         description: null,
         externalUrl: null,
         explorerUrl: tokenUrl(chainId, contractAddress, tokenId),

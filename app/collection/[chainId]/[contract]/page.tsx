@@ -11,6 +11,7 @@ type NftMetadata = {
   name: string | null;
   collection: string | null;
   imageUrl: string | null;
+  videoUrl?: string | null;
   description: string | null;
   externalUrl: string | null;
   traits: Array<{ type: string; value: string }>;
@@ -629,7 +630,7 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
                             className="royal-nft-card opensea-style"
                           >
                             <div className="royal-nft-image">
-                              {nft.imageUrl ? (
+                              {nft.videoUrl ? <video src={nft.videoUrl} poster={nft.imageUrl??undefined} muted playsInline preload="metadata" aria-label={nft.name||`Token #${listing.tokenId}`} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : nft.imageUrl ? (
                                 <>
                                   <img 
                                     src={nft.imageUrl} 

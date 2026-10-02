@@ -19,7 +19,7 @@ import { notifyNFTPurchased } from "@/lib/notifications";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 import { UsdEstimate } from "./components/usd-estimate";
 
-type Nft={name:string|null;collection:string|null;imageUrl:string|null;description:string|null;externalUrl:string|null;traits:Array<{type:string;value:string}>;error?:string};
+type Nft={name:string|null;collection:string|null;imageUrl:string|null;videoUrl?:string|null;description:string|null;externalUrl:string|null;traits:Array<{type:string;value:string}>;error?:string};
 type Listing={id:string;chainId:MarketplaceChainId;nftAddress:`0x${string}`;tokenId:string;seller:`0x${string}`;price:string;transactionHash:`0x${string}`;updatedBlock:number;tokenType?:"ERC-721"|"ERC-1155";quantity?:string};
 type Activity={id:string;chainId:MarketplaceChainId;eventType:string;nftAddress:`0x${string}`|null;tokenId:string|null;seller:`0x${string}`|null;buyer:`0x${string}`|null;price:string|null;transactionHash:`0x${string}`;blockNumber:number};
 type CollectionSummary={nftAddress:string;floorPrice:string;listingCount:number;latestBlock:number;sampleTokenId:string};
@@ -42,7 +42,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
   const marketplaceLive=chain.marketplaceStatus==="live";
   const[nft,setNft]=useState<Nft|null>(null);
   const[indexer,setIndexer]=useState<Indexer|null>(null);
-  const[walletCollectionItems,setWalletCollectionItems]=useState<Array<{tokenId:string;name:string;imageUrl:string}>>([]);
+  const[walletCollectionItems,setWalletCollectionItems]=useState<Array<{tokenId:string;name:string;imageUrl:string|null;videoUrl?:string|null}>>([]);
   const thumbnailStripRef=useRef<HTMLDivElement>(null);
   const[walletCollectionLoading,setWalletCollectionLoading]=useState(false);
   const[walletCollectionMessage,setWalletCollectionMessage]=useState("");
@@ -144,10 +144,10 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
         const query=new URLSearchParams({owner:address!,chainId:String(chainId)});
         const response=await fetch(`/api/wallet-nfts?${query}`,{cache:"no-store",signal:controller.signal});
         if(!response.ok)throw new Error("Wallet NFTs are unavailable.");
-        const body=await response.json() as {complete?:boolean;coverage?:string;nfts?:Array<{contractAddress:string;tokenId:string;quantity:string;name:string|null;imageUrl:string|null}>};
+        const body=await response.json() as {complete?:boolean;coverage?:string;nfts?:Array<{contractAddress:string;tokenId:string;quantity:string;name:string|null;imageUrl:string|null;videoUrl?:string|null}>};
         if(active){setWalletCollectionMessage(body.coverage==="indexed-collections"?"Showing NFTs from indexed collections; some may be missing.":body.complete===false?"Some wallet NFTs could not be checked yet. Refresh to try again.":"");setWalletCollectionItems((body.nfts??[])
           .filter(item=>item.contractAddress.toLowerCase()===contract.toLowerCase()&&BigInt(item.quantity)>0n)
-          .map(item=>({tokenId:item.tokenId,name:item.name??`Token #${item.tokenId}`,imageUrl:item.imageUrl??`/api/nft-image?${new URLSearchParams({chainId:String(chainId),contract,tokenId:item.tokenId})}`})));}
+          .map(item=>({tokenId:item.tokenId,name:item.name??`Token #${item.tokenId}`,imageUrl:item.imageUrl??(item.videoUrl?null:`/api/nft-image?${new URLSearchParams({chainId:String(chainId),contract,tokenId:item.tokenId})}`),videoUrl:item.videoUrl})));}
       }catch{if(active){setWalletCollectionItems([]);setWalletCollectionMessage("Wallet NFTs could not be loaded. Refresh to try again.");}}
       finally{if(active)setWalletCollectionLoading(false);}
     }
@@ -163,7 +163,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
     setStatus("Refreshing NFT metadata…");
     try{
       const refreshed=await loadMetadata(true);
-      setStatus(refreshed.imageUrl?"Metadata rechecked. Artwork will reload if the collection source is available.":"Metadata refreshed. The collection has not supplied an image yet.");
+      setStatus(refreshed.imageUrl||refreshed.videoUrl?"Metadata rechecked. Artwork will reload if the collection source is available.":"Metadata refreshed. The collection has not supplied artwork yet.");
     }catch(reason){
       setStatus(reason instanceof Error?reason.message:"NFT metadata could not be refreshed.");
     }finally{setRefreshing(false);}
@@ -282,7 +282,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
       <div className="royal-nft-gallery-nav">
         {previousItem?<Link href={galleryHref(previousItem.tokenId)} className="royal-nft-gallery-back" aria-label="Previous NFT in your wallet" title="Previous NFT"><ArrowLeft size={18}/></Link>:<button type="button" className="royal-nft-gallery-back" aria-label="Previous NFT in your wallet" disabled><ArrowLeft size={18}/></button>}
         <div ref={thumbnailStripRef} className="royal-nft-thumbnails" aria-label={`NFTs from this collection in your connected wallet on ${chain.name}`}>
-          {galleryItems.map(item=>item.tokenId===tokenId?<span key={item.tokenId} className="royal-nft-thumb active" aria-current="page" title={item.name}>{item.imageUrl&&!artFailed?<Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/>:<ImageIcon size={20}/>}</span>:<Link key={item.tokenId} className="royal-nft-thumb" href={galleryHref(item.tokenId)} title={item.name}><Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/></Link>)}
+          {galleryItems.map(item=>item.tokenId===tokenId?<span key={item.tokenId} className="royal-nft-thumb active" aria-current="page" title={item.name}>{item.imageUrl&&!artFailed?<Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/>:item.videoUrl?<video src={item.videoUrl} muted playsInline preload="metadata" aria-label={item.name}/>:<ImageIcon size={20}/>}</span>:<Link key={item.tokenId} className="royal-nft-thumb" href={galleryHref(item.tokenId)} title={item.name}>{item.imageUrl?<Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/>:item.videoUrl?<video src={item.videoUrl} muted playsInline preload="metadata" aria-label={item.name}/>:<ImageIcon size={20}/>}</Link>)}
           {!galleryItems.length&&<span className="royal-nft-thumb-empty">{!address?"Connect wallet to browse your NFTs":walletCollectionLoading?"Loading your NFTs…":"No NFTs from this collection in your wallet"}</span>}
         </div>
         {nextItem?<Link href={galleryHref(nextItem.tokenId)} className="royal-nft-gallery-next" aria-label="Next NFT in your wallet" title="Next NFT"><ArrowRight size={18}/></Link>:<button type="button" className="royal-nft-gallery-next" aria-label="Next NFT in your wallet" disabled><ArrowRight size={18}/></button>}
@@ -309,8 +309,8 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
 
     <div className="royal-nft-split">
       <div className="royal-nft-media">
-        <div className={`royal-nft-art ${nft?.imageUrl&&!artFailed?"":"empty"}`}>
-          {nft?.imageUrl&&!artFailed?<Image src={nft.imageUrl} alt={nft.name??`NFT ${displayTokenId}`} fill unoptimized sizes="(max-width: 1100px) 100vw, 56vw" style={{objectFit:"contain"}} onError={()=>setArtFailed(true)}/>:<><ImageIcon size={48}/><span>{error||(nft?"Artwork unavailable from the NFT metadata source.":"Loading verified NFT…")}</span><strong>{displayTokenId}</strong></>}
+        <div className={`royal-nft-art ${(nft?.imageUrl||nft?.videoUrl)&&!artFailed?"":"empty"}`}>
+          {nft?.videoUrl&&!artFailed?<video src={nft.videoUrl} poster={nft.imageUrl??undefined} controls playsInline preload="metadata" aria-label={nft.name??`NFT ${displayTokenId}`} style={{width:"100%",height:"100%",objectFit:"contain"}} onError={()=>setArtFailed(true)}/>:nft?.imageUrl&&!artFailed?<Image src={nft.imageUrl} alt={nft.name??`NFT ${displayTokenId}`} fill unoptimized sizes="(max-width: 1100px) 100vw, 56vw" style={{objectFit:"contain"}} onError={()=>setArtFailed(true)}/>:<><ImageIcon size={48}/><span>{error||(nft?"Artwork unavailable from the NFT metadata source.":"Loading verified NFT…")}</span><strong>{displayTokenId}</strong></>}
         </div>
         {artFailed&&chainId===109&&contract.toLowerCase()==="0x007bbf85988caf18cf4222c9214e4fa019b3e002"&&<p className="royal-nft-artwork-warning">The Shib Magazine Covers metadata host is denying public access. Your NFT remains on Shibarium, but its publisher must restore the image source for the original cover to appear.</p>}
         <div className="royal-nft-media-info">
@@ -477,7 +477,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
         {relatedItems.slice(0,6).map(item=>(
           <Link key={item.tokenId} href={`/nft/${chainId}/${contract}/${item.tokenId}${legacy?"?legacy=1":returnTo==="/profile"?"?from=profile":""}`} className="royal-collection-item">
             <div className="royal-collection-item-art">
-              <Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="140px"/>
+              {item.imageUrl?<Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="140px"/>:item.videoUrl?<video src={item.videoUrl} muted playsInline preload="metadata" aria-label={item.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<ImageIcon size={20}/>}
             </div>
             <div className="royal-collection-item-info">
               <small>{item.name}</small>

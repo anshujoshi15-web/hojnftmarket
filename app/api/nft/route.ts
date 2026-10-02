@@ -3,6 +3,7 @@ import { createPublicClient, getAddress, http } from "viem";
 import { getMarketplaceChain, isMarketplaceChainId } from "@/lib/marketplace-chains";
 import { env } from "@runtime-env";
 import { SHIB_MAGAZINE_CONTRACT } from "@/lib/shib-magazine-cover";
+import { nftMedia } from "@/lib/nft-media";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ type ExplorerNft = {
   id?: string;
   image_url?: string | null;
   external_app_url?: string | null;
-  metadata?: { name?: string | null; image?: string | null; image_url?: string | null; image_data?: string | null; description?: string | null; external_url?: string | null; attributes?: Array<{ trait_type?: string | null; value?: string | number | boolean | null }> | null } | null;
+  metadata?: { name?: string | null; image?: string | null; image_url?: string | null; image_data?: string | null; animation_url?: string | null; description?: string | null; external_url?: string | null; attributes?: Array<{ trait_type?: string | null; value?: string | number | boolean | null }> | null } | null;
   token?: { address_hash?: string; name?: string | null; symbol?: string | null } | null;
 };
 
@@ -38,7 +39,7 @@ async function alchemyMetadata(chainId: number, contract: string, tokenId: strin
     description?: string | null;
     image?: { cachedUrl?: string | null; pngUrl?: string | null; thumbnailUrl?: string | null; originalUrl?: string | null };
     contract?: { name?: string | null; symbol?: string | null };
-    raw?: { metadata?: { image?: string | null; image_url?: string | null; image_data?: string | null; external_url?: string | null; attributes?: Array<{ trait_type?: string | null; value?: string | number | boolean | null }> | null } };
+    raw?: { metadata?: { image?: string | null; image_url?: string | null; image_data?: string | null; animation_url?: string | null; external_url?: string | null; attributes?: Array<{ trait_type?: string | null; value?: string | number | boolean | null }> | null } };
   }>;
 }
 
@@ -89,10 +90,12 @@ async function onchainMetadata(chainId: number, contract: `0x${string}`, tokenId
 async function onchainMetadataResponse(chainId: number, contract: `0x${string}`, tokenId: string, refresh: boolean) {
   const metadata = await onchainMetadata(chainId, contract, tokenId, refresh);
   if (!metadata) throw new Error("On-chain metadata is empty");
+  const media = nftMedia(imageUrl(metadata.image ?? metadata.image_url ?? metadata.image_data), imageUrl(metadata.animation_url));
   return NextResponse.json({
     contractAddress: contract, chainId, tokenId,
     name: metadata.name ?? null, collection: null,
-    imageUrl: marketplaceImageUrl(imageUrl(metadata.image ?? metadata.image_url ?? metadata.image_data), chainId, contract, tokenId, refresh),
+    imageUrl: media.imageUrl ? marketplaceImageUrl(media.imageUrl, chainId, contract, tokenId, refresh) : null,
+    videoUrl: media.videoUrl,
     description: metadata.description ?? null,
     externalUrl: imageUrl(metadata.external_url),
     traits: (metadata.attributes ?? []).flatMap(attribute => attribute.trait_type && attribute.value !== null && attribute.value !== undefined ? [{ type: attribute.trait_type, value: String(attribute.value) }] : []),
@@ -159,13 +162,15 @@ async function loadNft(request: NextRequest) {
     if (!response.ok) throw new Error("Explorer request failed");
     const item = await response.json() as ExplorerNft;
     const sourceImage = imageUrl(item.metadata?.image ?? item.metadata?.image_url ?? item.metadata?.image_data ?? item.image_url);
+    const media = nftMedia(sourceImage, imageUrl(item.metadata?.animation_url));
     return NextResponse.json({
       contractAddress: address,
       chainId,
       tokenId,
       name: item.metadata?.name ?? null,
       collection: item.token?.name ?? item.token?.symbol ?? null,
-      imageUrl: marketplaceImageUrl(sourceImage, chainId, address, tokenId, refresh),
+      imageUrl: media.imageUrl ? marketplaceImageUrl(media.imageUrl, chainId, address, tokenId, refresh) : null,
+      videoUrl: media.videoUrl,
       description: item.metadata?.description ?? null,
       externalUrl: imageUrl(item.metadata?.external_url ?? item.external_app_url),
       traits: (item.metadata?.attributes ?? []).flatMap(attribute => attribute.trait_type && attribute.value !== null && attribute.value !== undefined ? [{ type: attribute.trait_type, value: String(attribute.value) }] : []),
@@ -180,13 +185,15 @@ async function loadNft(request: NextRequest) {
       try {
         const item = await alchemyMetadata(chainId, address, tokenId, runtime.ALCHEMY_API_KEY, refresh);
         const sourceImage = imageUrl(item.raw?.metadata?.image ?? item.raw?.metadata?.image_url ?? item.raw?.metadata?.image_data ?? item.image?.originalUrl ?? item.image?.cachedUrl ?? item.image?.pngUrl ?? item.image?.thumbnailUrl);
+        const media = nftMedia(sourceImage, imageUrl(item.raw?.metadata?.animation_url));
         return NextResponse.json({
           contractAddress: address,
           chainId,
           tokenId,
           name: item.name ?? null,
           collection: item.contract?.name ?? item.contract?.symbol ?? null,
-          imageUrl: marketplaceImageUrl(sourceImage, chainId, address, tokenId, refresh),
+          imageUrl: media.imageUrl ? marketplaceImageUrl(media.imageUrl, chainId, address, tokenId, refresh) : null,
+          videoUrl: media.videoUrl,
           description: item.description ?? null,
           externalUrl: imageUrl(item.raw?.metadata?.external_url),
           traits: (item.raw?.metadata?.attributes ?? []).flatMap(attribute => attribute.trait_type && attribute.value !== null && attribute.value !== undefined ? [{ type: attribute.trait_type, value: String(attribute.value) }] : []),

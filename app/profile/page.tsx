@@ -22,6 +22,7 @@ type WalletNft = {
   name: string | null;
   collection: string | null;
   imageUrl: string | null;
+  videoUrl?: string | null;
   description: string | null;
   externalUrl: string | null;
   explorerUrl?: string;
@@ -79,7 +80,7 @@ type ExplorerFallback = {
   reason: string;
 };
 
-function NftArtwork({ imageUrl, name }: { imageUrl: string | null; name: string }) {
+function NftArtwork({ imageUrl, videoUrl, name }: { imageUrl: string | null; videoUrl?: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
   
   const handleError = () => {
@@ -88,7 +89,9 @@ function NftArtwork({ imageUrl, name }: { imageUrl: string | null; name: string 
   };
   
   return <div className="royal-nft-image">
-    {imageUrl && !failed
+    {videoUrl && !failed
+      ? <video src={videoUrl} poster={imageUrl ?? undefined} aria-label={name} muted playsInline preload="metadata" onError={handleError} />
+      : imageUrl && !failed
       ? <img src={imageUrl} alt={name} loading="lazy" onError={handleError} />
       : <div className="royal-nft-artwork-fallback"><ImageIcon size={30} aria-hidden="true" /><span>Artwork unavailable</span></div>}
   </div>;
@@ -471,7 +474,7 @@ export default function ProfilePage() {
                     
                     return (
                       <div key={`${nftChainId}-${nft.contractAddress}-${nft.tokenId}`} className="royal-profile-nft-choice"><Link href={`/nft/${nftChainId}/${nft.contractAddress}/${nft.tokenId}?from=profile`} className="royal-profile-nft">
-                        <NftArtwork key={nft.imageUrl ?? "no-image"} imageUrl={nft.imageUrl} name={nft.name || `Token #${nft.tokenId}`} />
+                        <NftArtwork key={nft.videoUrl ?? nft.imageUrl ?? "no-media"} imageUrl={nft.imageUrl} videoUrl={nft.videoUrl} name={nft.name || `Token #${nft.tokenId}`} />
                         <div className="royal-nft-details">
                           <small>{getMarketplaceChain(nftChainId).name} · {nft.collection || `${nft.contractAddress.slice(0, 8)}…`}</small>
                           <h3>{nft.name || `Token #${nft.tokenId}`}</h3>
