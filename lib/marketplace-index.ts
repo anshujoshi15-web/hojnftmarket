@@ -220,6 +220,15 @@ async function withRateLimitRetry<T>(read:()=>Promise<T>):Promise<T>{
     }
   }
 }
+async function withVerificationRetry<T>(read:()=>Promise<T>):Promise<T>{
+  for(let attempt=0;;attempt++){
+    try{return await read();}
+    catch(error){
+      if(attempt===2||isContractRevert(error))throw error;
+      await wait(350*2**attempt);
+    }
+  }
+}
 export async function rangeLogs(client:ReturnType<typeof indexClient>,address:Address,start:number,end:number):Promise<{logs:RpcLog[];through:number}> {
   try {
     const logs=await withRateLimitRetry(()=>client.request({method:"eth_getLogs",params:[{address,fromBlock:`0x${start.toString(16)}`,toBlock:`0x${end.toString(16)}`}]}) as Promise<RpcLog[]>);
@@ -249,6 +258,16 @@ export async function loadMarketplaceIndex(config:Config,db?:D1Database){
 
 async function buildIndex(config:Config,scope:string,db?:D1Database){
   const client=indexClient(config), address=config.address as Address, chainId=config.chain.id as MarketplaceChainId;
+  // Base's public RPCs intermittently fail eth_call during listing verification.
+  // Alchemy can serve these small reads even though its free tier cannot scan
+  // the broad log ranges used by the indexer above.
+  const verificationClient=chainId===8453&&config.fallbackRpcUrl
+    ? createPublicClient({transport:fallback([
+        http(config.fallbackRpcUrl,{timeout:8_000,retryCount:1}),
+        http(config.rpcUrl,{timeout:8_000,retryCount:1}),
+        http("https://mainnet.base.org",{timeout:8_000,retryCount:1}),
+      ],{shouldThrow:()=>false})})
+    : client;
   const chunkSize=chainId===8453?BASE_CHUNK_SIZE:CHUNK_SIZE;
   const rpcConcurrency=chainId===8453?1:chainId===137?2:6;
   // A durable index keeps a confirmation buffer before committing events. The
@@ -309,21 +328,21 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
     try{
       const args=[item.nftAddress,BigInt(item.tokenId)] as const;
       if(item.tokenType==="ERC-1155"){
-        const [current,balance,approved]=await withRateLimitRetry(()=>Promise.all([
-          client.readContract({address,abi:marketplaceAbi,functionName:"getEditionListing",args:[...args,item.seller]}),
-          client.readContract({address:item.nftAddress,abi:erc1155Abi,functionName:"balanceOf",args:[item.seller,args[1]]}),
-          client.readContract({address:item.nftAddress,abi:erc1155Abi,functionName:"isApprovedForAll",args:[item.seller,address]}),
+        const [current,balance,approved]=await withVerificationRetry(()=>Promise.all([
+          verificationClient.readContract({address,abi:marketplaceAbi,functionName:"getEditionListing",args:[...args,item.seller]}),
+          verificationClient.readContract({address:item.nftAddress,abi:erc1155Abi,functionName:"balanceOf",args:[item.seller,args[1]]}),
+          verificationClient.readContract({address:item.nftAddress,abi:erc1155Abi,functionName:"isApprovedForAll",args:[item.seller,address]}),
         ]));
         const quantity=current.quantity<balance?current.quantity:balance;
         return quantity>0n&&current.unitPrice>0n&&approved?{...item,quantity:String(quantity),price:String(current.unitPrice)}:null;
       }
-      const current=await withRateLimitRetry(()=>client.readContract({address,abi:marketplaceAbi,functionName:"getListing",args}));
+      const current=await withVerificationRetry(()=>verificationClient.readContract({address,abi:marketplaceAbi,functionName:"getListing",args}));
       if(current.price===0n||current.price!==BigInt(item.price)||current.seller.toLowerCase()!==item.seller.toLowerCase())return null;
-      const owner=await withRateLimitRetry(()=>client.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"ownerOf",args:[args[1]]}));
+      const owner=await withVerificationRetry(()=>verificationClient.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"ownerOf",args:[args[1]]}));
       if(owner.toLowerCase()!==item.seller.toLowerCase())return null;
-      const approvedForAll=await withRateLimitRetry(()=>client.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"isApprovedForAll",args:[item.seller,address]}));
+      const approvedForAll=await withVerificationRetry(()=>verificationClient.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"isApprovedForAll",args:[item.seller,address]}));
       if(approvedForAll)return item;
-      const approved=await withRateLimitRetry(()=>client.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"getApproved",args:[args[1]]}));
+      const approved=await withVerificationRetry(()=>verificationClient.readContract({address:item.nftAddress,abi:erc721Abi,functionName:"getApproved",args:[args[1]]}));
       return approved.toLowerCase()===address.toLowerCase()?item:null;
     }catch(error){if(!isContractRevert(error))verificationFailed=true;return null;}
   });
