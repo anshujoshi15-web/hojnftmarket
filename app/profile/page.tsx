@@ -11,6 +11,7 @@ import Link from "next/link";
 import { getMarketplaceChain, isMarketplaceChainId, isMarketplaceLive, marketplaceChains, transactionUrl, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 import { ProfileListingFlow } from "../components/profile-listing-flow";
+import { UsdEstimate } from "../components/usd-estimate";
 
 type WalletNft = {
   contractAddress: string;
@@ -471,7 +472,7 @@ export default function ProfilePage() {
                           <h3>{nft.name || `Token #${nft.tokenId}`}</h3>
                           <div className="royal-nft-status">
                             {activeListing ? (
-                              <span className="listed">Listed · {formatEther(BigInt(activeListing.price))} {getMarketplaceChain(nftChainId).currency}</span>
+                              <span className="listed">Listed · {formatEther(BigInt(activeListing.price))} {getMarketplaceChain(nftChainId).currency}<UsdEstimate wei={activeListing.price} currency={getMarketplaceChain(nftChainId).currency}/></span>
                             ) : (
                               <span className="not-listed">Not Listed</span>
                             )}
@@ -499,7 +500,7 @@ export default function ProfilePage() {
                       <div key={listing.id} className="royal-listing-card">
                         <div className="royal-listing-price">
                           <span>Price</span>
-                          <strong>{formatEther(BigInt(listing.price))} {chain.currency}</strong>
+                          <strong>{formatEther(BigInt(listing.price))} {chain.currency}<UsdEstimate wei={listing.price} currency={chain.currency}/></strong>
                         </div>
                         <div className="royal-listing-details">
                           <small>{chain.name}</small>

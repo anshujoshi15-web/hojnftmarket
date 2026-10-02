@@ -17,6 +17,7 @@ import { EditionTrading } from "./components/edition-trading";
 import { NftPriceHistory } from "./components/nft-price-history";
 import { notifyNFTPurchased } from "@/lib/notifications";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
+import { UsdEstimate } from "./components/usd-estimate";
 
 type Nft={name:string|null;collection:string|null;imageUrl:string|null;description:string|null;externalUrl:string|null;traits:Array<{type:string;value:string}>;error?:string};
 type Listing={id:string;chainId:MarketplaceChainId;nftAddress:`0x${string}`;tokenId:string;seller:`0x${string}`;price:string;transactionHash:`0x${string}`;updatedBlock:number;tokenType?:"ERC-721"|"ERC-1155";quantity?:string};
@@ -336,11 +337,11 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
         <div className="royal-nft-market-info">
           <div className="royal-market-stat">
             <span>Last Sale</span>
-            <strong>{lastSale?.price?`${formatEther(BigInt(lastSale.price))} ${chain.currency}`:"—"}</strong>
+            <strong>{lastSale?.price?<>{formatEther(BigInt(lastSale.price))} {chain.currency}<UsdEstimate wei={lastSale.price} currency={chain.currency}/></>:"—"}</strong>
           </div>
           <div className="royal-market-stat">
             <span>{completeFloor?"Marketplace Floor":"Observed Listing Low"}</span>
-            <strong>{collectionFloor?`${collectionFloor} ${chain.currency}`:"—"}</strong>
+            <strong>{collectionFloor?<>{collectionFloor} {chain.currency}{collectionFloorWei!==null&&<UsdEstimate wei={collectionFloorWei} currency={chain.currency}/>}</>:"—"}</strong>
           </div>
           <div className="royal-market-stat">
             <span>Traits</span>
@@ -352,7 +353,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
           {listing?<>
             <div className="royal-current-price">
               <span>CURRENT PRICE</span>
-              <strong>{formatEther(BigInt(listing.price))} <small>{chain.currency}</small></strong>
+              <strong>{formatEther(BigInt(listing.price))} <small>{chain.currency}</small><UsdEstimate wei={listing.price} currency={chain.currency}/></strong>
             </div>
             <p>Settlement takes place directly through the House of Joshi marketplace contract on {chain.name}.</p>
             <div className="royal-nft-actions">

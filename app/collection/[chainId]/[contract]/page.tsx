@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { getMarketplaceChain, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { formatEther, parseEther } from "viem";
 import Link from "next/link";
+import { UsdEstimate } from "../../../components/usd-estimate";
 
 type NftMetadata = {
   name: string | null;
@@ -392,7 +393,7 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
           <section className="royal-collection-stats-bar opensea-style">
             <div className="royal-stat-item">
               <span className="royal-stat-label">FLOOR PRICE</span>
-              <strong className="royal-stat-value">{stats && stats.floorPrice > 0n ? formatEther(stats.floorPrice) : "—"} {currency}</strong>
+              <strong className="royal-stat-value">{stats && stats.floorPrice > 0n ? formatEther(stats.floorPrice) : "—"} {currency}{stats&&stats.floorPrice>0n&&<UsdEstimate wei={stats.floorPrice} currency={currency}/>}</strong>
             </div>
             <div className="royal-stat-item">
               <span className="royal-stat-label">1D FLOOR %</span>
@@ -646,7 +647,7 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
                                 <strong>#{listing.tokenId}</strong>
                               </div>
                               <div className="royal-nft-price">
-                                <span>{formatEther(BigInt(listing.price))} {chain.currency}</span>
+                                <span>{formatEther(BigInt(listing.price))} {chain.currency}<UsdEstimate wei={listing.price} currency={chain.currency}/></span>
                               </div>
                               {lastSale && (
                                 <div className="royal-nft-last-sale">

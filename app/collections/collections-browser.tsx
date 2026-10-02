@@ -7,6 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getMarketplaceChain, isMarketplaceChainId, isMarketplaceLive, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
+import { UsdEstimate } from "../components/usd-estimate";
 
 type Mint = {
   tokenId:string; owner:string; transactionHash:string; sourceText:string; imageURI:string|null;
@@ -164,7 +165,7 @@ function TrendingCollectionCard({item,rank}:{item:TrendingCollection;rank:number
   const [nft,setNft]=useState<NftMetadata|null>(null);
   const chain=getMarketplaceChain(item.chainId);
   useEffect(()=>{let active=true;void fetch(`/api/nft?contract=${item.nftAddress}&tokenId=${item.representativeTokenId}&chainId=${item.chainId}`,{cache:"no-store"}).then(response=>response.ok?response.json():null).then(value=>{if(active)setNft(value as NftMetadata|null)}).catch(()=>{});return()=>{active=false};},[item]);
-  return <a className="trending-collection-card" href={`/collection/${item.chainId}/${item.nftAddress}`}><div className="trending-collection-art" style={nft?.imageUrl?{backgroundImage:`url(${nft.imageUrl})`}:undefined}><b>#{rank}</b>{!nft?.imageUrl&&<span>{short(item.nftAddress)}</span>}</div><div><small>{chain.name}</small><h3>{nft?.collection??short(item.nftAddress)}</h3><dl><div><dt>OBSERVED HOJ LOW</dt><dd>{item.floorPrice > 0n ? formatEther(item.floorPrice) : "—"} {chain.currency}</dd></div><div><dt>RECENT SALES</dt><dd>{item.sales}</dd></div><div><dt>ACTIVE LISTINGS</dt><dd>{item.activeListings}</dd></div><div><dt>ACTIVITY</dt><dd>{item.recentEvents}</dd></div></dl><span>Explore collection <ArrowUpRight size={13}/></span></div></a>;
+  return <a className="trending-collection-card" href={`/collection/${item.chainId}/${item.nftAddress}`}><div className="trending-collection-art" style={nft?.imageUrl?{backgroundImage:`url(${nft.imageUrl})`}:undefined}><b>#{rank}</b>{!nft?.imageUrl&&<span>{short(item.nftAddress)}</span>}</div><div><small>{chain.name}</small><h3>{nft?.collection??short(item.nftAddress)}</h3><dl><div><dt>OBSERVED HOJ LOW</dt><dd>{item.floorPrice > 0n ? formatEther(item.floorPrice) : "—"} {chain.currency}{item.floorPrice>0n&&<UsdEstimate wei={item.floorPrice} currency={chain.currency}/>}</dd></div><div><dt>RECENT SALES</dt><dd>{item.sales}</dd></div><div><dt>ACTIVE LISTINGS</dt><dd>{item.activeListings}</dd></div><div><dt>ACTIVITY</dt><dd>{item.recentEvents}</dd></div></dl><span>Explore collection <ArrowUpRight size={13}/></span></div></a>;
 }
 
 function ListedNft({item}:{item:Listing}){
@@ -174,6 +175,6 @@ function ListedNft({item}:{item:Listing}){
   useEffect(()=>{let active=true;void fetch(`/api/nft?contract=${item.nftAddress}&tokenId=${item.tokenId}&chainId=${item.chainId}`).then(response=>response.ok?response.json():null).then(value=>{if(active)setNft(value as NftMetadata|null)}).catch(()=>{});return()=>{active=false};},[item]);
   return <Link href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}`} className="chain-listing">
     <div className="chain-listing-art">{nft?.imageUrl&&!artFailed?<Image src={nft.imageUrl} alt={nft.name??`NFT #${item.tokenId}`} fill unoptimized sizes="(max-width: 700px) 100vw, 220px" style={{objectFit:"cover"}} onError={()=>setArtFailed(true)}/>:<strong>#{item.tokenId}<small>Artwork unavailable</small></strong>}<span>{chain.name}</span></div>
-    <div><small>{nft?.collection??short(item.nftAddress)}</small><h3>{nft?.name??`Token #${item.tokenId}`}</h3><p><span>LISTING PRICE</span><strong>{formatEther(BigInt(item.price))} {chain.currency}</strong></p><span>View NFT <ArrowUpRight size={13}/></span></div>
+    <div><small>{nft?.collection??short(item.nftAddress)}</small><h3>{nft?.name??`Token #${item.tokenId}`}</h3><p><span>LISTING PRICE</span><strong>{formatEther(BigInt(item.price))} {chain.currency}<UsdEstimate wei={item.price} currency={chain.currency}/></strong></p><span>View NFT <ArrowUpRight size={13}/></span></div>
   </Link>;
 }

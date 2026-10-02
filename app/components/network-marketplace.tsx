@@ -7,6 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getMarketplaceChain, isMarketplaceLive, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
+import { UsdEstimate } from "./usd-estimate";
 
 type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:string; tokenId:string; seller:string; price:string; transactionHash:string };
 type Activity = { id:string; chainId:MarketplaceChainId; eventType:string; nftAddress:string|null; tokenId:string|null; price:string|null; blockNumber:number };
@@ -243,7 +244,7 @@ function ListedNft({ item, chain }: { item: Listing; chain: ReturnType<typeof ge
         <h3>{nft?.name ?? `Token #${item.tokenId}`}</h3>
         <p>
           <span>LISTING PRICE</span>
-          <strong>{formatEther(BigInt(item.price))} {chain.currency}</strong>
+          <strong>{formatEther(BigInt(item.price))} {chain.currency}<UsdEstimate wei={item.price} currency={chain.currency}/></strong>
         </p>
         <span>
           View NFT <ArrowUpRight size={13} />

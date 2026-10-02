@@ -6,6 +6,7 @@ import { getMarketplaceChain, marketplaceChains, type MarketplaceChainId } from 
 import { sortActivity } from "@/lib/activity-sort";
 import { formatEther } from "viem";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
+import { UsdEstimate } from "../components/usd-estimate";
 
 type IndexedActivity = {
   id: string;
@@ -197,7 +198,7 @@ export default function ActivityPage() {
                       <small>#{item.tokenId ?? "—"} · {chain.name}</small>
                     </div>
                     <div className="royal-activity-price">
-                      <strong>{price}</strong>
+                      <strong>{price}{item.price&&<UsdEstimate wei={item.price} currency={chain.currency}/>}</strong>
                     </div>
                     <div className="royal-activity-qty">
                       <span>{item.quantity || "1"}</span>

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { formatEther } from "viem";
 import { getMarketplaceChain, isMarketplaceChainId, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
+import { UsdEstimate } from "./components/usd-estimate";
 
 type IndexedListing = {
   id: string;
@@ -86,7 +87,7 @@ function ListedCollectionCard({collection,rank}:{collection:ListedCollection;ran
         <div><small>LISTED</small><strong>{collection.listingCount}</strong></div>
         <div><small>SALES</small><strong>{collection.salesCount}</strong></div>
         <div><small>VOLUME</small><strong>{collection.salesVolume > 0n ? formatEther(collection.salesVolume) : "—"} {chain.currency}</strong></div>
-        <div><small>{collection.complete?"FLOOR":"LOW"}</small><strong>{formatEther(BigInt(collection.floorPrice))} {chain.currency}</strong></div>
+        <div><small>{collection.complete?"FLOOR":"LOW"}</small><strong>{formatEther(BigInt(collection.floorPrice))} {chain.currency}<UsdEstimate wei={collection.floorPrice} currency={chain.currency}/></strong></div>
       </div>
     </div>
   </Link>;
@@ -108,7 +109,7 @@ function DiscoverShowcaseCard({collection,rank}:{collection:ListedCollection;ran
     {!failed?<Image src={artworkUrl} alt={name??`${chain.name} collection artwork`} fill unoptimized sizes="(max-width: 700px) 85vw, 34vw" onError={()=>setFailed(true)}/>:<div className="discover-showcase-fallback"><ImageIcon size={42}/></div>}
     <span className="discover-showcase-shade"/>
     <div className="discover-showcase-top"><span>FEATURED #{rank}</span><span>{chain.name}</span></div>
-    <div className="discover-showcase-copy"><h2>{name??shortAddress(collection.address)}</h2><div><span><small>LISTED</small><strong>{collection.listingCount}</strong></span><span><small>FLOOR</small><strong>{formatEther(BigInt(collection.floorPrice))} {chain.currency}</strong></span><span><small>SALES</small><strong>{collection.salesCount}</strong></span></div></div>
+    <div className="discover-showcase-copy"><h2>{name??shortAddress(collection.address)}</h2><div><span><small>LISTED</small><strong>{collection.listingCount}</strong></span><span><small>FLOOR</small><strong>{formatEther(BigInt(collection.floorPrice))} {chain.currency}<UsdEstimate wei={collection.floorPrice} currency={chain.currency}/></strong></span><span><small>SALES</small><strong>{collection.salesCount}</strong></span></div></div>
   </Link>;
 }
 
@@ -185,7 +186,7 @@ function DiscoverNftCard({nft,onExpand}:{nft:IndexedListing;onExpand:(url:string
       <div className="royal-nft-info">
         <div className="royal-nft-collection"><span>{chain.name}</span><strong>{metadata?.collection??shortAddress(nft.nftAddress)}</strong></div>
         <h3>{metadata?.name??`Token #${nft.tokenId}`}</h3>
-        <div className="royal-nft-price"><span>Current Price</span><strong>{formatEther(BigInt(nft.price))} {chain.currency}</strong></div>
+        <div className="royal-nft-price"><span>Current Price</span><strong>{formatEther(BigInt(nft.price))} {chain.currency}<UsdEstimate wei={nft.price} currency={chain.currency}/></strong></div>
       </div>
     </Link>
     {BigInt(nft.price)>0n&&<Link className="nft-card-buy-now" href={href}>Buy now <ArrowUpRight size={15}/></Link>}
@@ -434,7 +435,7 @@ export default function Home() {
                     <span>{shortAddress(activity.nftAddress || "")}</span>
                   </div>
                   <div className="royal-activity-price">
-                    <strong>{activity.price ? formatEther(BigInt(activity.price)) : "0"} {chain.currency}</strong>
+                    <strong>{activity.price ? formatEther(BigInt(activity.price)) : "0"} {chain.currency}{activity.price&&<UsdEstimate wei={activity.price} currency={chain.currency}/>}</strong>
                   </div>
                   <div className="royal-activity-chain">
                     <span>{chain.name}</span>

@@ -7,6 +7,7 @@ import { useAccount, usePublicClient, useReadContract } from "wagmi";
 import { erc1155Abi, formatEther, maxUint256, zeroAddress, type Address } from "viem";
 import { marketplaceAbi, parseNativeAmount, type IndexedOffer } from "@/lib/marketplace-abi";
 import { getMarketplaceChain, type MarketplaceChainId } from "@/lib/marketplace-chains";
+import { UsdEstimate } from "./usd-estimate";
 import { TransactionStatus, useMarketplaceTransaction } from "./use-marketplace-transaction";
 import { notifyNFTPurchased } from "@/lib/notifications";
 
@@ -87,7 +88,7 @@ export function EditionTrading({chainId,market,nft,tokenId,listings,offers=[],co
   }
   return <section className="royal-nft-action-section edition-trading">
     {checkingVersion?<p>Checking marketplace support…</p>:!supported?<div className="royal-not-listed"><span>MARKETPLACE STATUS</span><strong>Edition trading is not available on {chain.name} yet.</strong></div>:<>
-      {available.length>0?<div className="royal-current-price"><span>PRICE PER EDITION</span><strong>{formatEther(available.reduce((lowest,item)=>BigInt(item.price)<lowest?BigInt(item.price):lowest,BigInt(available[0].price)))} <small>{chain.currency}</small></strong></div>:<div className="royal-not-listed"><span>SALE STATUS</span><strong className="not-listed">Not listed</strong></div>}
+      {available.length>0?<div className="royal-current-price"><span>PRICE PER EDITION</span><strong>{formatEther(available.reduce((lowest,item)=>BigInt(item.price)<lowest?BigInt(item.price):lowest,BigInt(available[0].price)))} <small>{chain.currency}</small><UsdEstimate wei={available.reduce((lowest,item)=>BigInt(item.price)<lowest?BigInt(item.price):lowest,BigInt(available[0].price))} currency={chain.currency}/></strong></div>:<div className="royal-not-listed"><span>SALE STATUS</span><strong className="not-listed">Not listed</strong></div>}
       <p>{address?`You own ${balance.data?.toString()??"…"} edition${balance.data===1n?"":"s"} on ${chain.name}.`:"Connect your wallet to see your edition balance and list your work."}</p>
       <div className="royal-nft-actions">
         {address&&balance.data!==undefined&&balance.data>0n?<button disabled={tx.pending} onClick={()=>{if(own.data?.quantity){setQuantity(String(own.data.quantity));setPrice(formatEther(own.data.unitPrice));}setShowListModal(true);}}>{own.data?.quantity?"Change listing":"List for sale"} <Tag size={16}/></button>:!address?<ConnectButton.Custom>{({openConnectModal})=><button onClick={openConnectModal}>Connect wallet <Wallet size={16}/></button>}</ConnectButton.Custom>:null}
@@ -95,7 +96,7 @@ export function EditionTrading({chainId,market,nft,tokenId,listings,offers=[],co
       </div>
       {!!own.data?.quantity&&<p>Your listing: {String(own.data.quantity)} edition{own.data.quantity===1n?"":"s"} at {formatEther(own.data.unitPrice)} {chain.currency} each.</p>}
       {available.length>0?<div className="edition-available"><label>Quantity to buy<input inputMode="numeric" value={buyQuantity} onChange={event=>setBuyQuantity(event.target.value)}/></label>{available.map(item=><div className="edition-offer" key={item.seller}>
-        <p>{item.seller.slice(0,6)}…{item.seller.slice(-4)} · {item.quantity} available<br/>{formatEther(BigInt(item.price))} {chain.currency} per edition</p>
+        <p>{item.seller.slice(0,6)}…{item.seller.slice(-4)} · {item.quantity} available<br/>{formatEther(BigInt(item.price))} {chain.currency} per edition <UsdEstimate wei={item.price} currency={chain.currency}/></p>
         {address?<button disabled={tx.pending||purchaseUnits<=0n||purchaseUnits>BigInt(item.quantity??"0")} onClick={()=>void buy(item)}>Buy now · {formatEther(purchaseUnits*BigInt(item.price))} {chain.currency} <ShoppingCart size={15}/></button>:<ConnectButton.Custom>{({openConnectModal})=><button onClick={openConnectModal}>Connect to buy</button>}</ConnectButton.Custom>}
       </div>)}</div>:<p>No editions from other sellers are currently listed.</p>}
       {offerSupported&&<div className="edition-offer-controls"><h3>Offers for this edition</h3><p>Offers deposit {chain.currency}. The offer is for a total price and expires in seven days.</p>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatEther } from "viem";
 import { getMarketplaceChain, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
+import { UsdEstimate } from "../components/usd-estimate";
 
 type Collection={nftAddress:string;floorPrice:string;listingCount:number;latestBlock:number};
 type Activity={nftAddress:string|null;eventType:string};
@@ -59,7 +60,7 @@ export default function RankingsPage(){
           const chain=getMarketplaceChain(item.chainId);
           return <Link key={`${item.chainId}:${item.address.toLowerCase()}`} href={`/collection/${item.chainId}/${item.address}`} className="hoj-ranking-row">
             <span className="hoj-ranking-number">{index+1}</span><div className="hoj-ranking-collection"><strong>{item.address.slice(0,8)}…{item.address.slice(-6)}</strong><small>{chain.name}</small></div>
-            <div><small>Sales</small><strong>{item.sales}</strong></div><div><small>Listed</small><strong>{item.listingCount}</strong></div><div><small>Floor</small><strong>{item.floorPrice!==null?`${formatEther(BigInt(item.floorPrice))} ${chain.currency}`:"—"}</strong></div>
+            <div><small>Sales</small><strong>{item.sales}</strong></div><div><small>Listed</small><strong>{item.listingCount}</strong></div><div><small>Floor</small><strong>{item.floorPrice!==null?<>{formatEther(BigInt(item.floorPrice))} {chain.currency}<UsdEstimate wei={item.floorPrice} currency={chain.currency}/></>:"—"}</strong></div>
           </Link>;
         })}</div>}
       </>}

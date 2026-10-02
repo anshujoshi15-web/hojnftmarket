@@ -11407,6 +11407,7 @@ article.royal-profile-nft > a {
 .royal-homepage .royal-featured-collection .royal-collection-info h3 { font-size:21px; }
 @media(max-width:600px) { .royal-homepage .royal-featured-collection { min-height:116px; padding:16px; } .royal-homepage .royal-featured-collection .royal-collection-rank { top:8px; right:10px; font-size:8px; } .royal-homepage .royal-featured-collection .royal-collection-avatar,.royal-homepage .royal-featured-collection .royal-collection-avatar img { width:64px; height:64px; } }
 .royal-homepage .royal-market-empty { grid-column:1/-1; margin:0; padding:26px; border:1px solid rgba(218,190,148,.16); border-radius:9px; background:#151412; color:#c7c1b6; font-size:13px; line-height:1.5; }
+.usd-estimate { display:inline-block; margin-left:.4em; color:#a9a398; font-size:.78em; font-weight:500; white-space:nowrap; }
 
 .portal-market .portal-hero { min-height:180px; padding-top:30px; padding-bottom:28px; background:radial-gradient(ellipse at 88% 0,rgba(210,185,147,.12),transparent 38%),linear-gradient(125deg,#101010,#1a1816 70%,#0b0b0b); }
 .portal-market .portal-hero h1 { font-size:clamp(30px,3.6vw,52px); }
