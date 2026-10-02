@@ -11,6 +11,7 @@ import Link from "next/link";
 import { getMarketplaceChain, isMarketplaceChainId, isMarketplaceLive, marketplaceChains, transactionUrl, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 import { ProfileListingFlow } from "../components/profile-listing-flow";
+import { ProfileEditionListingFlow } from "../components/profile-edition-listing-flow";
 import { UsdEstimate } from "../components/usd-estimate";
 
 type WalletNft = {
@@ -27,6 +28,7 @@ type WalletNft = {
   traits: Array<{ type: string; value: string }>;
   chainId?: number;
 };
+const isEditionNft = (nft: WalletNft) => ["ERC1155", "CRC1155"].includes((nft.tokenType ?? "ERC-721").toUpperCase().replace(/[^A-Z0-9]/g, ""));
 
 type IndexedListing = {
   id: string;
@@ -288,6 +290,8 @@ export default function ProfilePage() {
   const filteredActivity=activity.filter(item=>activityFilter==="all"||item.eventType===activityFilter);
   const visibleActivity=filteredActivity.slice(0,activityLimit);
   const selectedCount=bulkSelection?.tokenIds.length??0;
+  const selectedItems=bulkSelection?.tokenIds.map(tokenId=>walletNfts.find(nft=>nft.chainId===bulkSelection.chainId&&nft.contractAddress.toLowerCase()===bulkSelection.collection.toLowerCase()&&nft.tokenId===tokenId)).filter((nft):nft is WalletNft=>!!nft)??[];
+  const selectedEdition=selectedItems.length>0&&isEditionNft(selectedItems[0]);
   function toggleBulkNft(nft:WalletNft,chainId:MarketplaceChainId,checked:boolean){
     setBulkSelection(current=>{
       const sameCollection=current?.chainId===chainId&&current.collection.toLowerCase()===nft.contractAddress.toLowerCase();
@@ -458,10 +462,10 @@ export default function ProfilePage() {
                 {filteredNfts.length > 0 ? (
                   filteredNfts.map((nft) => {
                     const nftChainId = nft.chainId || 109; // Default to Shibarium if not set
-                    const activeListing=listings.find(l=>l.chainId===nftChainId&&l.nftAddress.toLowerCase()===nft.contractAddress.toLowerCase()&&l.tokenId===nft.tokenId);
-                    const tokenStandard=(nft.tokenType??"ERC-721").toUpperCase().replace(/[^A-Z0-9]/g,"");
-                    const isEdition=tokenStandard==="ERC1155"||tokenStandard==="CRC1155";
-                    const selectionReason=isEdition?"Bulk selection supports ERC-721 NFTs only. Open this NFT to list editions.":activeListing?"This NFT is already listed.":!isMarketplaceChainId(nftChainId)||!isMarketplaceLive(nftChainId)?`Bulk listing is not live on ${getMarketplaceChain(nftChainId).name}.`:null;
+                    const isEdition=isEditionNft(nft);
+                    const activeListing=listings.find(l=>l.chainId===nftChainId&&l.nftAddress.toLowerCase()===nft.contractAddress.toLowerCase()&&l.tokenId===nft.tokenId&&(!isEdition||l.seller.toLowerCase()===address.toLowerCase()));
+                    const sameSelection=bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase();
+                    const selectionReason=!isMarketplaceChainId(nftChainId)||!isMarketplaceLive(nftChainId)?`Bulk listing is not live on ${getMarketplaceChain(nftChainId).name}.`:isEdition&&(!nft.quantity||!/^\d+$/.test(nft.quantity)||BigInt(nft.quantity)===0n)?"No editions from this wallet are available to list.":sameSelection&&selectedCount>0&&selectedEdition!==isEdition?"Select ERC-721 NFTs and editions separately.":!isEdition&&activeListing?"This NFT is already listed.":null;
                     const selected=bulkSelection?.chainId===nftChainId&&bulkSelection.collection.toLowerCase()===nft.contractAddress.toLowerCase()&&bulkSelection.tokenIds.includes(nft.tokenId);
                     
                     return (
@@ -654,7 +658,7 @@ export default function ProfilePage() {
           </>
         )}
       </section>
-      {bulkSelection&&<ProfileListingFlow key={`${bulkSelection.chainId}:${bulkSelection.collection.toLowerCase()}`} chainId={bulkSelection.chainId} collection={bulkSelection.collection} items={bulkSelection.tokenIds.map(tokenId=>walletNfts.find(nft=>nft.chainId===bulkSelection.chainId&&nft.contractAddress.toLowerCase()===bulkSelection.collection.toLowerCase()&&nft.tokenId===tokenId)).filter((nft):nft is WalletNft=>!!nft)} onRemove={tokenId=>setBulkSelection(current=>{const remaining=current?.tokenIds.filter(id=>id!==tokenId)??[];return current&&remaining.length?{...current,tokenIds:remaining}:null;})} onClear={()=>setBulkSelection(null)}/>}
+      {bulkSelection&&selectedItems.length>0&&(selectedEdition?<ProfileEditionListingFlow key={`${bulkSelection.chainId}:${bulkSelection.collection.toLowerCase()}:edition`} chainId={bulkSelection.chainId} collection={bulkSelection.collection} items={selectedItems} onRemove={tokenId=>setBulkSelection(current=>{const remaining=current?.tokenIds.filter(id=>id!==tokenId)??[];return current&&remaining.length?{...current,tokenIds:remaining}:null;})} onClear={()=>setBulkSelection(null)}/>:<ProfileListingFlow key={`${bulkSelection.chainId}:${bulkSelection.collection.toLowerCase()}`} chainId={bulkSelection.chainId} collection={bulkSelection.collection} items={selectedItems} onRemove={tokenId=>setBulkSelection(current=>{const remaining=current?.tokenIds.filter(id=>id!==tokenId)??[];return current&&remaining.length?{...current,tokenIds:remaining}:null;})} onClear={()=>setBulkSelection(null)}/>)}
     </main>
   );
 }

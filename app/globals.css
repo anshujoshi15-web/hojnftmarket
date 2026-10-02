@@ -11974,6 +11974,10 @@ article.royal-profile-nft > a {
 .profile-listing-row label span{position:absolute;clip:rect(0,0,0,0)}
 .profile-listing-row em{font-size:11px;font-style:normal;color:#c9b795}
 .profile-listing-row>strong{font-size:13px;white-space:nowrap}
+.profile-listing-row.profile-edition-row{flex-wrap:wrap}
+.profile-edition-row .profile-edition-field{display:grid;gap:4px}
+.profile-edition-row .profile-edition-field span{position:static;clip:auto;clip-path:none;font-size:11px;color:#c9b795}
+.profile-edition-row .profile-edition-field input{width:96px}
 .profile-listing-summary{display:grid;grid-template-columns:1fr auto;gap:12px;padding:18px 0;font-size:13px}
 .profile-listing-summary span{color:#c9c0af}
 .profile-listing-summary strong{text-align:right}

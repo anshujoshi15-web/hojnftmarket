@@ -20,10 +20,20 @@ contract TestNFT {
   function setApprovalForAll(address operator,bool approved) external {isApprovedForAll[msg.sender][operator]=approved;}
   function supportsInterface(bytes4 id) external pure returns(bool){return id==0x80ac58cd || id==0x01ffc9a7;}
 }`};
+sources["TestEdition.sol"]={content:`// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+contract TestEdition {
+  mapping(address=>mapping(uint256=>uint256)) public balanceOf;
+  mapping(address=>mapping(address=>bool)) public isApprovedForAll;
+  function mint(address to,uint256 id,uint256 quantity) external {balanceOf[to][id]+=quantity;}
+  function setApprovalForAll(address operator,bool approved) external {isApprovedForAll[msg.sender][operator]=approved;}
+  function supportsInterface(bytes4 id) external pure returns(bool){return id==0xd9b67a26||id==0x01ffc9a7;}
+}`};
 const output=JSON.parse(solc.compile(JSON.stringify({language:"Solidity",sources,settings:{evmVersion:"shanghai",optimizer:{enabled:true,runs:200},outputSelection:{"*":{"*":["abi","evm.bytecode.object"]}}}}),{import:path=>{try{return {contents:readFileSync(`node_modules/${path}`,"utf8")};}catch{return {error:`Missing ${path}`};}}}));
 assert.deepEqual((output.errors??[]).filter(error=>error.severity==="error"),[]);
 const marketplace=output.contracts["NFTMarketplaceV8.sol"].HOJNFTMarketplaceV8;
 const nft=output.contracts["TestNFT.sol"].TestNFT;
+const edition=output.contracts["TestEdition.sol"].TestEdition;
 
 test("V8 lists a collection selection atomically in one marketplace transaction",async()=>{
   const provider=ganache.provider({logging:{quiet:true},wallet:{totalAccounts:3},chain:{hardfork:"shanghai"}});
@@ -55,5 +65,32 @@ test("V8 lists a collection selection atomically in one marketplace transaction"
     assert.equal((await publicClient.readContract({address:market,abi:marketplace.abi,functionName:"getListing",args:[collection,1n]})).price,parseEther("1"));
     await assert.rejects(()=>send(market,marketplace.abi,"batchList",[collection,[1n,3n],[parseEther("4"),parseEther("5")]]));
     assert.equal((await publicClient.readContract({address:market,abi:marketplace.abi,functionName:"getListing",args:[collection,1n]})).price,parseEther("1"));
+  }finally{await provider.disconnect();}
+});
+
+test("V8 lists several ERC-1155 editions with one approval and separate listing transactions",async()=>{
+  const provider=ganache.provider({logging:{quiet:true},wallet:{totalAccounts:2},chain:{hardfork:"shanghai"}});
+  const client=createPublicClient({transport:custom(provider),pollingInterval:10});
+  const wallet=createWalletClient({transport:custom(provider)});
+  const [seller,treasury]=await wallet.getAddresses();
+  const receipt=async hash=>client.waitForTransactionReceipt({hash,pollingInterval:10});
+  const deploy=async artifact=>{
+    const result=await receipt(await wallet.deployContract({abi:artifact.abi,bytecode:`0x${artifact.evm.bytecode.object}`,args:artifact===marketplace?[treasury]:[],account:seller,gas:8000000n,chain:null}));
+    assert.equal(result.status,"success");return result.contractAddress;
+  };
+  const send=async(address,abi,functionName,args)=>{
+    const result=await receipt(await wallet.writeContract({address,abi,functionName,args,account:seller,gas:3000000n,chain:null}));
+    assert.equal(result.status,"success");return result;
+  };
+  try{
+    const market=await deploy(marketplace),collection=await deploy(edition);
+    await send(collection,edition.abi,"mint",[seller,1n,5n]);
+    await send(collection,edition.abi,"mint",[seller,2n,3n]);
+    await send(collection,edition.abi,"setApprovalForAll",[market,true]);
+    const first=await send(market,marketplace.abi,"listEdition",[collection,1n,4n,parseEther("0.1")]);
+    const second=await send(market,marketplace.abi,"listEdition",[collection,2n,2n,parseEther("0.2")]);
+    assert.notEqual(first.transactionHash,second.transactionHash);
+    assert.deepEqual(await client.readContract({address:market,abi:marketplace.abi,functionName:"getEditionListing",args:[collection,1n,seller]}),{quantity:4n,unitPrice:parseEther("0.1")});
+    assert.deepEqual(await client.readContract({address:market,abi:marketplace.abi,functionName:"getEditionListing",args:[collection,2n,seller]}),{quantity:2n,unitPrice:parseEther("0.2")});
   }finally{await provider.disconnect();}
 });
