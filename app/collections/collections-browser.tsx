@@ -8,6 +8,7 @@ import Image from "next/image";
 import { getMarketplaceChain, isMarketplaceChainId, isMarketplaceLive, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 import { UsdEstimate } from "../components/usd-estimate";
+import { matchesNftQuery } from "@/lib/nft-search";
 
 type Mint = {
   tokenId:string; owner:string; transactionHash:string; sourceText:string; imageURI:string|null;
@@ -30,6 +31,7 @@ export function CollectionsBrowser(){
   const [chains,setChains]=useState<ChainListings[]>([]);
   const [loading,setLoading]=useState(true);
   const [query,setQuery]=useState("");
+  const [malkutaQuery,setMalkutaQuery]=useState("");
   const [activeChain,setActiveChain]=useState<"pick"|"all"|MarketplaceChainId>("pick");
   const [layout,setLayout]=useState<"grid"|"list">("grid");
 
@@ -116,6 +118,7 @@ export function CollectionsBrowser(){
     const term=query.trim().toLowerCase();
     return listings.filter(item=>(activeChain==="all"||item.chainId===activeChain)&&(!term||item.nftAddress.toLowerCase().includes(term)||item.tokenId.includes(term)));
   },[listings,activeChain,query]);
+  const visibleMalkuta=malkuta?.latestMints?.filter(mint=>matchesNftQuery(malkutaQuery,[mint.sourceText,mint.tokenId,"Malkuta Mandalas","Base"]))??[];
 
   return <main className="collections-page">
     <section className="collections-hero">
@@ -125,7 +128,8 @@ export function CollectionsBrowser(){
 
     <section className="featured-collection">
       <header><div><span>TRENDING · BASE</span><h2>Malkuta Mandalas</h2><p>Verified canonical mints from the Kingdom Within Malkuta Protocol.</p></div><dl><div><dt>MINTED</dt><dd>{malkuta?.collectionTotal??(loading?"…":"—")}</dd></div><div><dt>NETWORK</dt><dd>BASE</dd></div></dl></header>
-      {malkuta?.latestMints?.length?<div className="royal-portfolio-grid malkuta-grid">{malkuta.latestMints.map(mint=><MalkutaCard mint={mint} key={mint.tokenId}/>)}</div>:<div className="collection-loading">{loading?"Reading verified Malkuta mints…":"The official mint archive is temporarily unavailable."}</div>}
+      {!!malkuta?.latestMints?.length&&<label className="nft-inline-search"><Search size={16} aria-hidden="true"/><input type="search" value={malkutaQuery} onChange={event=>setMalkutaQuery(event.target.value)} aria-label="Search Malkuta NFTs" placeholder="Search Malkuta NFTs"/></label>}
+      {malkuta?.latestMints?.length?(visibleMalkuta.length?<div className="royal-portfolio-grid malkuta-grid">{visibleMalkuta.map(mint=><MalkutaCard mint={mint} key={mint.tokenId}/>)}</div>:<div className="collection-loading">No matching Malkuta NFTs.</div>):<div className="collection-loading">{loading?"Reading verified Malkuta mints…":"The official mint archive is temporarily unavailable."}</div>}
     </section>
 
     {(loading||trending.length>0)&&<section className="trending-collections">

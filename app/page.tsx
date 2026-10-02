@@ -413,6 +413,12 @@ export default function Home() {
           {(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live").map(id=><button key={id} type="button" aria-pressed={activeChain===id} onClick={()=>chooseNetwork(id)}>{marketplaceChains[id].name}</button>)}
         </div>
       </section>
+      <form action="/search" method="get" className="nft-inline-search discover-nft-search" role="search">
+        <Search size={18} aria-hidden="true"/>
+        <input type="search" name="q" aria-label="Search all NFTs" placeholder="Search NFTs by name, collection, contract or token ID"/>
+        {typeof activeChain==="number"&&<input type="hidden" name="chainId" value={activeChain}/>}
+        <button type="submit">Search NFTs</button>
+      </form>
       <section className="discover-showcase" aria-label="Featured collections">
         {activeChain==="pick"?<div className="discover-showcase-loading">Pick a network above to explore NFTs.</div>:loading?<div className="discover-showcase-loading">Loading collections…</div>:visibleCollections.length===0?<div className="discover-showcase-loading">No active collections on this network yet.</div>:visibleCollections.slice(0,5).map((collection,index)=><DiscoverShowcaseCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>)}
       </section>

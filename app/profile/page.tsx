@@ -2,7 +2,7 @@
 
 import { WalletOffers } from "../components/offers-panel";
 
-import { Sparkles, Wallet, TrendingUp, Activity, Gift, ExternalLink, ImageIcon, ArrowUpRight, Mail, Bell } from "lucide-react";
+import { Sparkles, Wallet, TrendingUp, Activity, Gift, ExternalLink, ImageIcon, ArrowUpRight, Mail, Bell, Search } from "lucide-react";
 import { useAccount, useChainId } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useState, useEffect } from "react";
@@ -13,6 +13,7 @@ import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketp
 import { ProfileListingFlow } from "../components/profile-listing-flow";
 import { ProfileEditionListingFlow } from "../components/profile-edition-listing-flow";
 import { UsdEstimate } from "../components/usd-estimate";
+import { matchesNftQuery } from "@/lib/nft-search";
 
 type WalletNft = {
   contractAddress: string;
@@ -102,6 +103,7 @@ export default function ProfilePage() {
   const walletChainId = useChainId();
   const [activeTab, setActiveTab] = useState<"portfolio" | "listings" | "offers" | "created" | "activity" | "notifications">("portfolio");
   const [statusFilter, setStatusFilter] = useState<"all" | "listed" | "not-listed">("all");
+  const [nftQuery,setNftQuery]=useState("");
   const [walletNfts, setWalletNfts] = useState<WalletNft[]>([]);
   const [bulkSelection, setBulkSelection] = useState<{chainId:MarketplaceChainId;collection:string;tokenIds:string[]}|null>(null);
   useEffect(()=>{queueMicrotask(()=>setBulkSelection(null));},[address]);
@@ -275,6 +277,7 @@ export default function ProfilePage() {
   },[address,selectedChain,walletChainId,networkSelectionReady]);
 
   const filteredNfts = walletNfts.filter(nft => {
+    if(!matchesNftQuery(nftQuery,[nft.name,nft.collection,nft.contractAddress,nft.tokenId,getMarketplaceChain(nft.chainId??109).name]))return false;
     const isListed = listings.some(l => 
       l.chainId === nft.chainId &&
       l.nftAddress.toLowerCase() === nft.contractAddress.toLowerCase() && 
@@ -291,6 +294,10 @@ export default function ProfilePage() {
   const filteredListings = activeListingChain === "all" 
     ? listings 
     : listings.filter(l => l.chainId === activeListingChain);
+  const matchingListings=filteredListings.filter(listing=>{
+    const held=walletNfts.find(nft=>nft.chainId===listing.chainId&&nft.contractAddress.toLowerCase()===listing.nftAddress.toLowerCase()&&nft.tokenId===listing.tokenId);
+    return matchesNftQuery(nftQuery,[held?.name,held?.collection,listing.nftAddress,listing.tokenId,getMarketplaceChain(listing.chainId).name]);
+  });
   const filteredActivity=activity.filter(item=>activityFilter==="all"||item.eventType===activityFilter);
   const visibleActivity=filteredActivity.slice(0,activityLimit);
   const selectedCount=bulkSelection?.tokenIds.length??0;
@@ -431,6 +438,10 @@ export default function ProfilePage() {
             <option value="not-listed">Not Listed</option>
           </select>
         </div>}
+        {(activeTab==="portfolio"||activeTab==="listings")&&<label className="nft-inline-search profile-nft-search">
+          <Search size={17} aria-hidden="true"/>
+          <input type="search" value={nftQuery} onChange={event=>setNftQuery(event.target.value)} aria-label="Search your NFTs" placeholder="Search your NFTs"/>
+        </label>}
       </section>
 
       <section className="royal-profile-content">
@@ -501,8 +512,8 @@ export default function ProfilePage() {
 
             {activeTab === "listings" && (
               <div className="royal-listings-grid">
-                {filteredListings.length > 0 ? (
-                  filteredListings.map((listing) => {
+                {matchingListings.length > 0 ? (
+                  matchingListings.map((listing) => {
                     const chain = getMarketplaceChain(listing.chainId);
                     return (
                       <div key={listing.id} className="royal-listing-card">
