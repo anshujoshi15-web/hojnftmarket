@@ -17,3 +17,13 @@ test("MP4 artwork is kept out of image renderers", async () => {
     videoUrl: null,
   });
 });
+
+test("known IPFS artwork uses a browser-facing gateway URL", async () => {
+  const { directIpfsImageUrl } = await loadModule("lib/nft-media.ts");
+  const cid = "QmdWc6vGdmZGNAy5TAPX6DEqsL2QH6ua1DRDrNPqnXeXdG";
+  const expected = `https://gateway.pinata.cloud/ipfs/${cid}/art.png`;
+  assert.equal(directIpfsImageUrl(`ipfs://${cid}/art.png`), expected);
+  assert.equal(directIpfsImageUrl(`https://ipfs.io/ipfs/${cid}/art.png`), expected);
+  assert.equal(directIpfsImageUrl("https://example.com/art.png"), null);
+  assert.equal(directIpfsImageUrl("ipfs://bafybeiexample/art.png"), null);
+});

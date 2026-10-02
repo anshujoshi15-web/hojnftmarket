@@ -3,7 +3,7 @@ import { createPublicClient, getAddress, http } from "viem";
 import { getMarketplaceChain, isMarketplaceChainId } from "@/lib/marketplace-chains";
 import { env } from "@runtime-env";
 import { SHIB_MAGAZINE_CONTRACT } from "@/lib/shib-magazine-cover";
-import { nftMedia } from "@/lib/nft-media";
+import { directIpfsImageUrl, nftMedia } from "@/lib/nft-media";
 
 export const dynamic = "force-dynamic";
 const metadataCacheControl = (refresh: boolean) => refresh ? "no-store" : "public, max-age=60, s-maxage=300, stale-while-revalidate=60";
@@ -56,6 +56,8 @@ function imageUrl(value: string | null | undefined) {
 
 function marketplaceImageUrl(source: string | null, chainId: number, contract: string, tokenId: string, refresh = false) {
   if (source?.startsWith("data:")) return source;
+  const ipfsImage = directIpfsImageUrl(source);
+  if (ipfsImage) return ipfsImage;
   const params = new URLSearchParams({ chainId: String(chainId), contract, tokenId });
   if (source) params.set("source", source);
   if (refresh) params.set("refresh", String(Date.now()));

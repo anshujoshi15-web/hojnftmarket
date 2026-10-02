@@ -13,7 +13,7 @@ test("wallet holdings retries a throttled explorer and keeps NFT metadata",async
   globalThis.fetch=async()=>{
     calls++;
     if(calls===1)return new Response("rate limited",{status:429});
-    return Response.json({items:[{id:"42",value:"1",token_type:"ERC-721",token:{address_hash:contract,name:"Shib Magazine Covers",type:"ERC-721"},metadata:{name:"Cover #42",image:"ipfs://bafybeiexample/42.png"}}],next_page_params:null});
+    return Response.json({items:[{id:"42",value:"1",token_type:"ERC-721",token:{address_hash:contract,name:"Shib Magazine Covers",type:"ERC-721"},metadata:{name:"Cover #42",image:"ipfs://QmdWc6vGdmZGNAy5TAPX6DEqsL2QH6ua1DRDrNPqnXeXdG/42.png"}}],next_page_params:null});
   };
   try{
     const response=await GET(request);
@@ -24,7 +24,7 @@ test("wallet holdings retries a throttled explorer and keeps NFT metadata",async
     assert.equal(body.nfts.length,1);
     assert.equal(body.nfts[0].tokenId,"42");
     assert.equal(body.nfts[0].collection,"Shib Magazine Covers");
-    assert.match(body.nfts[0].imageUrl,/\/api\/nft-image\?/);
+    assert.equal(body.nfts[0].imageUrl,"https://gateway.pinata.cloud/ipfs/QmdWc6vGdmZGNAy5TAPX6DEqsL2QH6ua1DRDrNPqnXeXdG/42.png");
   }finally{globalThis.fetch=originalFetch;}
 });
 

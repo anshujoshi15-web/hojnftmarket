@@ -6,7 +6,7 @@ import {
   type MarketplaceChainId,
 } from "@/lib/marketplace-chains";
 import { env } from "@runtime-env";
-import { nftMedia } from "@/lib/nft-media";
+import { directIpfsImageUrl, nftMedia } from "@/lib/nft-media";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +115,8 @@ function metadataImageFallback(chainId: MarketplaceChainId, contractAddress: str
 function marketplaceImageUrl(source: string | null, chainId: MarketplaceChainId, contractAddress: string, tokenId: string) {
   if (!source) return metadataImageFallback(chainId, contractAddress, tokenId);
   if (source.startsWith("data:")) return source;
+  const ipfsImage = directIpfsImageUrl(source);
+  if (ipfsImage) return ipfsImage;
   const params = new URLSearchParams({ chainId: String(chainId), contract: contractAddress, tokenId, source });
   return `/api/nft-image?${params}`;
 }
