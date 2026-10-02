@@ -3,7 +3,7 @@
 import { ArrowUpRight, Sparkles, TrendingUp, Clock, Search, ImageIcon, Maximize2, X } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatEther } from "viem";
 import { getMarketplaceChain, isMarketplaceChainId, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
@@ -146,23 +146,31 @@ function FeaturedArtwork({ listing, onExpand }: { listing: IndexedListing; onExp
     : <div className="royal-nft-placeholder"><ImageIcon size={36} aria-label="Artwork unavailable" /></div>;
 }
 
-function randomFourNfts(listings:IndexedListing[]) {
+const PICK_ROTATION_MS=2*60*60*1000;
+const nftKey=(nft:IndexedListing)=>`${nft.nftAddress.toLowerCase()}:${nft.tokenId}`;
+
+function randomFourNfts(listings:IndexedListing[],retained:IndexedListing[]=[]):IndexedListing[] {
   const shuffled=[...listings];
   for(let index=shuffled.length-1;index>0;index--){
     const other=Math.floor(Math.random()*(index+1));
     [shuffled[index],shuffled[other]]=[shuffled[other],shuffled[index]];
   }
-  const chosen:IndexedListing[]=[];
-  const collections=new Set<string>();
+  const chosen=[...retained].slice(0,4);
+  const keys=new Set(chosen.map(nftKey));
+  const collections=new Set(chosen.map(item=>item.nftAddress.toLowerCase()));
+  if(chosen.length===4)return chosen;
   for(const listing of shuffled){
+    if(keys.has(nftKey(listing)))continue;
     const collection=listing.nftAddress.toLowerCase();
     if(collections.has(collection))continue;
     collections.add(collection);
+    keys.add(nftKey(listing));
     chosen.push(listing);
     if(chosen.length===4)return chosen;
   }
   for(const listing of shuffled){
-    if(chosen.includes(listing))continue;
+    if(keys.has(nftKey(listing)))continue;
+    keys.add(nftKey(listing));
     chosen.push(listing);
     if(chosen.length===4)break;
   }
@@ -197,6 +205,9 @@ export default function Home() {
   const [listedCollections, setListedCollections] = useState<ListedCollection[]>([]);
   const [featuredNFTs, setFeaturedNFTs] = useState<IndexedListing[]>([]);
   const [randomNftsByChain,setRandomNftsByChain]=useState<Partial<Record<MarketplaceChainId,IndexedListing[]>>>({});
+  const latestListings=useRef<IndexedListing[]>([]);
+  const pickedKeys=useRef<Record<number,string[]>>({});
+  const picksUpdatedAt=useRef(0);
   const [recentActivity, setRecentActivity] = useState<IndexedActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -220,17 +231,52 @@ export default function Home() {
   const visibleActivity=recentActivity.filter(item=>activeChain==="all"||item.chainId===activeChain).slice(0,6);
 
   useEffect(()=>{
-    const rotate=()=>{
-      const next:Partial<Record<MarketplaceChainId,IndexedListing[]>>={};
-      for(const chainId of (Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live")){
-        next[chainId]=randomFourNfts(featuredNFTs.filter(nft=>nft.chainId===chainId));
+    try{
+      const saved=JSON.parse(window.sessionStorage.getItem("hoj-discover-picks")??"null") as {at?:number;keys?:Record<number,string[]>}|null;
+      if(saved&&typeof saved.at==="number"&&Date.now()-saved.at<PICK_ROTATION_MS&&saved.at<=Date.now()&&saved.keys){
+        picksUpdatedAt.current=saved.at;
+        pickedKeys.current=saved.keys;
       }
-      setRandomNftsByChain(next);
+    }catch{/* Start with fresh picks when session storage is unavailable. */}
+  },[]);
+
+  const updatePicks=useCallback((listings:IndexedListing[],rotate=false)=>{
+    if(!listings.length)return;
+    if(rotate||!picksUpdatedAt.current){
+      picksUpdatedAt.current=Date.now();
+      if(rotate)pickedKeys.current={};
+    }
+    const next:Partial<Record<MarketplaceChainId,IndexedListing[]>>={};
+    const keys:Record<number,string[]>={};
+    for(const chainId of (Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live")){
+      const available=listings.filter(nft=>nft.chainId===chainId);
+      if(!available.length){
+        next[chainId]=[];
+        keys[chainId]=pickedKeys.current[chainId]??[];
+        continue;
+      }
+      const byKey=new Map(available.map(nft=>[nftKey(nft),nft]));
+      const retained=(pickedKeys.current[chainId]??[]).map(key=>byKey.get(key)).filter((item):item is IndexedListing=>!!item);
+      next[chainId]=randomFourNfts(available,retained);
+      keys[chainId]=next[chainId].map(nftKey);
+    }
+    pickedKeys.current=keys;
+    setRandomNftsByChain(next);
+    try{window.sessionStorage.setItem("hoj-discover-picks",JSON.stringify({at:picksUpdatedAt.current,keys}));}catch{/* The picks still work without storage. */}
+  },[]);
+
+  useEffect(()=>{
+    latestListings.current=featuredNFTs;
+    updatePicks(featuredNFTs,!!picksUpdatedAt.current&&Date.now()-picksUpdatedAt.current>=PICK_ROTATION_MS);
+  },[featuredNFTs,updatePicks]);
+  useEffect(()=>{
+    const rotateIfDue=()=>{
+      if(!document.hidden&&picksUpdatedAt.current&&Date.now()-picksUpdatedAt.current>=PICK_ROTATION_MS)updatePicks(latestListings.current,true);
     };
-    rotate();
-    const timer=window.setInterval(()=>{if(!document.hidden)rotate();},30_000);
-    return()=>window.clearInterval(timer);
-  },[featuredNFTs]);
+    const timer=window.setInterval(rotateIfDue,60_000);
+    window.addEventListener("focus",rotateIfDue);
+    return()=>{window.clearInterval(timer);window.removeEventListener("focus",rotateIfDue);};
+  },[updatePicks]);
 
   useEffect(() => {
     let mounted = true;
