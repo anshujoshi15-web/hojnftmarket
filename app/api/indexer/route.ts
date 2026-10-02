@@ -6,18 +6,26 @@ import { loadMarketplaceIndex } from "@/lib/marketplace-index";
 
 export const dynamic = "force-dynamic";
 export async function GET(request:Request){
-  const chainId=Number(new URL(request.url).searchParams.get("chainId")??109);
+  const query=new URL(request.url).searchParams;
+  const chainId=Number(query.get("chainId")??109);
+  const listingsOnly=query.get("view")==="listings";
   if(!isMarketplaceChainId(chainId))return Response.json({error:"Unsupported chain",configured:false,listings:[],activity:[],offers:[]},{status:400});
   const runtime=env as unknown as RuntimeEnv,config=chainConfig(runtime,chainId);
   const base={chainId,chain:config.chain.name,currency:config.chain.currency,explorerUrl:config.chain.explorerUrl};
   if(config.chain.marketplaceStatus!=="live")return Response.json({...base,configured:false,status:"coming-soon",listings:[],collections:[],activity:[],offers:[],sync:null});
   const old=legacyChainConfig(runtime,chainId);
-  const legacy=new URL(request.url).searchParams.get("legacy")==="1";
+  const legacy=query.get("legacy")==="1";
   const selected=legacy&&old?old:config;
   if(legacy&&!old)return Response.json({...base,configured:false,listings:[],collections:[],activity:[],offers:[],sync:null},{status:404});
   if(!isAddress(selected.address,{strict:false})||!/^\d+$/.test(selected.deployBlock))return Response.json({...base,configured:false,listings:[],collections:[],activity:[],offers:[],sync:null});
   try{
     const result=await loadMarketplaceIndex(selected,runtime.DB);
+    if(listingsOnly){
+      return Response.json({
+        chainId,
+        listings:result.listings.map(({id,chainId,nftAddress,tokenId,price})=>({id,chainId,nftAddress,tokenId,price})),
+      },{headers:{"cache-control":"public, max-age=0, s-maxage=30, stale-while-revalidate=30"}});
+    }
     return Response.json({...base,configured:true,marketplaceAddress:selected.address,legacyMarketplaceAddress:old?.address??null,...result},{headers:{"cache-control":"public, max-age=0, s-maxage=15, stale-while-revalidate=30"}});
   }catch(error){
     // viem errors contain full RPC URLs, which can embed private API credentials.

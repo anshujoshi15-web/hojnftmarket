@@ -29,7 +29,7 @@ export default function SearchPage(){
     async function enrich(listing:Listing):Promise<SearchItem>{
       let details=metadata.get(listing.id);
       if(!details){
-        try{const params=new URLSearchParams({chainId:String(listing.chainId),contract:listing.nftAddress,tokenId:listing.tokenId});const response=await fetch(`/api/nft?${params}`,{cache:"no-store"});details=response.ok?await response.json() as Pick<SearchItem,"name"|"collection"|"imageUrl">:{name:null,collection:null,imageUrl:null};}
+        try{const params=new URLSearchParams({chainId:String(listing.chainId),contract:listing.nftAddress,tokenId:listing.tokenId});const response=await fetch(`/api/nft?${params}`);details=response.ok?await response.json() as Pick<SearchItem,"name"|"collection"|"imageUrl">:{name:null,collection:null,imageUrl:null};}
         catch{details={name:null,collection:null,imageUrl:null};}
         details={...details,imageUrl:details.imageUrl??`/api/nft-image?${new URLSearchParams({chainId:String(listing.chainId),contract:listing.nftAddress,tokenId:listing.tokenId})}`};
         metadata.set(listing.id,details);
@@ -41,7 +41,7 @@ export default function SearchPage(){
       refreshing=true;
       try{
         await Promise.allSettled(chainIds.filter(id=>onlyChainId===undefined||id===onlyChainId).map(async chainId=>{
-          const response=await fetch(`/api/indexer?chainId=${chainId}`);
+          const response=await fetch(`/api/indexer?chainId=${chainId}&view=listings`);
           if(!response.ok||!active)return;
           const data=await response.json() as IndexerData;
           if(!active)return;

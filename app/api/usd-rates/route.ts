@@ -25,7 +25,7 @@ export async function GET(){
       const quote=data[id];
       if(quote&&typeof quote.usd==="number"&&Number.isFinite(quote.usd)&&quote.usd>0&&typeof quote.last_updated_at==="number"&&now-quote.last_updated_at<3600)rates[currency]=quote.usd;
     }
-    return NextResponse.json({rates},{headers:{"Cache-Control":"public, max-age=300, stale-while-revalidate=300"}});
+    return NextResponse.json({rates},{headers:{"Cache-Control":"public, max-age=300, s-maxage=300, stale-while-revalidate=300"}});
   }catch{
     return NextResponse.json({rates:{}},{status:503,headers:{"Cache-Control":"public, max-age=60"}});
   }

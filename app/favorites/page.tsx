@@ -24,7 +24,7 @@ export default function FavoritesPage(){
     const favorites=ids.map(parseFavorite).filter(Boolean) as Array<NonNullable<ReturnType<typeof parseFavorite>>>;
     const loaded=await Promise.all(favorites.map(async favorite=>{try{
       const query=new URLSearchParams({chainId:String(favorite.chainId),contract:favorite.contract,tokenId:favorite.tokenId});
-      const response=await fetch(`/api/nft?${query}`,{cache:"no-store"});
+      const response=await fetch(`/api/nft?${query}`);
       const metadata=response.ok?await response.json() as Pick<FavoriteItem,"name"|"collection"|"imageUrl">:null;
       return {...favorite,name:metadata?.name??null,collection:metadata?.collection??null,imageUrl:metadata?.imageUrl??null};
     }catch{return {...favorite,name:null,collection:null,imageUrl:null};}}));

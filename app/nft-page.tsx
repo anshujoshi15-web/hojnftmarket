@@ -92,7 +92,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
   const loadMetadata=useCallback(async(refresh=false)=>{
     const query=new URLSearchParams({chainId:String(chainId),contract,tokenId});
     if(refresh){query.set("refresh","1");query.set("t",String(Date.now()));}
-    const response=await fetch(`/api/nft?${query}`,{cache:"no-store"});
+    const response=await fetch(`/api/nft?${query}`,refresh?{cache:"no-store"}:undefined);
     const body=await response.json() as Nft;
     if(!response.ok)throw new Error(body.error??"NFT metadata is unavailable.");
     setNft(body);

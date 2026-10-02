@@ -6,6 +6,7 @@ import { SHIB_MAGAZINE_CONTRACT } from "@/lib/shib-magazine-cover";
 import { nftMedia } from "@/lib/nft-media";
 
 export const dynamic = "force-dynamic";
+const metadataCacheControl = (refresh: boolean) => refresh ? "no-store" : "public, max-age=60, s-maxage=300, stale-while-revalidate=60";
 
 type ExplorerNft = {
   id?: string;
@@ -99,7 +100,7 @@ async function onchainMetadataResponse(chainId: number, contract: `0x${string}`,
     description: metadata.description ?? null,
     externalUrl: imageUrl(metadata.external_url),
     traits: (metadata.attributes ?? []).flatMap(attribute => attribute.trait_type && attribute.value !== null && attribute.value !== undefined ? [{ type: attribute.trait_type, value: String(attribute.value) }] : []),
-  }, { headers: { "Cache-Control": refresh ? "no-store" : "public, max-age=60" } });
+  }, { headers: { "Cache-Control": metadataCacheControl(refresh) } });
 }
 
 const metadataCache = new Map<string, { expires: number; response: Promise<NextResponse> }>();
@@ -174,7 +175,7 @@ async function loadNft(request: NextRequest) {
       description: item.metadata?.description ?? null,
       externalUrl: imageUrl(item.metadata?.external_url ?? item.external_app_url),
       traits: (item.metadata?.attributes ?? []).flatMap(attribute => attribute.trait_type && attribute.value !== null && attribute.value !== undefined ? [{ type: attribute.trait_type, value: String(attribute.value) }] : []),
-    }, { headers: { "Cache-Control": refresh ? "no-store" : "public, max-age=60" } });
+    }, { headers: { "Cache-Control": metadataCacheControl(refresh) } });
   } catch {
     try {
       return await onchainMetadataResponse(chainId, address as `0x${string}`, tokenId, refresh);
@@ -197,7 +198,7 @@ async function loadNft(request: NextRequest) {
           description: item.description ?? null,
           externalUrl: imageUrl(item.raw?.metadata?.external_url),
           traits: (item.raw?.metadata?.attributes ?? []).flatMap(attribute => attribute.trait_type && attribute.value !== null && attribute.value !== undefined ? [{ type: attribute.trait_type, value: String(attribute.value) }] : []),
-        }, { headers: { "Cache-Control": refresh ? "no-store" : "public, max-age=60" } });
+        }, { headers: { "Cache-Control": metadataCacheControl(refresh) } });
       } catch {
         // The image proxy still has on-chain and explorer fallbacks.
       }
@@ -213,6 +214,6 @@ async function loadNft(request: NextRequest) {
       externalUrl: null,
       traits: [],
       metadataUnavailable: true,
-    }, { headers: { "Cache-Control": "public, max-age=30" } });
+    }, { headers: { "Cache-Control": "public, max-age=30, s-maxage=30" } });
   }
 }

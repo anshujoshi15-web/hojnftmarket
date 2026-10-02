@@ -24,7 +24,7 @@ export default function CartPage(){
       }catch{return [];}
     });
     queueMicrotask(()=>{if(active)setGroups(initial);});
-    for(const group of initial){void fetch(`/api/indexer?chainId=${group.chainId}`).then(async response=>{
+    for(const group of initial){void fetch(`/api/indexer?chainId=${group.chainId}&view=listings`).then(async response=>{
       if(!response.ok)throw new Error("Listings are temporarily unavailable.");
       const body=await response.json() as {listings:Listing[]};
       if(active)setGroups(current=>current.map(item=>item.chainId===group.chainId?{...item,listings:body.listings.filter(listing=>item.ids.includes(listing.id)),loading:false}:item));
