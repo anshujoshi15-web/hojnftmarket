@@ -141,8 +141,8 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
     async function loadWalletCollection(){
       setWalletCollectionLoading(true);
       try{
-        const query=new URLSearchParams({owner:address!,chainId:String(chainId)});
-        const response=await fetch(`/api/wallet-nfts?${query}`,{cache:"no-store",signal:controller.signal});
+        const query=new URLSearchParams({owner:address!,chainId:String(chainId),view:"compact"});
+        const response=await fetch(`/api/wallet-nfts?${query}`,{signal:controller.signal});
         if(!response.ok)throw new Error("Wallet NFTs are unavailable.");
         const body=await response.json() as {complete?:boolean;coverage?:string;nfts?:Array<{contractAddress:string;tokenId:string;quantity:string;name:string|null;imageUrl:string|null;videoUrl?:string|null}>};
         if(active){setWalletCollectionMessage(body.coverage==="indexed-collections"?"Showing NFTs from indexed collections; some may be missing.":body.complete===false?"Some wallet NFTs could not be checked yet. Refresh to try again.":"");setWalletCollectionItems((body.nfts??[])

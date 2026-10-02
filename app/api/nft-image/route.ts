@@ -65,11 +65,11 @@ function safeRemoteUrl(value: string) {
   return url;
 }
 
-async function fetchWithTimeout(url: URL, refresh = false) {
+async function fetchWithTimeout(url: URL, refresh = false, imageProbe = false) {
   return fetch(url, {
-    headers: { accept: "application/json,image/*,*/*;q=0.8" },
+    headers: { accept: "application/json,image/*,*/*;q=0.8", ...(imageProbe ? { range: "bytes=0-0" } : {}) },
     signal: AbortSignal.timeout(6_000),
-    ...(refresh ? {cache: "no-store" as const} : {next: {revalidate: CACHE_SECONDS}}),
+    ...(refresh || imageProbe ? {cache: "no-store" as const} : {next: {revalidate: CACHE_SECONDS}}),
   });
 }
 
@@ -102,9 +102,20 @@ async function fetchFirstRemote(value: string, tokenId?: string, refresh = false
   }));
 }
 
+function redirectImage(image: Response, refresh: boolean, artworkSource?: string) {
+  // The browser fetches the verified public image from its host. Streaming the
+  // bytes through a Vercel Function makes each large NFT count as origin transfer.
+  const target = safeRemoteUrl(image.url);
+  void image.body?.cancel();
+  const response = NextResponse.redirect(target, 307);
+  response.headers.set("Cache-Control", imageCacheControl(refresh));
+  if (artworkSource) response.headers.set("X-Artwork-Source", artworkSource);
+  return response;
+}
+
 async function fetchFirstImage(value: string, tokenId?: string, refresh = false) {
   return Promise.any(remoteCandidates(value, tokenId).map(async candidate => {
-    const response = await fetchWithTimeout(candidate, refresh);
+    const response = await fetchWithTimeout(candidate, refresh, true);
     if (!response.ok) throw new Error(`Image asset returned ${response.status}`);
     const type = response.headers.get("content-type")?.toLowerCase() ?? "";
     if (type && !type.startsWith("image/") && !type.startsWith("application/octet-stream") && !type.startsWith("binary/octet-stream")) {
@@ -172,9 +183,7 @@ async function fetchExplorerImage(chainId: number, contract: Address, tokenId: s
         return new NextResponse(source, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": imageCacheControl(refresh) } });
       }
       const image = await fetchFirstImage(source, tokenId, refresh);
-      return new NextResponse(image.body, {
-        headers: { "Content-Type": image.headers.get("content-type") ?? "image/jpeg", "Cache-Control": imageCacheControl(refresh) },
-      });
+      return redirectImage(image, refresh);
     } catch {
       // An explorer can return a stale image URL next to a working thumbnail.
     }
@@ -217,13 +226,7 @@ export async function GET(request: NextRequest) {
       try {
         const cover = await officialShibMagazineCover(magazineEdition, refresh);
         const image = await fetchFirstImage(cover.imageUrl, requestedTokenId, refresh);
-        return new NextResponse(image.body, {
-          headers: {
-            "Content-Type": image.headers.get("content-type") ?? "image/jpeg",
-            "Cache-Control": imageCacheControl(refresh),
-            "X-Artwork-Source": "official-magazine-edition-cover",
-          },
-        });
+        return redirectImage(image, refresh, "official-magazine-edition-cover");
       } catch {
         // Keep the token metadata and explorer paths for unpublished editions.
       }
@@ -232,12 +235,7 @@ export async function GET(request: NextRequest) {
       if (requestedSource.startsWith("data:image/")) return inlineImage(requestedSource, refresh);
       try {
         const sourceResponse = await fetchFirstImage(requestedSource, requestedTokenId, refresh);
-        return new NextResponse(sourceResponse.body, {
-          headers: {
-            "Content-Type": sourceResponse.headers.get("content-type") ?? "image/jpeg",
-            "Cache-Control": imageCacheControl(refresh),
-          },
-        });
+        return redirectImage(sourceResponse, refresh);
       } catch {
         // If every supplied image gateway fails, resolve tokenURI onchain below.
       }
@@ -265,10 +263,7 @@ export async function GET(request: NextRequest) {
       ? safeRemoteUrl(new URL(normalizedImage, metadataBase).toString())
       : safeRemoteUrl(normalizedImage);
     const imageResponse = await fetchFirstImage(imageUrl.toString(), requestedTokenId, refresh);
-    const contentType = imageResponse.headers.get("content-type") ?? "image/jpeg";
-    return new NextResponse(imageResponse.body, {
-      headers: { "Content-Type": contentType, "Cache-Control": imageCacheControl(refresh) },
-    });
+    return redirectImage(imageResponse, refresh);
   } catch {
     try {
       return await fetchExplorerImage(requestedChainId, contract, requestedTokenId, refresh);
@@ -277,12 +272,7 @@ export async function GET(request: NextRequest) {
     }
     try {
       const fallback = await fetchAlchemyImage(requestedChainId, contract, requestedTokenId, refresh);
-      return new NextResponse(fallback.body, {
-        headers: {
-          "Content-Type": fallback.headers.get("content-type") ?? "image/jpeg",
-          "Cache-Control": imageCacheControl(refresh),
-        },
-      });
+      return redirectImage(fallback, refresh);
     } catch {
       // The publisher's NFT metadata S3 bucket is currently inaccessible, but
       // its public magazine still hosts the matching edition cover artwork.
@@ -291,13 +281,7 @@ export async function GET(request: NextRequest) {
         try {
           const cover = await officialShibMagazineCover(edition, refresh);
           const image = await fetchFirstImage(cover.imageUrl, requestedTokenId, refresh);
-          return new NextResponse(image.body, {
-            headers: {
-              "Content-Type": image.headers.get("content-type") ?? "image/jpeg",
-              "Cache-Control": imageCacheControl(refresh),
-              "X-Artwork-Source": "official-magazine-edition-cover",
-            },
-          });
+          return redirectImage(image, refresh, "official-magazine-edition-cover");
         } catch {
           // Never substitute a different edition or an unverified image.
         }

@@ -184,7 +184,7 @@ export default function ProfilePage() {
         const nftResponses: PromiseSettledResult<WalletNftResponse>[] = [];
         for(let offset=0;offset<chainIds.length;offset+=3){
           const batch=await Promise.allSettled(chainIds.slice(offset,offset+3).map(async chainId=>{
-            const response=await fetch(`/api/wallet-nfts?owner=${encodeURIComponent(address)}&chainId=${chainId}`,{cache:"no-store",signal:controller.signal});
+            const response=await fetch(`/api/wallet-nfts?owner=${encodeURIComponent(address)}&chainId=${chainId}&view=compact`,{signal:controller.signal});
             const data=await response.json() as WalletNftResponse;
             if(!response.ok&&!data.error)throw new Error(`${getMarketplaceChain(chainId).name} holdings service returned ${response.status}.`);
             return data;

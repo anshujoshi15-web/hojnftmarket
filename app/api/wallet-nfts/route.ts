@@ -430,6 +430,10 @@ async function fetchRecentErc721FromRpc(chainId: MarketplaceChainId, address: st
 export async function GET(request: Request) {
   const query=new URL(request.url).searchParams;
   const owner = query.get("owner");
+  const compact = query.get("view") === "compact";
+  const outputNfts = (nfts: WalletNft[]) => compact
+    ? nfts.map(({contractAddress,tokenId,tokenType,quantity,name,collection,imageUrl,videoUrl,chainId})=>({contractAddress,tokenId,tokenType,quantity,name,collection,imageUrl,videoUrl,chainId}))
+    : nfts;
   const requestedChainId = Number(query.get("chainId") ?? 109);
   if (!owner) return Response.json({ error: "A wallet address is required." }, { status: 400 });
   if (!isMarketplaceChainId(requestedChainId)) {
@@ -460,7 +464,7 @@ export async function GET(request: Request) {
       sources.push("alchemy");
       if (complete) {
         return Response.json(
-          { owner: address, chainId, nfts, complete:true, source: "alchemy", explorerAddressUrl: `${chain.explorerUrl}/address/${address}`, warnings },
+          { owner: address, chainId, nfts:outputNfts(nfts), complete:true, source: "alchemy", explorerAddressUrl: `${chain.explorerUrl}/address/${address}`, warnings },
           { headers: { "Cache-Control": "private, max-age=30" } },
         );
       }
@@ -473,7 +477,7 @@ export async function GET(request: Request) {
   if(chainId===25){
     const result=await fetchFromEbisu(address);
     if(result.complete&&!runtime.CRONOS_EXPLORER_API_URL&&!runtime.BLOCKSCOUT_API_KEY&&result.nfts.length>0){
-      return Response.json({owner:address,chainId,nfts:result.nfts,complete:false,coverage:"indexed-collections",source:"ebisus-bay",explorerAddressUrl:`${chain.explorerUrl}/address/${address}`,warnings:["Cronos holdings shown from indexed collections; other NFTs may need a dedicated wallet indexer."]},{headers:{"Cache-Control":"private, max-age=30"}});
+      return Response.json({owner:address,chainId,nfts:outputNfts(result.nfts),complete:false,coverage:"indexed-collections",source:"ebisus-bay",explorerAddressUrl:`${chain.explorerUrl}/address/${address}`,warnings:["Cronos holdings shown from indexed collections; other NFTs may need a dedicated wallet indexer."]},{headers:{"Cache-Control":"private, max-age=30"}});
     }
     if(result.warning)warnings.push(result.warning);
     mergeNfts(holdings,result.nfts);
@@ -521,7 +525,7 @@ export async function GET(request: Request) {
 
   if (providerSucceeded || holdings.size>0) {
     return Response.json(
-      { owner: address, chainId, nfts: [...holdings.values()], complete:providerSucceeded, source: sources.join(", "), explorerAddressUrl: `${chain.explorerUrl}/address/${address}`, warnings },
+      { owner: address, chainId, nfts: outputNfts([...holdings.values()]), complete:providerSucceeded, source: sources.join(", "), explorerAddressUrl: `${chain.explorerUrl}/address/${address}`, warnings },
       { headers: { "Cache-Control": "private, max-age=30" } },
     );
   }
