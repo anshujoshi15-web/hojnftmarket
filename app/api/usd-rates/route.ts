@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 const ids:Record<string,string>={
   ETH:"ethereum",
+  WETH:"ethereum",
   CRO:"crypto-com-chain",
   BONE:"bone-shibaswap",
   POL:"polygon-ecosystem-token",

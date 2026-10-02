@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { formatEther } from "viem";
+import { formatUnits } from "viem";
 
 type Rates=Record<string,number>;
 let cached:Rates|null=null;
@@ -40,12 +40,12 @@ function subscribe(listener:()=>void){
 const snapshot=()=>cached;
 const serverSnapshot=()=>null;
 
-export function UsdEstimate({wei,currency}:{wei:bigint|string;currency:string}){
+export function UsdEstimate({wei,currency,decimals=18}:{wei:bigint|string;currency:string;decimals?:number}){
   const rates=useSyncExternalStore(subscribe,snapshot,serverSnapshot);
   const rate=rates?.[currency];
   if(!rate)return null;
   let usd:number;
-  try{usd=Number(formatEther(BigInt(wei)))*rate;}catch{return null;}
+  try{usd=Number(formatUnits(BigInt(wei),decimals))*rate;}catch{return null;}
   if(!Number.isFinite(usd)||usd<0)return null;
   const formatted=usd>0&&usd<0.01?"<$0.01":new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2}).format(usd);
   return <span className="usd-estimate" title="Approximate USD value at the latest available market rate">≈ {formatted} USD</span>;

@@ -9,8 +9,9 @@ import { basicOrderAbi, openSeaChains, parseBasicOrder, type OpenSeaListing } fr
 import { isMarketplaceLive, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { TransactionStatus, useMarketplaceTransaction } from "./use-marketplace-transaction";
 import { notifyNFTPurchased } from "@/lib/notifications";
+import { UsdEstimate } from "./usd-estimate";
 
-export function OpenSeaListingPanel({chainId,contract,tokenId}:{chainId:MarketplaceChainId;contract:string;tokenId:string}){
+export function OpenSeaListingPanel({chainId,contract,tokenId,houseListingSeller,houseListingPending}:{chainId:MarketplaceChainId;contract:string;tokenId:string;houseListingSeller:string|null;houseListingPending:boolean}){
   const [listing,setListing]=useState<OpenSeaListing|null>(null);
   const [message,setMessage]=useState("");
   const [loading,setLoading]=useState(false);
@@ -35,7 +36,7 @@ export function OpenSeaListingPanel({chainId,contract,tokenId}:{chainId:Marketpl
     window.addEventListener("focus",onFocus);
     return()=>{window.clearInterval(timer);window.removeEventListener("focus",onFocus);};
   },[chainId,refresh]);
-  if(!openSeaChains[chainId]||!listing&&!message)return null;
+  if(!openSeaChains[chainId]||!listing||houseListingPending||houseListingSeller?.toLowerCase()===listing.seller.toLowerCase())return null;
   const isSeller=!!address&&listing?.seller.toLowerCase()===address.toLowerCase();
   async function buy(){
     if(!address||!listing||loading)return;
@@ -55,10 +56,10 @@ export function OpenSeaListingPanel({chainId,contract,tokenId}:{chainId:Marketpl
     finally{setLoading(false);}
   }
   return <section className="royal-nft-panel opensea-listing-panel" aria-label="OpenSea listing">
-    <header><span>Also listed on OpenSea</span></header>
+    <header><span>Listed on OpenSea</span></header>
     {listing?<>
-      <p>This is an OpenSea order. It uses OpenSea’s Seaport contract and may sell on either marketplace.</p>
-      <strong>{formatUnits(BigInt(listing.price),listing.decimals)} {listing.currency}</strong>
+      <p>This OpenSea order settles through Seaport.</p>
+      <strong>{formatUnits(BigInt(listing.price),listing.decimals)} {listing.currency}<UsdEstimate wei={listing.price} currency={listing.currency} decimals={listing.decimals}/></strong>
       <div className="opensea-listing-actions">
         {!isSeller&&isMarketplaceLive(chainId)&&(address?<button type="button" disabled={loading||transaction.pending} onClick={()=>void buy()}>{loading?"Checking listing…":"Buy OpenSea listing"}</button>:<ConnectButton.Custom>{({openConnectModal})=><button type="button" onClick={openConnectModal}>Connect to buy</button>}</ConnectButton.Custom>)}
         <a href={listing.url} target="_blank" rel="noreferrer">View on OpenSea <ArrowUpRight size={14}/></a>
