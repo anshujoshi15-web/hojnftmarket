@@ -43,7 +43,6 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
   const[nft,setNft]=useState<Nft|null>(null);
   const[indexer,setIndexer]=useState<Indexer|null>(null);
   const[walletCollectionItems,setWalletCollectionItems]=useState<Array<{tokenId:string;name:string;imageUrl:string}>>([]);
-  const[collectionItems,setCollectionItems]=useState<Array<{tokenId:string;name:string;imageUrl:string}>>([]);
   const thumbnailStripRef=useRef<HTMLDivElement>(null);
   const[walletCollectionLoading,setWalletCollectionLoading]=useState(false);
   const[walletCollectionMessage,setWalletCollectionMessage]=useState("");
@@ -147,7 +146,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
         if(!response.ok)throw new Error("Wallet NFTs are unavailable.");
         const body=await response.json() as {complete?:boolean;coverage?:string;nfts?:Array<{contractAddress:string;tokenId:string;quantity:string;name:string|null;imageUrl:string|null}>};
         if(active){setWalletCollectionMessage(body.coverage==="indexed-collections"?"Showing NFTs from indexed collections; some may be missing.":body.complete===false?"Some wallet NFTs could not be checked yet. Refresh to try again.":"");setWalletCollectionItems((body.nfts??[])
-          .filter(item=>item.contractAddress.toLowerCase()===contract.toLowerCase()&&item.tokenId!==tokenId&&BigInt(item.quantity)>0n)
+          .filter(item=>item.contractAddress.toLowerCase()===contract.toLowerCase()&&BigInt(item.quantity)>0n)
           .map(item=>({tokenId:item.tokenId,name:item.name??`Token #${item.tokenId}`,imageUrl:item.imageUrl??`/api/nft-image?${new URLSearchParams({chainId:String(chainId),contract,tokenId:item.tokenId})}`})));}
       }catch{if(active){setWalletCollectionItems([]);setWalletCollectionMessage("Wallet NFTs could not be loaded. Refresh to try again.");}}
       finally{if(active)setWalletCollectionLoading(false);}
@@ -157,16 +156,6 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
     window.addEventListener("focus",onFocus);
     return()=>{active=false;controller.abort();window.removeEventListener("focus",onFocus);};
   },[address,chainId,contract,tokenId,valid]);
-
-  useEffect(()=>{
-    if(!valid)return;
-    const controller=new AbortController();
-    void fetch(`/api/collection-nfts?${new URLSearchParams({chainId:String(chainId),contract})}`,{signal:controller.signal})
-      .then(response=>response.ok?response.json() as Promise<{items?:Array<{tokenId:string;name:string;imageUrl:string}>}>:null)
-      .then(body=>{if(!controller.signal.aborted)setCollectionItems(body?.items??[]);})
-      .catch(()=>{if(!controller.signal.aborted)setCollectionItems([]);});
-    return()=>controller.abort();
-  },[chainId,contract,valid]);
 
   async function refreshMetadata(){
     if(refreshing||!valid)return;
@@ -190,21 +179,13 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
     return indexed??null;
   },[indexer,contract,tokenId,directListing,isEdition,marketChainId]);
   const activity=useMemo(()=>indexer?.activity.filter(item=>item.nftAddress?.toLowerCase()===contract.toLowerCase()&&item.tokenId===tokenId)??[],[indexer,contract,tokenId]);
-  const relatedItems=walletCollectionItems;
+  const relatedItems=walletCollectionItems.filter(item=>item.tokenId!==tokenId);
   const galleryItems=useMemo(()=>{
-    const items=new Map<string,{tokenId:string;name:string;imageUrl:string}>();
-    const image=(id:string)=>`/api/nft-image?${new URLSearchParams({chainId:String(chainId),contract,tokenId:id})}`;
-    for(const item of collectionItems)items.set(item.tokenId,item);
-    for(const item of walletCollectionItems)items.set(item.tokenId,item);
-    for(const item of indexer?.listings??[]){
-      if(item.nftAddress.toLowerCase()===contract.toLowerCase()&&!items.has(item.tokenId))items.set(item.tokenId,{tokenId:item.tokenId,name:`Token #${item.tokenId}`,imageUrl:image(item.tokenId)});
-    }
-    items.set(tokenId,{tokenId,name:nft?.name??`Token #${tokenId}`,imageUrl:nft?.imageUrl??image(tokenId)});
-    return [...items.values()].filter(item=>/^\d+$/.test(item.tokenId)).sort((a,b)=>BigInt(a.tokenId)<BigInt(b.tokenId)?-1:BigInt(a.tokenId)>BigInt(b.tokenId)?1:0);
-  },[collectionItems,walletCollectionItems,indexer,chainId,contract,tokenId,nft?.name,nft?.imageUrl]);
+    return [...walletCollectionItems].filter(item=>/^\d+$/.test(item.tokenId)).sort((a,b)=>BigInt(a.tokenId)<BigInt(b.tokenId)?-1:BigInt(a.tokenId)>BigInt(b.tokenId)?1:0);
+  },[walletCollectionItems]);
   const galleryIndex=galleryItems.findIndex(item=>item.tokenId===tokenId);
-  const previousItem=galleryItems.length>1?galleryItems[(galleryIndex-1+galleryItems.length)%galleryItems.length]:null;
-  const nextItem=galleryItems.length>1?galleryItems[(galleryIndex+1)%galleryItems.length]:null;
+  const previousItem=galleryItems.length>1?galleryItems[galleryIndex<0?galleryItems.length-1:(galleryIndex-1+galleryItems.length)%galleryItems.length]:null;
+  const nextItem=galleryItems.length>1?galleryItems[galleryIndex<0?0:(galleryIndex+1)%galleryItems.length]:null;
   const galleryHref=(id:string)=>`/nft/${chainId}/${contract}/${id}${legacy?"?legacy=1":returnTo==="/profile"?"?from=profile":""}`;
   useEffect(()=>{
     const strip=thumbnailStripRef.current;
@@ -299,11 +280,12 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
     <div className="royal-nft-stage">
     <nav className="royal-nft-nav">
       <div className="royal-nft-gallery-nav">
-        {previousItem?<Link href={galleryHref(previousItem.tokenId)} className="royal-nft-gallery-back" aria-label="Previous NFT in this collection" title="Previous NFT"><ArrowLeft size={18}/></Link>:<button type="button" className="royal-nft-gallery-back" aria-label="Previous NFT in this collection" disabled><ArrowLeft size={18}/></button>}
-        <div ref={thumbnailStripRef} className="royal-nft-thumbnails" aria-label={`More NFTs from this collection on ${chain.name}`}>
+        {previousItem?<Link href={galleryHref(previousItem.tokenId)} className="royal-nft-gallery-back" aria-label="Previous NFT in your wallet" title="Previous NFT"><ArrowLeft size={18}/></Link>:<button type="button" className="royal-nft-gallery-back" aria-label="Previous NFT in your wallet" disabled><ArrowLeft size={18}/></button>}
+        <div ref={thumbnailStripRef} className="royal-nft-thumbnails" aria-label={`NFTs from this collection in your connected wallet on ${chain.name}`}>
           {galleryItems.map(item=>item.tokenId===tokenId?<span key={item.tokenId} className="royal-nft-thumb active" aria-current="page" title={item.name}>{item.imageUrl&&!artFailed?<Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/>:<ImageIcon size={20}/>}</span>:<Link key={item.tokenId} className="royal-nft-thumb" href={galleryHref(item.tokenId)} title={item.name}><Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/></Link>)}
+          {!galleryItems.length&&<span className="royal-nft-thumb-empty">{!address?"Connect wallet to browse your NFTs":walletCollectionLoading?"Loading your NFTs…":"No NFTs from this collection in your wallet"}</span>}
         </div>
-        {nextItem?<Link href={galleryHref(nextItem.tokenId)} className="royal-nft-gallery-next" aria-label="Next NFT in this collection" title="Next NFT"><ArrowRight size={18}/></Link>:<button type="button" className="royal-nft-gallery-next" aria-label="Next NFT in this collection" disabled><ArrowRight size={18}/></button>}
+        {nextItem?<Link href={galleryHref(nextItem.tokenId)} className="royal-nft-gallery-next" aria-label="Next NFT in your wallet" title="Next NFT"><ArrowRight size={18}/></Link>:<button type="button" className="royal-nft-gallery-next" aria-label="Next NFT in your wallet" disabled><ArrowRight size={18}/></button>}
       </div>
       <div className="royal-nft-nav-actions">
         <div className="nft-share-wrap">

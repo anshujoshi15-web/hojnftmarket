@@ -11568,6 +11568,7 @@ article.royal-profile-nft > a {
 .royal-nft-gallery-back,.royal-nft-gallery-next,.royal-nft-gallery-close { display:grid; place-items:center; flex:none; width:38px; height:38px; border:1px solid rgba(215,188,137,.3); border-radius:50%; color:#f7f3eb; text-decoration:none; }
 .royal-nft-gallery-back:hover,.royal-nft-gallery-next:hover,.royal-nft-gallery-close:hover { border-color:#dbbb7f; color:#e8c783; }
 .royal-nft-thumbnails { display:flex; gap:7px; min-width:0; max-width:min(62vw,530px); overflow-x:auto; scrollbar-width:thin; }
+.royal-nft-thumb-empty { align-self:center; color:#a89e8d; font-size:12px; white-space:nowrap; }
 .royal-nft-thumb { position:relative; display:grid; place-items:center; flex:none; width:52px; height:52px; overflow:hidden; border:1px solid rgba(255,255,255,.2); border-radius:7px; background:#292723; color:#b4a88d; }
 .royal-nft-thumb img { object-fit:contain; }
 .royal-nft-thumb.active { border:2px solid #e5c080; }
