@@ -4,6 +4,10 @@ import { getMarketplaceChain, isMarketplaceChainId, type MarketplaceChainId } fr
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const secret = process.env.NOTIFICATION_WEBHOOK_SECRET;
+  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const {
       chainId,
@@ -47,16 +51,16 @@ export async function POST(request: Request) {
       }
       
       // Get seller's notification settings
-      const sellerSettings = await getNotificationSettings(seller);
+      const sellerSettings = await getNotificationSettings(seller, request.url);
       
       if (sellerSettings.emailEnabled && sellerSettings.email && sellerSettings.salesEnabled) {
         // Get NFT metadata
-        const nftData = await getNftMetadata(validContract, validTokenId, Number(chainId));
+        const nftData = await getNftMetadata(validContract, validTokenId, Number(chainId), request.url);
         
         // Send sale notification
-        await fetch('/api/notifications/send-sale', {
+        await fetch(new URL('/api/notifications/send-sale', request.url), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
           body: JSON.stringify({
             email: sellerSettings.email,
             nftName: nftData?.name || `Token #${validTokenId}`,
@@ -75,14 +79,14 @@ export async function POST(request: Request) {
         return Response.json({ error: "Token ID is required for offer events" }, { status: 400 });
       }
       
-      const sellerSettings = await getNotificationSettings(seller);
+      const sellerSettings = await getNotificationSettings(seller, request.url);
       
       if (sellerSettings.emailEnabled && sellerSettings.email && sellerSettings.offersEnabled) {
-        const nftData = await getNftMetadata(validContract, validTokenId, Number(chainId));
+        const nftData = await getNftMetadata(validContract, validTokenId, Number(chainId), request.url);
         
-        await fetch('/api/notifications/send-offer', {
+        await fetch(new URL('/api/notifications/send-offer', request.url), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
           body: JSON.stringify({
             email: sellerSettings.email,
             nftName: nftData?.name || `Token #${validTokenId}`,
@@ -104,9 +108,9 @@ export async function POST(request: Request) {
   }
 }
 
-async function getNotificationSettings(walletAddress: string) {
+async function getNotificationSettings(walletAddress: string, requestUrl: string) {
   try {
-    const response = await fetch(`/api/notifications/settings?wallet=${walletAddress}`);
+    const response = await fetch(new URL(`/api/notifications/settings?wallet=${walletAddress}`, requestUrl));
     if (response.ok) {
       return await response.json() as {
         email: string;
@@ -121,9 +125,9 @@ async function getNotificationSettings(walletAddress: string) {
   }
 }
 
-async function getNftMetadata(contract: string, tokenId: string, chainId: number) {
+async function getNftMetadata(contract: string, tokenId: string, chainId: number, requestUrl: string) {
   try {
-    const response = await fetch(`/api/nft?contract=${contract}&tokenId=${encodeURIComponent(tokenId)}&chainId=${chainId}`, { cache: "no-store" });
+    const response = await fetch(new URL(`/api/nft?contract=${contract}&tokenId=${encodeURIComponent(tokenId)}&chainId=${chainId}`, requestUrl), { cache: "no-store" });
     if (response.ok) {
       return await response.json() as {
         name?: string;

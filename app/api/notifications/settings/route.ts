@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "Invalid email format." }, { status: 400 });
     }
 
-    const validAddress = getAddress(walletAddress);
+    getAddress(walletAddress);
 
     const settings = {
       email: email || "",
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
       return Response.json({ error: "Wallet address is required." }, { status: 400 });
     }
 
-    const validAddress = getAddress(walletAddress);
+    getAddress(walletAddress);
 
     // In production, fetch from database
     // For now, return default settings

@@ -1,6 +1,10 @@
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const secret = process.env.NOTIFICATION_WEBHOOK_SECRET;
+  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { email, nftName, offerPrice, currency, offerer, transactionUrl, collectionName } = await request.json() as {
       email?: string;
