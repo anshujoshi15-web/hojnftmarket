@@ -104,7 +104,8 @@ export default function ProfilePage() {
   const [activityFilter, setActivityFilter] = useState<"all"|IndexedActivity["eventType"]>("all");
   const [activityLimit, setActivityLimit] = useState(30);
   const [loading, setLoading] = useState(false);
-  const [selectedChain, setSelectedChain] = useState<MarketplaceChainId | "all" | "wallet">("all");
+  const [selectedChain, setSelectedChain] = useState<MarketplaceChainId | "all" | "wallet" | "pick">("pick");
+  const [networkSelectionReady,setNetworkSelectionReady]=useState(false);
   const [explorerFallbacks, setExplorerFallbacks] = useState<ExplorerFallback[]>([]);
   const [indexedCoverage, setIndexedCoverage] = useState<string[]>([]);
   const [retry, setRetry] = useState(0);
@@ -115,8 +116,29 @@ export default function ProfilePage() {
     offersEnabled: true
   });
 
+  useEffect(()=>{
+    let saved:MarketplaceChainId | "all" | "wallet" | "pick"="pick";
+    try{
+      const value=window.sessionStorage.getItem("hoj-marketplace-network");
+      if(value==="all"||value==="wallet"||value==="pick")saved=value;
+      else if(value&&isMarketplaceChainId(Number(value)))saved=Number(value) as MarketplaceChainId;
+    }catch{/* A fresh session starts with no network selected. */}
+    queueMicrotask(()=>{setSelectedChain(saved);setNetworkSelectionReady(true);});
+  },[]);
+
+  function chooseNetwork(value:string){
+    const selected=value==="all"||value==="wallet"||value==="pick"?value:Number(value) as MarketplaceChainId;
+    if(typeof selected==="number"&&!isMarketplaceChainId(selected))return;
+    setSelectedChain(selected);
+    try{window.sessionStorage.setItem("hoj-marketplace-network",String(selected));}catch{/* Navigation still works without storage. */}
+  }
+
   useEffect(() => {
-    if (!address) return;
+    if (!address||!networkSelectionReady) return;
+    if(selectedChain==="pick"){
+      queueMicrotask(()=>{setWalletNfts([]);setExplorerFallbacks([]);setIndexedCoverage([]);setLoading(false);});
+      return;
+    }
     let active = true;
     const controller = new AbortController();
     
@@ -145,7 +167,7 @@ export default function ProfilePage() {
           chainIds = shibariumChain ? [shibariumChain, ...otherChains] : allChains;
         } else if (selectedChain === "wallet") {
           chainIds = walletChainId in marketplaceChains ? [walletChainId as MarketplaceChainId] : [109];
-        } else {
+        } else if(typeof selectedChain==="number") {
           chainIds = [selectedChain];
         }
 
@@ -211,10 +233,10 @@ export default function ProfilePage() {
 
     void loadWalletData();
     return () => { active = false; controller.abort(); };
-  }, [address, selectedChain, walletChainId, retry]);
+  }, [address, selectedChain, walletChainId, retry, networkSelectionReady]);
 
   useEffect(() => {
-    if (!address) { queueMicrotask(()=>{setListings([]);setActivity([]);});return; }
+    if (!address||!networkSelectionReady||selectedChain==="pick") { queueMicrotask(()=>{setListings([]);setActivity([]);});return; }
     const wallet=address.toLowerCase();
     let active=true,refreshing=false;
     const chainIds=(selectedChain==="all"
@@ -244,7 +266,7 @@ export default function ProfilePage() {
     window.addEventListener("focus",onFocus);
     const unsubscribe=onMarketplaceUpdate(chainId=>{void refresh(chainId);});
     return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus);unsubscribe();};
-  },[address,selectedChain,walletChainId]);
+  },[address,selectedChain,walletChainId,networkSelectionReady]);
 
   const filteredNfts = walletNfts.filter(nft => {
     const isListed = listings.some(l => 
@@ -379,8 +401,9 @@ export default function ProfilePage() {
           <span>Holdings network</span>
           <select 
             value={selectedChain} 
-            onChange={(e) => setSelectedChain(e.target.value === "all" || e.target.value === "wallet" ? e.target.value : Number(e.target.value) as MarketplaceChainId)}
+            onChange={(e) => chooseNetwork(e.target.value)}
           >
+            <option value="pick">Pick one</option>
             <option value="wallet">Wallet network</option>
             <option value="all">All Networks</option>
             {Object.entries(marketplaceChains).map(([id, chain]) => (
@@ -460,8 +483,8 @@ export default function ProfilePage() {
                 ) : (
                   <div className="royal-empty-state">
                     <ImageIcon size={48} />
-                    <h2>No NFTs Found</h2>
-                    <p>Try adjusting your filters or connect a different wallet.</p>
+                    <h2>{selectedChain==="pick"?"Pick a network":"No NFTs Found"}</h2>
+                    <p>{selectedChain==="pick"?"Choose a holdings network above to view your NFTs.":"Try adjusting your filters or connect a different wallet."}</p>
                   </div>
                 )}
               </div></>

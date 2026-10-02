@@ -11385,6 +11385,10 @@ article.royal-profile-nft > a {
 .royal-homepage .royal-section-header p { font-size:13px; }
 .royal-homepage .royal-view-all { padding:8px 11px; border:1px solid rgba(216,187,141,.28); border-radius:7px; background:#161513; color:#e6d8c0; box-shadow:none; }
 .royal-homepage .royal-nfts-grid { grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:16px; }
+.royal-homepage .discover-network-section { border-top:1px solid rgba(216,187,141,.14); }
+.royal-homepage .discover-network-section .royal-nfts-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+@media(max-width:1100px) { .royal-homepage .discover-network-section .royal-nfts-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:620px) { .royal-homepage .discover-network-section .royal-nfts-grid { grid-template-columns:1fr; } }
 .royal-homepage .royal-nft-card { min-width:0; padding:8px; border:1px solid rgba(230,205,169,.16); border-radius:9px; background:linear-gradient(145deg,#22211f,#101010 64%); box-shadow:inset 0 1px rgba(255,255,255,.04),0 12px 20px rgba(0,0,0,.16); }
 .royal-homepage .royal-nft-card:hover { transform:translateY(-3px); border-color:rgba(226,190,135,.48); box-shadow:0 16px 28px rgba(0,0,0,.3); }
 .royal-homepage .royal-nft-image { border-radius:6px; background:#171715; aspect-ratio:auto; overflow:hidden; min-height:250px; }

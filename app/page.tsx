@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { formatEther } from "viem";
-import { getMarketplaceChain, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
+import { getMarketplaceChain, isMarketplaceChainId, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type IndexedListing = {
@@ -145,16 +145,91 @@ function FeaturedArtwork({ listing, onExpand }: { listing: IndexedListing; onExp
     : <div className="royal-nft-placeholder"><ImageIcon size={36} aria-label="Artwork unavailable" /></div>;
 }
 
+function randomFourNfts(listings:IndexedListing[]) {
+  const shuffled=[...listings];
+  for(let index=shuffled.length-1;index>0;index--){
+    const other=Math.floor(Math.random()*(index+1));
+    [shuffled[index],shuffled[other]]=[shuffled[other],shuffled[index]];
+  }
+  const chosen:IndexedListing[]=[];
+  const collections=new Set<string>();
+  for(const listing of shuffled){
+    const collection=listing.nftAddress.toLowerCase();
+    if(collections.has(collection))continue;
+    collections.add(collection);
+    chosen.push(listing);
+    if(chosen.length===4)return chosen;
+  }
+  for(const listing of shuffled){
+    if(chosen.includes(listing))continue;
+    chosen.push(listing);
+    if(chosen.length===4)break;
+  }
+  return chosen;
+}
+
+function DiscoverNftCard({nft,onExpand}:{nft:IndexedListing;onExpand:(url:string)=>void}){
+  const [metadata,setMetadata]=useState<{name?:string|null;collection?:string|null}|null>(null);
+  const chain=getMarketplaceChain(nft.chainId);
+  const href=`/nft/${nft.chainId}/${nft.nftAddress}/${nft.tokenId}${nft.legacy?"?legacy=1":""}`;
+  useEffect(()=>{
+    const controller=new AbortController();
+    void fetch(`/api/nft?chainId=${nft.chainId}&contract=${nft.nftAddress}&tokenId=${nft.tokenId}`,{signal:controller.signal})
+      .then(response=>response.ok?response.json() as Promise<{name?:string|null;collection?:string|null}>:null)
+      .then(setMetadata).catch(()=>{});
+    return()=>controller.abort();
+  },[nft.chainId,nft.nftAddress,nft.tokenId]);
+  return <div className="nft-card-with-action">
+    <Link href={href} className="royal-nft-card">
+      <div className="royal-nft-image"><FeaturedArtwork listing={nft} onExpand={onExpand}/><div className="royal-nft-overlay"><span className="royal-quick-view" aria-hidden="true"><Search size={20}/></span></div></div>
+      <div className="royal-nft-info">
+        <div className="royal-nft-collection"><span>{chain.name}</span><strong>{metadata?.collection??shortAddress(nft.nftAddress)}</strong></div>
+        <h3>{metadata?.name??`Token #${nft.tokenId}`}</h3>
+        <div className="royal-nft-price"><span>Current Price</span><strong>{formatEther(BigInt(nft.price))} {chain.currency}</strong></div>
+      </div>
+    </Link>
+    {BigInt(nft.price)>0n&&<Link className="nft-card-buy-now" href={href}>Buy now <ArrowUpRight size={15}/></Link>}
+  </div>;
+}
+
 export default function Home() {
   const [listedCollections, setListedCollections] = useState<ListedCollection[]>([]);
   const [featuredNFTs, setFeaturedNFTs] = useState<IndexedListing[]>([]);
+  const [randomNftsByChain,setRandomNftsByChain]=useState<Partial<Record<MarketplaceChainId,IndexedListing[]>>>({});
   const [recentActivity, setRecentActivity] = useState<IndexedActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  const [activeChain,setActiveChain]=useState<MarketplaceChainId|"all">("all");
+  const [activeChain,setActiveChain]=useState<MarketplaceChainId|"all"|"pick">("pick");
+  useEffect(()=>{
+    let saved:MarketplaceChainId|"all"|"pick"="pick";
+    try{
+      const value=window.sessionStorage.getItem("hoj-marketplace-network");
+      if(value==="all")saved="all";
+      else if(value&&isMarketplaceChainId(Number(value)))saved=Number(value) as MarketplaceChainId;
+    }catch{/* Start with Pick one when session storage is unavailable. */}
+    queueMicrotask(()=>setActiveChain(saved));
+  },[]);
+  function chooseNetwork(chain:MarketplaceChainId|"all"|"pick"){
+    setActiveChain(chain);
+    try{window.sessionStorage.setItem("hoj-marketplace-network",String(chain));}catch{/* The page can still be filtered without storage. */}
+  }
   const visibleCollections=listedCollections.filter(collection=>activeChain==="all"||collection.chainId===activeChain);
-  const visibleNFTs=featuredNFTs.filter(item=>activeChain==="all"||item.chainId===activeChain).slice(0,12);
+  const liveChainIds=(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live");
+  const visibleChainIds=activeChain==="pick"?[]:activeChain==="all"?liveChainIds:liveChainIds.filter(id=>id===activeChain);
   const visibleActivity=recentActivity.filter(item=>activeChain==="all"||item.chainId===activeChain).slice(0,6);
+
+  useEffect(()=>{
+    const rotate=()=>{
+      const next:Partial<Record<MarketplaceChainId,IndexedListing[]>>={};
+      for(const chainId of (Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live")){
+        next[chainId]=randomFourNfts(featuredNFTs.filter(nft=>nft.chainId===chainId));
+      }
+      setRandomNftsByChain(next);
+    };
+    rotate();
+    const timer=window.setInterval(()=>{if(!document.hidden)rotate();},30_000);
+    return()=>window.clearInterval(timer);
+  },[featuredNFTs]);
 
   useEffect(() => {
     let mounted = true;
@@ -275,12 +350,13 @@ export default function Home() {
           <div><span className="royal-section-label">HOUSE OF JOSHI · NFT MARKETPLACE</span><h1>Discover</h1><p>Find work across live networks. Explore collections and listings, then trade from your wallet.</p></div>
         </div>
         <div className="discover-chain-pills" aria-label="Filter by network">
-          <button type="button" aria-pressed={activeChain==="all"} onClick={()=>setActiveChain("all")}>All networks</button>
-          {(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live").map(id=><button key={id} type="button" aria-pressed={activeChain===id} onClick={()=>setActiveChain(id)}>{marketplaceChains[id].name}</button>)}
+          <button type="button" aria-pressed={activeChain==="pick"} onClick={()=>chooseNetwork("pick")}>Pick one</button>
+          <button type="button" aria-pressed={activeChain==="all"} onClick={()=>chooseNetwork("all")}>All networks</button>
+          {(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live").map(id=><button key={id} type="button" aria-pressed={activeChain===id} onClick={()=>chooseNetwork(id)}>{marketplaceChains[id].name}</button>)}
         </div>
       </section>
       <section className="discover-showcase" aria-label="Featured collections">
-        {loading?<div className="discover-showcase-loading">Loading collections…</div>:visibleCollections.length===0?<div className="discover-showcase-loading">No active collections on this network yet.</div>:visibleCollections.slice(0,5).map((collection,index)=><DiscoverShowcaseCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>)}
+        {activeChain==="pick"?<div className="discover-showcase-loading">Pick a network above to explore NFTs.</div>:loading?<div className="discover-showcase-loading">Loading collections…</div>:visibleCollections.length===0?<div className="discover-showcase-loading">No active collections on this network yet.</div>:visibleCollections.slice(0,5).map((collection,index)=><DiscoverShowcaseCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>)}
       </section>
 
       {/* Trending Collections based on sales */}
@@ -303,7 +379,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="royal-collections-grid">
-            {visibleCollections.length === 0 && <p className="royal-market-empty">No collections have active indexed listings on this network yet.</p>}
+            {visibleCollections.length === 0 && <p className="royal-market-empty">{activeChain==="pick"?"Pick a network above to see collections.":"No collections have active indexed listings on this network yet."}</p>}
             {visibleCollections.map((collection, index) => (
               <ListedCollectionCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>
             ))}
@@ -311,62 +387,19 @@ export default function Home() {
         )}
       </section>
 
-      {/* Featured NFTs */}
-      <section className="royal-section royal-section-alt royal-featured-section">
-        <div className="royal-section-header">
-          <div>
-            <span className="royal-section-label">EXPLORE</span>
-            <h2>Explore listed NFTs</h2>
+      {/* Four rotating NFTs from each live network. */}
+      {activeChain==="pick"?<section className="royal-section royal-section-alt royal-featured-section"><p className="royal-market-empty">Pick a network above to see NFTs.</p></section>:visibleChainIds.map(chainId=>{
+        const chain=getMarketplaceChain(chainId);
+        const nfts=randomNftsByChain[chainId]??[];
+        return <section className="royal-section royal-section-alt royal-featured-section discover-network-section" key={chainId} aria-label={`${chain.name} NFTs`}>
+          <div className="royal-section-header">
+            <div><span className="royal-section-label">EXPLORE · {chain.name.toUpperCase()}</span><h2>{chain.name} NFTs</h2><p>Four picks from live collections. Selection refreshes every 30 seconds.</p></div>
+            <Link href={`/market?chainId=${chainId}`} className="royal-view-all">View {chain.name} market <ArrowUpRight size={16}/></Link>
           </div>
-          <Link href="/market" className="royal-view-all">
-            View All
-            <ArrowUpRight size={16} />
-          </Link>
-        </div>
-        {loading ? (
-          <div className="royal-loading-grid">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="royal-skeleton-card" />
-            ))}
-          </div>
-        ) : (
-          <div className="royal-nfts-grid">
-            {visibleNFTs.length === 0 && <p className="royal-market-empty">No active NFTs are available on this network right now.</p>}
-            {visibleNFTs.map((nft) => {
-              const chain = getMarketplaceChain(nft.chainId);
-              return (
-                <div className="nft-card-with-action" key={`${nft.id}:${nft.legacy?"legacy":"current"}`}>
-                <Link 
-                  href={`/nft/${nft.chainId}/${nft.nftAddress}/${nft.tokenId}${nft.legacy?"?legacy=1":""}`}
-                  className="royal-nft-card"
-                >
-                  <div className="royal-nft-image">
-                    <FeaturedArtwork listing={nft} onExpand={setLightboxImage} />
-                    <div className="royal-nft-overlay">
-                      <span className="royal-quick-view" aria-hidden="true">
-                        <Search size={20} />
-                      </span>
-                    </div>
-                  </div>
-                  <div className="royal-nft-info">
-                    <div className="royal-nft-collection">
-                      <span>{chain.name}</span>
-                      <strong>{shortAddress(nft.nftAddress)}</strong>
-                    </div>
-                    <h3>Token #{nft.tokenId}</h3>
-                    <div className="royal-nft-price">
-                      <span>Current Price</span>
-                      <strong>{formatEther(BigInt(nft.price))} {chain.currency}</strong>
-                    </div>
-                  </div>
-                </Link>
-                {BigInt(nft.price)>0n&&<Link className="nft-card-buy-now" href={`/nft/${nft.chainId}/${nft.nftAddress}/${nft.tokenId}${nft.legacy?"?legacy=1":""}`}>Buy now <ArrowUpRight size={15}/></Link>}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+          {loading?<div className="royal-loading-grid">{[...Array(4)].map((_,index)=><div key={index} className="royal-skeleton-card"/>)}</div>
+            :<div className="royal-nfts-grid">{nfts.length?nfts.map(nft=><DiscoverNftCard key={`${nft.id}:${nft.legacy?"legacy":"current"}`} nft={nft} onExpand={setLightboxImage}/>):<p className="royal-market-empty">No active NFTs are available on {chain.name} right now.</p>}</div>}
+        </section>;
+      })}
 
       {/* Recent Activity */}
       <section className="royal-section royal-section-alt">
@@ -388,7 +421,7 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            visibleActivity.length===0?<p className="royal-market-empty">No recorded sales on this network yet.</p>:visibleActivity.map((activity) => {
+            visibleActivity.length===0?<p className="royal-market-empty">{activeChain==="pick"?"Pick a network above to see recent sales.":"No recorded sales on this network yet."}</p>:visibleActivity.map((activity) => {
               const chain = getMarketplaceChain(activity.chainId);
               return (
                 <div key={activity.id} className="royal-activity-item">

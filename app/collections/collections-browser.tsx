@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatEther } from "viem";
 import Link from "next/link";
 import Image from "next/image";
-import { getMarketplaceChain, isMarketplaceLive, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
+import { getMarketplaceChain, isMarketplaceChainId, isMarketplaceLive, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 
 type Mint = {
@@ -29,8 +29,22 @@ export function CollectionsBrowser(){
   const [chains,setChains]=useState<ChainListings[]>([]);
   const [loading,setLoading]=useState(true);
   const [query,setQuery]=useState("");
-  const [activeChain,setActiveChain]=useState<"all"|MarketplaceChainId>("all");
+  const [activeChain,setActiveChain]=useState<"pick"|"all"|MarketplaceChainId>("pick");
   const [layout,setLayout]=useState<"grid"|"list">("grid");
+
+  useEffect(()=>{
+    let saved:MarketplaceChainId|"all"|"pick"="pick";
+    try{
+      const value=window.sessionStorage.getItem("hoj-marketplace-network");
+      if(value==="all")saved="all";
+      else if(value&&isMarketplaceChainId(Number(value)))saved=Number(value) as MarketplaceChainId;
+    }catch{/* Start with Pick one when session storage is unavailable. */}
+    queueMicrotask(()=>setActiveChain(saved));
+  },[]);
+  function chooseNetwork(chain:MarketplaceChainId|"all"|"pick"){
+    setActiveChain(chain);
+    try{window.sessionStorage.setItem("hoj-marketplace-network",String(chain));}catch{/* Filtering still works without storage. */}
+  }
 
   useEffect(()=>{
     let active=true;
@@ -125,11 +139,12 @@ export function CollectionsBrowser(){
           <label><Search size={16}/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search contract or token" aria-label="Search contract or token"/></label>
           <span>LIVE NETWORKS</span>
           <div className="collection-chain-filters">
-            <button type="button" className={activeChain==="all"?"active":""} aria-pressed={activeChain==="all"} onClick={()=>setActiveChain("all")}><b>All networks</b><em>{listings.length} NFTs</em></button>
-            {liveChainIds.map(chainId=>{const chain=getMarketplaceChain(chainId);const chainListings=listings.filter(item=>item.chainId===chainId);const count=chainListings.length;const floorPrice=chainListings.length>0?chainListings.reduce((min,item)=>{const price=BigInt(item.price);return price<min?price:min;},BigInt(chainListings[0].price)):0n;return <button key={chainId} type="button" className={activeChain===chainId?"active":""} aria-pressed={activeChain===chainId} onClick={()=>setActiveChain(chainId)}><i aria-hidden="true"/><b>{chain.name}</b><em>{count} NFTs</em><small>Lowest: {floorPrice>0n?formatEther(floorPrice):"—"} {chain.currency}</small></button>})}
+            <button type="button" className={activeChain==="pick"?"active":""} aria-pressed={activeChain==="pick"} onClick={()=>chooseNetwork("pick")}><b>Pick one</b></button>
+            <button type="button" className={activeChain==="all"?"active":""} aria-pressed={activeChain==="all"} onClick={()=>chooseNetwork("all")}><b>All networks</b><em>{listings.length} NFTs</em></button>
+            {liveChainIds.map(chainId=>{const chain=getMarketplaceChain(chainId);const chainListings=listings.filter(item=>item.chainId===chainId);const count=chainListings.length;const floorPrice=chainListings.length>0?chainListings.reduce((min,item)=>{const price=BigInt(item.price);return price<min?price:min;},BigInt(chainListings[0].price)):0n;return <button key={chainId} type="button" className={activeChain===chainId?"active":""} aria-pressed={activeChain===chainId} onClick={()=>chooseNetwork(chainId)}><i aria-hidden="true"/><b>{chain.name}</b><em>{count} NFTs</em><small>Lowest: {floorPrice>0n?formatEther(floorPrice):"—"} {chain.currency}</small></button>})}
           </div>
         </aside>
-        <div className={`chain-listings ${layout}`}>{visibleListings.length?visibleListings.map(item=><ListedNft key={item.id} item={item}/>):<div className="collection-loading">{loading?"Reading confirmed listings…":<div><p>{query.trim()?"No NFTs match your search.":`No active NFT listings${activeChain==="all"?"":` on ${getMarketplaceChain(activeChain).name}`} yet.`}</p><Link href="/profile">View your NFTs <ArrowUpRight size={15}/></Link></div>}</div>}</div>
+        <div className={`chain-listings ${layout}`}>{activeChain==="pick"?<div className="collection-loading">Pick a network to view listed NFTs.</div>:visibleListings.length?visibleListings.map(item=><ListedNft key={item.id} item={item}/>):<div className="collection-loading">{loading?"Reading confirmed listings…":<div><p>{query.trim()?"No NFTs match your search.":`No active NFT listings${activeChain==="all"?"":` on ${getMarketplaceChain(activeChain).name}`} yet.`}</p><Link href="/profile">View your NFTs <ArrowUpRight size={15}/></Link></div>}</div>}</div>
       </div>
     </section>
   </main>;
