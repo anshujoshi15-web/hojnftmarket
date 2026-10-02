@@ -14,7 +14,6 @@ import { inspectListing } from "@/lib/prepare-listing";
 import { TransactionStatus, useMarketplaceTransaction } from "./components/use-marketplace-transaction";
 import { OffersPanel } from "./components/offers-panel";
 import { EditionTrading } from "./components/edition-trading";
-import { OpenSeaListingPanel } from "./components/opensea-listing";
 import { NftPriceHistory } from "./components/nft-price-history";
 import { notifyNFTPurchased } from "@/lib/notifications";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
@@ -406,7 +405,6 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
             </div>
           </>}
         </div>}
-        {!legacy&&<OpenSeaListingPanel key={`${marketChainId}:${contract}:${tokenId}`} chainId={marketChainId} contract={contract} tokenId={tokenId} houseListingSeller={listing?.seller??null} houseListingPending={marketplaceLive&&(listingLoading||indexer===null&&directListing===undefined)}/>}
       </div>
 
     <section className="royal-nft-tabs">

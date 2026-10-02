@@ -12059,14 +12059,6 @@ article.royal-profile-nft > a {
 .nft-card-buy-now:focus-visible { outline:2px solid #fff; outline-offset:2px; }
 .market-listing .nft-card-buy-now { margin-top:8px; }
 
-.opensea-listing-panel { margin-top:16px; padding:17px; }
-.opensea-listing-panel p { margin:10px 0; color:#c9c1b5; font-size:13px; line-height:1.5; }
-.opensea-listing-panel > strong { display:block; margin:10px 0; color:#e4c484; font-size:20px; }
-.opensea-listing-actions { display:flex; flex-wrap:wrap; gap:9px; }
-.opensea-listing-actions :is(button,a) { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:9px 14px; border:1px solid #917443; border-radius:8px; text-decoration:none; font-size:13px; font-weight:600; }
-.opensea-listing-actions button { background:#c7a44a; color:#15110a; cursor:pointer; }
-.opensea-listing-actions button:disabled { opacity:.5; cursor:wait; }
-.opensea-listing-actions a { background:#171614; color:#e8d9bc; }
 .royal-holdings-coverage-note { margin:0 0 16px; color:#a89e8d; font-size:13px; line-height:1.5; }
 
 /* Profile activity: compact event ledger with status filters. */
