@@ -210,7 +210,7 @@ export default function Home() {
     }catch{/* Start with Pick one when session storage is unavailable. */}
     queueMicrotask(()=>setActiveChain(saved));
   },[]);
-  function chooseNetwork(chain:MarketplaceChainId|"all"|"pick"){
+  function chooseNetwork(chain:MarketplaceChainId|"all"){
     setActiveChain(chain);
     try{window.sessionStorage.setItem("hoj-marketplace-network",String(chain));}catch{/* The page can still be filtered without storage. */}
   }
@@ -351,7 +351,7 @@ export default function Home() {
           <div><span className="royal-section-label">HOUSE OF JOSHI · NFT MARKETPLACE</span><h1>Discover</h1><p>Find work across live networks. Explore collections and listings, then trade from your wallet.</p></div>
         </div>
         <div className="discover-chain-pills" aria-label="Filter by network">
-          <button type="button" aria-pressed={activeChain==="pick"} onClick={()=>chooseNetwork("pick")}>Pick one</button>
+          <span className="discover-chain-label">Pick one</span>
           <button type="button" aria-pressed={activeChain==="all"} onClick={()=>chooseNetwork("all")}>All networks</button>
           {(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live").map(id=><button key={id} type="button" aria-pressed={activeChain===id} onClick={()=>chooseNetwork(id)}>{marketplaceChains[id].name}</button>)}
         </div>
