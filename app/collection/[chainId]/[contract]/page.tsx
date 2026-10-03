@@ -6,6 +6,7 @@ import { getMarketplaceChain, type MarketplaceChainId } from "@/lib/marketplace-
 import { formatEther, parseEther } from "viem";
 import Link from "next/link";
 import { UsdEstimate } from "../../../components/usd-estimate";
+import { NftCardVideo } from "../../../components/nft-card-video";
 
 type NftMetadata = {
   name: string | null;
@@ -630,7 +631,7 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
                             className="royal-nft-card opensea-style"
                           >
                             <div className="royal-nft-image">
-                              {nft.videoUrl ? <video src={nft.videoUrl} poster={nft.imageUrl??undefined} muted playsInline preload="metadata" aria-label={nft.name||`Token #${listing.tokenId}`} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : nft.imageUrl ? (
+                              {nft.videoUrl ? <NftCardVideo src={nft.videoUrl} poster={nft.imageUrl} label={nft.name||`Token #${listing.tokenId}`} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : nft.imageUrl ? (
                                 <>
                                   <img 
                                     src={nft.imageUrl} 

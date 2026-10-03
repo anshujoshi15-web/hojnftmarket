@@ -14,6 +14,7 @@ import { ProfileListingFlow } from "../components/profile-listing-flow";
 import { ProfileEditionListingFlow } from "../components/profile-edition-listing-flow";
 import { UsdEstimate } from "../components/usd-estimate";
 import { matchesNftQuery } from "@/lib/nft-search";
+import { NftCardVideo } from "../components/nft-card-video";
 
 type WalletNft = {
   contractAddress: string;
@@ -91,7 +92,7 @@ function NftArtwork({ imageUrl, videoUrl, name }: { imageUrl: string | null; vid
   
   return <div className="royal-nft-image">
     {videoUrl && !failed
-      ? <video src={videoUrl} poster={imageUrl ?? undefined} aria-label={name} muted playsInline preload="metadata" onError={handleError} />
+      ? <NftCardVideo src={videoUrl} poster={imageUrl} label={name} onError={handleError} />
       : imageUrl && !failed
       ? <img src={imageUrl} alt={name} loading="lazy" onError={handleError} />
       : <div className="royal-nft-artwork-fallback"><ImageIcon size={30} aria-hidden="true" /><span>Artwork unavailable</span></div>}

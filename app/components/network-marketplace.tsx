@@ -8,6 +8,7 @@ import Image from "next/image";
 import { getMarketplaceChain, isMarketplaceLive, type MarketplaceChainId } from "@/lib/marketplace-chains";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 import { UsdEstimate } from "./usd-estimate";
+import { NftCardVideo } from "./nft-card-video";
 
 type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:string; tokenId:string; seller:string; price:string; transactionHash:string };
 type Activity = { id:string; chainId:MarketplaceChainId; eventType:string; nftAddress:string|null; tokenId:string|null; price:string|null; blockNumber:number };
@@ -222,7 +223,7 @@ function ListedNft({ item, chain }: { item: Listing; chain: ReturnType<typeof ge
     <div className="nft-card-with-action">
     <Link href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}`} className="network-listing">
       <div className="network-listing-art">
-        {nft?.videoUrl&&!videoFailed ? <video src={nft.videoUrl} poster={nft.imageUrl??undefined} muted playsInline preload="metadata" aria-label={nft.name??`NFT #${item.tokenId}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setVideoFailed(true)}/> : !artFailed ? (
+        {nft?.videoUrl&&!videoFailed ? <NftCardVideo src={nft.videoUrl} poster={nft.imageUrl} label={nft.name??`NFT #${item.tokenId}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setVideoFailed(true)}/> : !artFailed ? (
           <Image
             src={nft?.imageUrl ?? `/api/nft-image?${new URLSearchParams({chainId:String(item.chainId),contract:item.nftAddress,tokenId:item.tokenId})}`}
             alt={nft?.name ?? `NFT #${item.tokenId}`}

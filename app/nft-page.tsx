@@ -18,6 +18,7 @@ import { NftPriceHistory } from "./components/nft-price-history";
 import { notifyNFTPurchased } from "@/lib/notifications";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 import { UsdEstimate } from "./components/usd-estimate";
+import { NftCardVideo } from "./components/nft-card-video";
 
 type Nft={name:string|null;collection:string|null;imageUrl:string|null;videoUrl?:string|null;description:string|null;externalUrl:string|null;traits:Array<{type:string;value:string}>;error?:string};
 type Listing={id:string;chainId:MarketplaceChainId;nftAddress:`0x${string}`;tokenId:string;seller:`0x${string}`;price:string;transactionHash:`0x${string}`;updatedBlock:number;tokenType?:"ERC-721"|"ERC-1155";quantity?:string};
@@ -282,7 +283,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
       <div className="royal-nft-gallery-nav">
         {previousItem?<Link href={galleryHref(previousItem.tokenId)} className="royal-nft-gallery-back" aria-label="Previous NFT in your wallet" title="Previous NFT"><ArrowLeft size={18}/></Link>:<button type="button" className="royal-nft-gallery-back" aria-label="Previous NFT in your wallet" disabled><ArrowLeft size={18}/></button>}
         <div ref={thumbnailStripRef} className="royal-nft-thumbnails" aria-label={`NFTs from this collection in your connected wallet on ${chain.name}`}>
-          {galleryItems.map(item=>item.tokenId===tokenId?<span key={item.tokenId} className="royal-nft-thumb active" aria-current="page" title={item.name}>{item.imageUrl&&!artFailed?<Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/>:item.videoUrl?<video src={item.videoUrl} muted playsInline preload="metadata" aria-label={item.name}/>:<ImageIcon size={20}/>}</span>:<Link key={item.tokenId} className="royal-nft-thumb" href={galleryHref(item.tokenId)} title={item.name}>{item.imageUrl?<Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/>:item.videoUrl?<video src={item.videoUrl} muted playsInline preload="metadata" aria-label={item.name}/>:<ImageIcon size={20}/>}</Link>)}
+          {galleryItems.map(item=>item.tokenId===tokenId?<span key={item.tokenId} className="royal-nft-thumb active" aria-current="page" title={item.name}>{item.imageUrl&&!artFailed?<Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/>:item.videoUrl?<NftCardVideo src={item.videoUrl} label={item.name}/>:<ImageIcon size={20}/>}</span>:<Link key={item.tokenId} className="royal-nft-thumb" href={galleryHref(item.tokenId)} title={item.name}>{item.imageUrl?<Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="52px"/>:item.videoUrl?<NftCardVideo src={item.videoUrl} label={item.name}/>:<ImageIcon size={20}/>}</Link>)}
           {!galleryItems.length&&<span className="royal-nft-thumb-empty">{!address?"Connect wallet to browse your NFTs":walletCollectionLoading?"Loading your NFTs…":"No NFTs from this collection in your wallet"}</span>}
         </div>
         {nextItem?<Link href={galleryHref(nextItem.tokenId)} className="royal-nft-gallery-next" aria-label="Next NFT in your wallet" title="Next NFT"><ArrowRight size={18}/></Link>:<button type="button" className="royal-nft-gallery-next" aria-label="Next NFT in your wallet" disabled><ArrowRight size={18}/></button>}
@@ -477,7 +478,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
         {relatedItems.slice(0,6).map(item=>(
           <Link key={item.tokenId} href={`/nft/${chainId}/${contract}/${item.tokenId}${legacy?"?legacy=1":returnTo==="/profile"?"?from=profile":""}`} className="royal-collection-item">
             <div className="royal-collection-item-art">
-              {item.imageUrl?<Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="140px"/>:item.videoUrl?<video src={item.videoUrl} muted playsInline preload="metadata" aria-label={item.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<ImageIcon size={20}/>}
+              {item.imageUrl?<Image src={item.imageUrl} alt={item.name} fill unoptimized sizes="140px"/>:item.videoUrl?<NftCardVideo src={item.videoUrl} label={item.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<ImageIcon size={20}/>}
             </div>
             <div className="royal-collection-item-info">
               <small>{item.name}</small>
