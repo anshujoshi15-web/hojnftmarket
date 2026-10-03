@@ -4,6 +4,7 @@ import { getMarketplaceChain, isMarketplaceChainId } from "@/lib/marketplace-cha
 import { env } from "@runtime-env";
 import { SHIB_MAGAZINE_CONTRACT } from "@/lib/shib-magazine-cover";
 import { directIpfsImageUrl, nftMedia } from "@/lib/nft-media";
+import { arcAnimation, arcImage, getArcNft } from "@/lib/opensea-nft";
 
 export const dynamic = "force-dynamic";
 const metadataCacheControl = (refresh: boolean) => refresh ? "no-store" : "public, max-age=60, s-maxage=300, stale-while-revalidate=60";
@@ -183,6 +184,20 @@ async function loadNft(request: NextRequest) {
       return await onchainMetadataResponse(chainId, address as `0x${string}`, tokenId, refresh);
     } catch {
       // Keep trying indexer metadata when a publisher's URI host is unavailable.
+    }
+    if (chainId === 5042 && runtime.OPENSEA_API_KEY) {
+      try {
+        const item = await getArcNft(address, tokenId, runtime.OPENSEA_API_KEY);
+        const media = nftMedia(imageUrl(arcImage(item)), imageUrl(arcAnimation(item)));
+        return NextResponse.json({
+          contractAddress: address, chainId, tokenId,
+          name: item.name ?? null, collection: item.collection ?? null,
+          imageUrl: media.imageUrl ? marketplaceImageUrl(media.imageUrl, chainId, address, tokenId, refresh) : null,
+          videoUrl: media.videoUrl, description: item.description ?? null,
+          externalUrl: item.opensea_url ?? null,
+          traits: (item.traits ?? []).flatMap(attribute => attribute.trait_type && attribute.value !== null && attribute.value !== undefined ? [{ type: attribute.trait_type, value: String(attribute.value) }] : []),
+        }, { headers: { "Cache-Control": metadataCacheControl(refresh) } });
+      } catch { /* Continue to other metadata providers. */ }
     }
     if (runtime.ALCHEMY_API_KEY && ALCHEMY_NETWORKS[chainId]) {
       try {

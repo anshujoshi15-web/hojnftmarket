@@ -7,6 +7,7 @@ import {
 } from "@/lib/marketplace-chains";
 import { env } from "@runtime-env";
 import { directIpfsImageUrl, nftMedia } from "@/lib/nft-media";
+import { arcAnimation, arcImage, getArcWalletNfts } from "@/lib/opensea-nft";
 
 export const dynamic = "force-dynamic";
 
@@ -486,6 +487,33 @@ export async function GET(request: Request) {
     sources.push(result.complete?"ebisus-bay":"ebisus-bay-partial");
   }
 
+  if (chainId === 5042 && runtime.OPENSEA_API_KEY) {
+    try {
+      const result = await getArcWalletNfts(address, runtime.OPENSEA_API_KEY);
+      const nfts: WalletNft[] = result.nfts.flatMap(item => {
+        if (!/^0x[0-9a-fA-F]{40}$/.test(item.contract) || !/^\d+$/.test(item.identifier)) return [];
+        const media = nftMedia(mediaUrl(arcImage(item)), mediaUrl(arcAnimation(item)));
+        return [{
+          contractAddress: item.contract, tokenId: item.identifier,
+          tokenType: item.token_standard?.toUpperCase() ?? "ERC-721", quantity: "1",
+          name: item.name ?? null, collection: item.collection ?? null,
+          imageUrl: media.imageUrl ? marketplaceImageUrl(media.imageUrl, chainId, item.contract, item.identifier) : null,
+          videoUrl: media.videoUrl, description: item.description ?? null,
+          externalUrl: item.opensea_url ?? null,
+          explorerUrl: tokenUrl(chainId, item.contract, item.identifier), chainId,
+          traits: (item.traits ?? []).flatMap(attribute => attribute.trait_type && attribute.value !== null && attribute.value !== undefined ? [{ type: attribute.trait_type, value: String(attribute.value) }] : []),
+        }];
+      });
+      mergeNfts(holdings, nfts);
+      sources.push("opensea");
+      if (!result.complete) warnings.push("OpenSea returned a partial Arc wallet page.");
+      // OpenSea omits NFTs hidden by the account, even with auto-hidden items
+      // requested, so it cannot establish complete wallet coverage.
+    } catch (error) {
+      warnings.push(`OpenSea: ${error instanceof Error ? error.message : "Arc wallet lookup failed"}`);
+    }
+  }
+
   for (const candidate of explorerCandidates(chainId)) {
     try {
       const {nfts,complete,warning} = await fetchFromExplorer(candidate.url, candidate.apiKey, address, chainId);
@@ -505,7 +533,7 @@ export async function GET(request: Request) {
   const providerSetupWarning=!providerSucceeded&&chainId===25&&!runtime.CRONOS_EXPLORER_API_URL&&!runtime.BLOCKSCOUT_API_KEY
     ?"Cronos needs a server-side BLOCKSCOUT_API_KEY or compatible CRONOS_EXPLORER_API_URL for complete ERC-721 and ERC-1155 holdings."
     :!providerSucceeded&&chainId===5042&&!runtime.BLOCKSCOUT_API_KEY
-      ?"Arc needs a server-side BLOCKSCOUT_API_KEY for complete wallet NFT holdings; its configured explorer does not provide the required NFT endpoint."
+      ?"Arc's public explorer requires an API key. OpenSea can omit hidden NFTs; add a missing NFT by contract and token ID to verify it on-chain."
       :!providerSucceeded&&chainId===7777777&&!runtime.ALCHEMY_API_KEY
         ?"Zora needs a server-side ALCHEMY_API_KEY for complete wallet NFT holdings; its configured explorer does not provide the required NFT endpoint."
         :null;

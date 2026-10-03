@@ -88,6 +88,8 @@ COMPILE_ONLY=1 DEPLOY_CHAIN_ID=8453 npm run deploy:marketplace
 
 The command now compiles and deploys V8. It prints the address, block, deployer, and transaction hash. `FEE_TREASURY_ADDRESS` is the constructor argument: check it before signing because it cannot be changed on that deployment. For manual deployment and continuity with existing V7 markets, follow [the V8 rollout guide](docs/V8-ROLLOUT.md).
 
+Arc's configured Blockscout NFT API requires `BLOCKSCOUT_API_KEY`. With `OPENSEA_API_KEY`, Arc can also read OpenSea NFT metadata and indexed wallet holdings; OpenSea may omit NFTs hidden by an account. On Profile, select Arc and use **Add a missing Arc NFT** with the contract address and token ID to verify an omitted ERC-721 or ERC-1155 NFT directly on-chain. The verified token is saved for that wallet in this browser and checked again when Profile loads.
+
 RainbowKit powers wallet connection and account management. Installed browser wallets work without extra configuration. Set `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` to a WalletConnect Cloud project ID to add QR-based mobile wallet connections.
 
 ## Contract

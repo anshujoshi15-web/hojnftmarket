@@ -3,6 +3,7 @@ import { createPublicClient, getAddress, http, type Address } from "viem";
 import { getMarketplaceChain, isMarketplaceChainId } from "@/lib/marketplace-chains";
 import { env } from "@runtime-env";
 import { officialShibMagazineCover, shibMagazineEdition } from "@/lib/shib-magazine-cover";
+import { arcImage, getArcNft } from "@/lib/opensea-nft";
 
 export const dynamic = "force-dynamic";
 
@@ -274,6 +275,14 @@ export async function GET(request: NextRequest) {
       const fallback = await fetchAlchemyImage(requestedChainId, contract, requestedTokenId, refresh);
       return redirectImage(fallback, refresh);
     } catch {
+      const runtime = env as unknown as Record<string, string | undefined>;
+      if (requestedChainId === 5042 && runtime.OPENSEA_API_KEY) {
+        try {
+          const nft = await getArcNft(contract, requestedTokenId, runtime.OPENSEA_API_KEY);
+          const source = arcImage(nft);
+          if (source) return redirectImage(await fetchFirstImage(source, requestedTokenId, refresh), refresh);
+        } catch { /* The on-chain and explorer image sources remain authoritative when available. */ }
+      }
       // The publisher's NFT metadata S3 bucket is currently inaccessible, but
       // its public magazine still hosts the matching edition cover artwork.
       const edition = shibMagazineEdition(requestedChainId, contract, requestedTokenId);

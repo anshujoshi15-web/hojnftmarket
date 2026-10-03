@@ -104,6 +104,10 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"portfolio" | "listings" | "offers" | "created" | "activity" | "notifications">("portfolio");
   const [statusFilter, setStatusFilter] = useState<"all" | "listed" | "not-listed">("all");
   const [nftQuery,setNftQuery]=useState("");
+  const [missingContract,setMissingContract]=useState("");
+  const [missingTokenId,setMissingTokenId]=useState("");
+  const [missingNftError,setMissingNftError]=useState("");
+  const [verifyingMissingNft,setVerifyingMissingNft]=useState(false);
   const [walletNfts, setWalletNfts] = useState<WalletNft[]>([]);
   const [bulkSelection, setBulkSelection] = useState<{chainId:MarketplaceChainId;collection:string;tokenIds:string[]}|null>(null);
   useEffect(()=>{queueMicrotask(()=>setBulkSelection(null));},[address]);
@@ -226,6 +230,28 @@ export default function ProfilePage() {
             });
           }
         });
+
+        if (chainIds.includes(5042)) {
+          try {
+            const saved = JSON.parse(localStorage.getItem(`hoj:arc-nfts:${address.toLowerCase()}`) ?? "[]") as Array<{contract:string;tokenId:string}>;
+            if (Array.isArray(saved)) {
+              const verified = await Promise.allSettled(saved.slice(0, 50).map(async item => {
+                const params = new URLSearchParams({ owner: address, contract: item.contract, tokenId: item.tokenId });
+                const response = await fetch(`/api/wallet-nfts/verify?${params}`, { signal: controller.signal });
+                if (!response.ok) return null;
+                return (await response.json() as {nft:WalletNft}).nft;
+              }));
+              for (const result of verified) {
+                if (result.status !== "fulfilled" || !result.value) continue;
+                const nft = result.value;
+                const index = allNfts.findIndex(item => item.chainId === 5042 && item.contractAddress.toLowerCase() === nft.contractAddress.toLowerCase() && item.tokenId === nft.tokenId);
+                if (index < 0) allNfts.push(nft);
+                else allNfts[index] = { ...allNfts[index], ...nft };
+              }
+            }
+          } catch { /* Provider holdings still display if saved NFT verification fails. */ }
+        }
+        if (!active) return;
 
         setWalletNfts(allNfts);
         setExplorerFallbacks(failedExplorers);
@@ -445,6 +471,34 @@ export default function ProfilePage() {
       </section>
 
       <section className="royal-profile-content">
+        {activeTab==="portfolio"&&address&&(selectedChain===5042||selectedChain==="all"||selectedChain==="wallet"&&walletChainId===5042)&&<form className="nft-inline-search profile-nft-search" onSubmit={async event=>{
+          event.preventDefault();
+          setMissingNftError("");
+          setVerifyingMissingNft(true);
+          try {
+            const params=new URLSearchParams({owner:address,contract:missingContract.trim(),tokenId:missingTokenId.trim()});
+            const response=await fetch(`/api/wallet-nfts/verify?${params}`);
+            const data=await response.json() as {nft?:WalletNft;error?:string};
+            if(!response.ok||!data.nft)throw new Error(data.error??"Could not verify this NFT.");
+            const nft=data.nft;
+            setWalletNfts(previous=>previous.some(item=>item.chainId===5042&&item.contractAddress.toLowerCase()===nft.contractAddress.toLowerCase()&&item.tokenId===nft.tokenId)
+              ?previous.map(item=>item.chainId===5042&&item.contractAddress.toLowerCase()===nft.contractAddress.toLowerCase()&&item.tokenId===nft.tokenId?nft:item)
+              :[...previous,nft]);
+            const storageKey=`hoj:arc-nfts:${address.toLowerCase()}`;
+            const saved=JSON.parse(localStorage.getItem(storageKey)??"[]") as Array<{contract:string;tokenId:string}>;
+            const entries=Array.isArray(saved)?saved:[];
+            if(!entries.some(item=>item.contract.toLowerCase()===nft.contractAddress.toLowerCase()&&item.tokenId===nft.tokenId))
+              localStorage.setItem(storageKey,JSON.stringify([...entries,{contract:nft.contractAddress,tokenId:nft.tokenId}]));
+            setMissingContract("");setMissingTokenId("");
+          } catch(error) {setMissingNftError(error instanceof Error?error.message:"Could not verify this NFT.");}
+          finally {setVerifyingMissingNft(false);}
+        }}>
+          <span>Add a missing Arc NFT</span>
+          <input aria-label="Arc NFT contract address" placeholder="Contract address" value={missingContract} onChange={event=>setMissingContract(event.target.value)} required/>
+          <input aria-label="Arc NFT token ID" placeholder="Token ID" value={missingTokenId} onChange={event=>setMissingTokenId(event.target.value)} required/>
+          <button type="submit" disabled={verifyingMissingNft}>{verifyingMissingNft?"Verifying…":"Add NFT"}</button>
+          {missingNftError&&<span role="alert">{missingNftError}</span>}
+        </form>}
         {activeTab==="portfolio"&&indexedCoverage.length>0&&<p className="royal-holdings-coverage-note">{indexedCoverage.join(", ")} NFTs are shown from indexed collections. Some collections may not appear without a dedicated wallet indexer.</p>}
         {activeTab==="portfolio"&&explorerFallbacks.length > 0 && (
           <div className="royal-explorer-fallbacks" role="status">
