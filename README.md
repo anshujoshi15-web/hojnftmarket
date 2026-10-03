@@ -90,6 +90,8 @@ The command now compiles and deploys V8. It prints the address, block, deployer,
 
 Arc's configured Blockscout NFT API requires `BLOCKSCOUT_API_KEY`. With `OPENSEA_API_KEY`, Arc can also read OpenSea NFT metadata and indexed wallet holdings; OpenSea may omit NFTs hidden by an account. On Profile, select Arc and use **Add a missing Arc NFT** with the contract address and token ID to verify an omitted ERC-721 or ERC-1155 NFT directly on-chain. The verified token is saved for that wallet in this browser and checked again when Profile loads.
 
+Discover fills the Arc section with four NFTs from trending Arc collections when fewer than four House of Joshi Arc listings are available. These catalog cards link to NFT details and do not represent marketplace listings or show OpenSea orders. Picks refresh every two hours and require the server-side `OPENSEA_API_KEY`.
+
 RainbowKit powers wallet connection and account management. Installed browser wallets work without extra configuration. Set `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` to a WalletConnect Cloud project ID to add QR-based mobile wallet connections.
 
 ## Contract

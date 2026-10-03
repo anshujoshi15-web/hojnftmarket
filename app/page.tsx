@@ -64,6 +64,16 @@ type ListedCollection = {
   salesCount: number;
 };
 
+type ArcDiscoverNft = {
+  chainId: 5042;
+  contract: string;
+  tokenId: string;
+  name: string;
+  collection: string;
+  imageUrl: string | null;
+  videoUrl: string | null;
+};
+
 function shortAddress(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
@@ -213,9 +223,40 @@ function DiscoverNftCard({nft,onExpand}:{nft:IndexedListing;onExpand:(url:string
   </div>;
 }
 
+function DiscoverArcNftCard({nft}:{nft:ArcDiscoverNft}){
+  const [failed,setFailed]=useState(false);
+  return <div className="nft-card-with-action">
+    <Link href={`/nft/5042/${nft.contract}/${nft.tokenId}`} className="royal-nft-card">
+      <div className="royal-nft-image">
+        {!failed&&nft.videoUrl?<NftCardVideo src={nft.videoUrl} poster={nft.imageUrl} label={nft.name} onError={()=>setFailed(true)}/>
+          :!failed&&nft.imageUrl?<Image src={nft.imageUrl} alt={nft.name} fill unoptimized sizes="(max-width: 700px) 100vw, 300px" onError={()=>setFailed(true)}/>
+          :<div className="royal-nft-artwork-fallback"><ImageIcon size={30}/><span>Artwork unavailable</span></div>}
+      </div>
+      <div className="royal-nft-info">
+        <div className="royal-nft-collection"><span>Arc</span><strong>{nft.collection}</strong></div>
+        <h3>{nft.name}</h3>
+        <div className="royal-nft-price"><span>Explore this NFT</span><strong>View NFT <ArrowUpRight size={15}/></strong></div>
+      </div>
+    </Link>
+  </div>;
+}
+
+function DiscoverArcShowcaseCard({nft}:{nft:ArcDiscoverNft}){
+  const [failed,setFailed]=useState(false);
+  return <Link className="discover-showcase-card" href={`/nft/5042/${nft.contract}/${nft.tokenId}`}>
+    {!failed&&nft.videoUrl?<NftCardVideo src={nft.videoUrl} poster={nft.imageUrl} label={nft.name} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setFailed(true)}/>
+      :!failed&&nft.imageUrl?<Image src={nft.imageUrl} alt={nft.name} fill unoptimized sizes="(max-width: 700px) 85vw, 34vw" onError={()=>setFailed(true)}/>
+      :<div className="discover-showcase-fallback"><ImageIcon size={42}/></div>}
+    <span className="discover-showcase-shade"/>
+    <div className="discover-showcase-top"><span>EXPLORE NFT</span><span>Arc</span></div>
+    <div className="discover-showcase-copy"><h2>{nft.name}</h2><div><span><small>COLLECTION</small><strong>{nft.collection}</strong></span></div></div>
+  </Link>;
+}
+
 export default function Home() {
   const [listedCollections, setListedCollections] = useState<ListedCollection[]>([]);
   const [featuredNFTs, setFeaturedNFTs] = useState<IndexedListing[]>([]);
+  const [arcDiscoverNfts,setArcDiscoverNfts]=useState<ArcDiscoverNft[]>([]);
   const [randomNftsByChain,setRandomNftsByChain]=useState<Partial<Record<MarketplaceChainId,IndexedListing[]>>>({});
   const latestListings=useRef<IndexedListing[]>([]);
   const pickedKeys=useRef<Record<number,string[]>>({});
@@ -241,6 +282,26 @@ export default function Home() {
   const liveChainIds=(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live");
   const visibleChainIds=activeChain==="all"?liveChainIds:liveChainIds.filter(id=>id===activeChain);
   const visibleActivity=recentActivity.filter(item=>activeChain==="all"||item.chainId===activeChain).slice(0,6);
+
+  useEffect(()=>{
+    let active=true;
+    let lastFetch=0;
+    let hasItems=false;
+    const load=async()=>{
+      lastFetch=Date.now();
+      try{
+        const response=await fetch("/api/discover-arc");
+        if(!response.ok)return;
+        const data=await response.json() as {nfts?:ArcDiscoverNft[]};
+        if(active&&Array.isArray(data.nfts)){setArcDiscoverNfts(data.nfts);hasItems=data.nfts.length>0;}
+      }catch{/* The HOJ-listed Arc NFTs remain available when catalog discovery fails. */}
+    };
+    void load();
+    const refresh=()=>{if(!document.hidden&&Date.now()-lastFetch>=(hasItems?PICK_ROTATION_MS:5*60_000))void load();};
+    const timer=window.setInterval(refresh,60_000);
+    window.addEventListener("focus",refresh);
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",refresh);};
+  },[]);
 
   useEffect(()=>{
     try{
@@ -421,7 +482,7 @@ export default function Home() {
         <button type="submit">Search NFTs</button>
       </form>
       <section className="discover-showcase" aria-label="Featured collections">
-        {loading?<div className="discover-showcase-loading">Loading collections…</div>:visibleCollections.length===0?<div className="discover-showcase-loading">No active collections on this network yet.</div>:visibleCollections.slice(0,5).map((collection,index)=><DiscoverShowcaseCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>)}
+        {loading?<div className="discover-showcase-loading">Loading collections…</div>:visibleCollections.length?visibleCollections.slice(0,5).map((collection,index)=><DiscoverShowcaseCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>):arcDiscoverNfts.length&&(activeChain===5042||activeChain==="all")?arcDiscoverNfts.map(nft=><DiscoverArcShowcaseCard key={`${nft.contract}:${nft.tokenId}`} nft={nft}/>):<div className="discover-showcase-loading">No House of Joshi collections are listed here yet. Explore NFTs by network below.</div>}
       </section>
 
       {/* Trending Collections based on sales */}
@@ -444,7 +505,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="royal-collections-grid">
-            {visibleCollections.length === 0 && <p className="royal-market-empty">No collections have active indexed listings on this network yet.</p>}
+            {visibleCollections.length === 0 && <p className="royal-market-empty">No collections have active House of Joshi listings on this network yet.</p>}
             {visibleCollections.map((collection, index) => (
               <ListedCollectionCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>
             ))}
@@ -456,13 +517,14 @@ export default function Home() {
       {visibleChainIds.map(chainId=>{
         const chain=getMarketplaceChain(chainId);
         const nfts=randomNftsByChain[chainId]??[];
+        const arcCatalog=chainId===5042?arcDiscoverNfts.filter(item=>!nfts.some(listing=>listing.nftAddress.toLowerCase()===item.contract.toLowerCase()&&listing.tokenId===item.tokenId)).slice(0,Math.max(0,4-nfts.length)):[];
         return <section className="royal-section royal-section-alt royal-featured-section discover-network-section" key={chainId} aria-label={`${chain.name} NFTs`}>
           <div className="royal-section-header">
             <div><span className="royal-section-label">EXPLORE · {chain.name.toUpperCase()}</span><h2>{chain.name} NFTs</h2></div>
             <Link href={`/market?chainId=${chainId}`} className="royal-view-all">View {chain.name} market <ArrowUpRight size={16}/></Link>
           </div>
           {loading?<div className="royal-loading-grid">{[...Array(4)].map((_,index)=><div key={index} className="royal-skeleton-card"/>)}</div>
-            :<div className="royal-nfts-grid">{nfts.length?nfts.map(nft=><DiscoverNftCard key={`${nft.id}:${nft.legacy?"legacy":"current"}`} nft={nft} onExpand={setLightboxImage}/>):<p className="royal-market-empty">No active NFTs are available on {chain.name} right now.</p>}</div>}
+            :<div className="royal-nfts-grid">{nfts.map(nft=><DiscoverNftCard key={`${nft.id}:${nft.legacy?"legacy":"current"}`} nft={nft} onExpand={setLightboxImage}/>)}{arcCatalog.map(nft=><DiscoverArcNftCard key={`${nft.contract}:${nft.tokenId}`} nft={nft}/>)}{!nfts.length&&!arcCatalog.length&&<p className="royal-market-empty">No NFTs are available to explore on {chain.name} right now.</p>}</div>}
         </section>;
       })}
 

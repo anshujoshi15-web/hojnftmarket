@@ -12,6 +12,8 @@ export type OpenSeaNft = {
   display_animation_url?: string | null;
   original_animation_url?: string | null;
   opensea_url?: string | null;
+  is_disabled?: boolean;
+  is_nsfw?: boolean;
   traits?: Array<{ trait_type?: string | null; value?: string | number | boolean | null }>;
 };
 
