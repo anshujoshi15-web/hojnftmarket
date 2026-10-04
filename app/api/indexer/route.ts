@@ -9,6 +9,7 @@ export async function GET(request:Request){
   const query=new URL(request.url).searchParams;
   const chainId=Number(query.get("chainId")??109);
   const listingsOnly=query.get("view")==="listings";
+  const discoverOnly=query.get("view")==="discover";
   if(!isMarketplaceChainId(chainId))return Response.json({error:"Unsupported chain",configured:false,listings:[],activity:[],offers:[]},{status:400});
   const runtime=env as unknown as RuntimeEnv,config=chainConfig(runtime,chainId);
   const base={chainId,chain:config.chain.name,currency:config.chain.currency,explorerUrl:config.chain.explorerUrl};
@@ -20,6 +21,14 @@ export async function GET(request:Request){
   if(!isAddress(selected.address,{strict:false})||!/^\d+$/.test(selected.deployBlock))return Response.json({...base,configured:false,listings:[],collections:[],activity:[],offers:[],sync:null});
   try{
     const result=await loadMarketplaceIndex(selected,runtime.DB);
+    if(discoverOnly){
+      return Response.json({
+        chainId,configured:true,legacy,collections:result.collections,
+        listings:result.listings.map(({id,chainId,nftAddress,tokenId,seller,price,transactionHash,createdBlock,updatedBlock})=>({id,chainId,nftAddress,tokenId,seller,price,transactionHash,createdBlock,updatedBlock,legacy})),
+        activity:result.activity.filter(item=>item.eventType==="sold"||item.eventType==="offer_accepted").slice(0,20).map(({id,chainId,eventType,nftAddress,tokenId,seller,buyer,price,transactionHash,blockNumber,logIndex,timestamp})=>({id,chainId,eventType,nftAddress,tokenId,seller,buyer,price,transactionHash,blockNumber,logIndex,timestamp})),
+        sync:{caughtUp:result.sync.caughtUp},syncError:result.syncError,
+      },{headers:{"cache-control":"public, max-age=0, s-maxage=60, stale-while-revalidate=60"}});
+    }
     if(listingsOnly){
       return Response.json({
         chainId,

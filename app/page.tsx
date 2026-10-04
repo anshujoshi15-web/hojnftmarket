@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatEther } from "viem";
 import { getMarketplaceChain, isMarketplaceChainId, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
-import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
+import { DISCOVER_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 import { UsdEstimate } from "./components/usd-estimate";
 import { NftCardVideo } from "./components/nft-card-video";
 
@@ -116,18 +116,11 @@ function DiscoverShowcaseCard({collection,rank}:{collection:ListedCollection;ran
   </Link>;
 }
 
-function FeaturedArtwork({ listing, onExpand }: { listing: IndexedListing; onExpand: (url: string) => void }) {
+function FeaturedArtwork({ listing, media, metadataLoaded, onExpand }: { listing: IndexedListing; media:{imageUrl?:string|null;videoUrl?:string|null}|null; metadataLoaded:boolean; onExpand: (url: string) => void }) {
   const [failedUrl, setFailedUrl] = useState<string|null>(null);
-  const [media,setMedia]=useState<{imageUrl?:string|null;videoUrl?:string|null}|null>(null);
   const imageUrl = `/api/nft-image?chainId=${listing.chainId}&contract=${listing.nftAddress}&tokenId=${listing.tokenId}`;
   const artworkUrl=media?.videoUrl??media?.imageUrl??imageUrl;
-  useEffect(()=>{
-    const controller=new AbortController();
-    void fetch(`/api/nft?chainId=${listing.chainId}&contract=${listing.nftAddress}&tokenId=${listing.tokenId}`,{signal:controller.signal})
-      .then(response=>response.ok?response.json() as Promise<{imageUrl?:string|null;videoUrl?:string|null}>:null)
-      .then(setMedia).catch(()=>{});
-    return()=>controller.abort();
-  },[listing.chainId,listing.nftAddress,listing.tokenId]);
+  if(!metadataLoaded)return <div className="royal-nft-placeholder"><ImageIcon size={36} aria-label="Loading artwork"/></div>;
   return failedUrl!==artworkUrl
     ? (
       <>
@@ -159,7 +152,7 @@ function FeaturedArtwork({ listing, onExpand }: { listing: IndexedListing; onExp
 }
 
 const PICK_ROTATION_MS=2*60*60*1000;
-const nftKey=(nft:IndexedListing)=>`${nft.nftAddress.toLowerCase()}:${nft.tokenId}`;
+const nftKey=(nft:IndexedListing)=>`${nft.legacy?"legacy":"current"}:${nft.nftAddress.toLowerCase()}:${nft.tokenId}`;
 
 function randomFourNfts(listings:IndexedListing[],retained:IndexedListing[]=[]):IndexedListing[] {
   const shuffled=[...listings];
@@ -190,19 +183,21 @@ function randomFourNfts(listings:IndexedListing[],retained:IndexedListing[]=[]):
 }
 
 function DiscoverNftCard({nft,onExpand}:{nft:IndexedListing;onExpand:(url:string)=>void}){
-  const [metadata,setMetadata]=useState<{name?:string|null;collection?:string|null}|null>(null);
+  const [metadata,setMetadata]=useState<{name?:string|null;collection?:string|null;imageUrl?:string|null;videoUrl?:string|null}|null>(null);
+  const [metadataLoaded,setMetadataLoaded]=useState(false);
   const chain=getMarketplaceChain(nft.chainId);
   const href=`/nft/${nft.chainId}/${nft.nftAddress}/${nft.tokenId}${nft.legacy?"?legacy=1":""}`;
   useEffect(()=>{
     const controller=new AbortController();
+    queueMicrotask(()=>setMetadataLoaded(false));
     void fetch(`/api/nft?chainId=${nft.chainId}&contract=${nft.nftAddress}&tokenId=${nft.tokenId}`,{signal:controller.signal})
-      .then(response=>response.ok?response.json() as Promise<{name?:string|null;collection?:string|null}>:null)
-      .then(setMetadata).catch(()=>{});
+      .then(response=>response.ok?response.json() as Promise<{name?:string|null;collection?:string|null;imageUrl?:string|null;videoUrl?:string|null}>:null)
+      .then(data=>{setMetadata(data);setMetadataLoaded(true);}).catch(()=>{if(!controller.signal.aborted)setMetadataLoaded(true);});
     return()=>controller.abort();
   },[nft.chainId,nft.nftAddress,nft.tokenId]);
   return <div className="nft-card-with-action">
     <Link href={href} className="royal-nft-card">
-      <div className="royal-nft-image"><FeaturedArtwork listing={nft} onExpand={onExpand}/><div className="royal-nft-overlay"><span className="royal-quick-view" aria-hidden="true"><Search size={20}/></span></div></div>
+      <div className="royal-nft-image"><FeaturedArtwork listing={nft} media={metadata} metadataLoaded={metadataLoaded} onExpand={onExpand}/><div className="royal-nft-overlay"><span className="royal-quick-view" aria-hidden="true"><Search size={20}/></span></div></div>
       <div className="royal-nft-info">
         <div className="royal-nft-collection"><span>{chain.name}</span><strong>{metadata?.collection??shortAddress(nft.nftAddress)}</strong></div>
         <h3>{metadata?.name??`Token #${nft.tokenId}`}</h3>
@@ -297,6 +292,8 @@ export default function Home() {
     const responses = new Map<string, IndexerResponse>();
     const liveChains = (Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[])
       .filter(chainId => marketplaceChains[chainId].marketplaceStatus === "live");
+    const feeds:Array<{chainId:MarketplaceChainId;legacy:boolean}>=liveChains.map(chainId=>({chainId,legacy:false}));
+    feeds.push({chainId:5042,legacy:true});
 
     function renderMarketplaceData() {
         if (!mounted) return;
@@ -308,7 +305,7 @@ export default function Home() {
             if (!data.configured) return;
             allListings.push(...data.listings);
             allActivity.push(...data.activity);
-            for (const collection of data.legacy?[]:data.collections ?? []) {
+            for (const collection of data.collections ?? []) {
               collections.push({
                 address: collection.nftAddress,
                 sampleTokenId: collection.sampleTokenId,
@@ -364,11 +361,13 @@ export default function Home() {
         if (allListings.length || collections.length) setLoading(false);
     }
 
+    let cacheFresh=false;
     try {
       const cached = JSON.parse(window.sessionStorage.getItem("hoj-discover-listings") ?? "null") as {at:number;data:IndexerResponse[]}|null;
-      if (cached && Date.now() - cached.at < 60_000 && Array.isArray(cached.data)) {
-        cached.data.forEach(data => { if (liveChains.includes(data.chainId)&&!data.legacy) responses.set(`${data.chainId}:current`, data); });
+      if (cached && Date.now() - cached.at < DISCOVER_REFRESH_INTERVAL && Array.isArray(cached.data)) {
+        cached.data.forEach(data => { if (liveChains.includes(data.chainId)) responses.set(`${data.chainId}:${data.legacy?"legacy":"current"}`, data); });
         if (responses.size) renderMarketplaceData();
+        cacheFresh=feeds.every(feed=>responses.has(`${feed.chainId}:${feed.legacy?"legacy":"current"}`));
       }
     } catch { /* A fresh network read will replace an unavailable snapshot. */ }
 
@@ -376,15 +375,13 @@ export default function Home() {
       if (refreshing) { if (onlyChainId !== undefined) refreshAgain = true; return; }
       refreshing = true;
       try {
-      await Promise.allSettled(liveChains.filter(chainId => onlyChainId === undefined || chainId === onlyChainId).map(async chainId => {
+      await Promise.allSettled(feeds.filter(feed => onlyChainId === undefined || feed.chainId === onlyChainId).map(async ({chainId,legacy}) => {
         try {
-        const res = await fetch(`/api/indexer?chainId=${chainId}`);
+        const res = await fetch(`/api/indexer?chainId=${chainId}&view=discover${legacy?"&legacy=1":""}`);
         const data = await res.json() as IndexerResponse;
         if (!mounted) return;
         if (!res.ok) return;
-        responses.set(`${chainId}:current`, data);
-        renderMarketplaceData();
-        responses.delete(`${chainId}:legacy`);
+        responses.set(`${chainId}:${legacy?"legacy":"current"}`, data);
         renderMarketplaceData();
         try { window.sessionStorage.setItem("hoj-discover-listings", JSON.stringify({at:Date.now(),data:[...responses.values()]})); }
         catch { /* Keep the current view when storage is unavailable. */ }
@@ -394,9 +391,10 @@ export default function Home() {
       } finally { refreshing = false; if (refreshAgain && mounted) { refreshAgain = false; void loadMarketplaceData(); } }
     }
 
-    void loadMarketplaceData();
-    const timer = window.setInterval(() => { if (!document.hidden) void loadMarketplaceData(); }, MARKETPLACE_REFRESH_INTERVAL);
-    const onFocus = () => { if (!document.hidden) void loadMarketplaceData(); };
+    if(!cacheFresh)void loadMarketplaceData();
+    let lastRefresh=Date.now();
+    const timer = window.setInterval(() => { if (!document.hidden) {lastRefresh=Date.now();void loadMarketplaceData();} }, DISCOVER_REFRESH_INTERVAL);
+    const onFocus = () => { if (!document.hidden&&Date.now()-lastRefresh>=DISCOVER_REFRESH_INTERVAL) {lastRefresh=Date.now();void loadMarketplaceData();} };
     window.addEventListener("focus", onFocus);
     const unsubscribe = onMarketplaceUpdate(chainId => { void loadMarketplaceData(chainId); });
     return () => { mounted = false; window.clearInterval(timer); window.removeEventListener("focus", onFocus); unsubscribe(); };

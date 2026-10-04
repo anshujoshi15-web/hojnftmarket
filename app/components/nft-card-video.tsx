@@ -20,7 +20,7 @@ export function NftCardVideo({ src, poster, label, className, style, onError }: 
     style={style}
     muted
     playsInline
-    preload="metadata"
+    preload={poster ? "none" : "metadata"}
     onLoadedMetadata={event => {
       if (poster) return;
       const video = event.currentTarget;
