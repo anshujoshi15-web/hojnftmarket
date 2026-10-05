@@ -4,12 +4,12 @@ import { DatabaseSync } from "node:sqlite";
 import { encodeAbiParameters, encodeEventTopics, parseEther } from "viem";
 import { loadModule } from "./load-module.mjs";
 const {marketplaceAbi,parseNativeAmount}=await loadModule("lib/marketplace-abi.ts");
-const {decodeMarketplaceLogs,replayEvents,eventStatements,rangeLogs,indexClient}=await loadModule("lib/marketplace-index.ts");
+const {decodeMarketplaceLogs,replayEvents,eventStatements,rangeLogs,indexClient,loadMarketplaceIndex,explorerLogs}=await loadModule("lib/marketplace-index.ts");
 const {sortActivity}=await loadModule("lib/activity-sort.ts");
 const {confirmedReceipt}=await loadModule("lib/transaction-receipt.ts");
 const seller="0x1111111111111111111111111111111111111111",buyer="0x2222222222222222222222222222222222222222",nft="0x3333333333333333333333333333333333333333";
 const hash=`0x${"ab".repeat(32)}`;
-test("Base index scans prefer PublicNode over the range-limited public gateway",async()=>{
+test("Base index scans prefer the historical provider over recent-only PublicNode",async()=>{
   const originalFetch=globalThis.fetch;
   const urls=[];
   globalThis.fetch=async(url,options)=>{
@@ -20,7 +20,7 @@ test("Base index scans prefer PublicNode over the range-limited public gateway",
   try{
     const client=indexClient({chain:{id:8453},rpcUrl:"https://base-rpc.publicnode.com"});
     assert.equal(await client.getBlockNumber({cacheTime:0}),16n);
-    assert.deepEqual(urls.map(url=>new URL(url).origin),["https://base-rpc.publicnode.com"]);
+    assert.deepEqual(urls.map(url=>new URL(url).origin),["https://base.gateway.tenderly.co"]);
   }finally{globalThis.fetch=originalFetch;}
 });
 function log(eventName,args,index){
@@ -44,6 +44,50 @@ test("range-limited RPC scans include logs from both halves",async()=>{
   const result=await rangeLogs(client,seller,1,8);
   assert.equal(result.through,8);
   assert.deepEqual(result.logs.map(item=>Number(BigInt(item.blockNumber))),[1,2,3,4,5,6,7,8]);
+});
+test("stateless indexing scans from deployment even beyond the old recent-block window",async()=>{
+  const originalFetch=globalThis.fetch;
+  const ranges=[];
+  globalThis.fetch=async(url,options)=>{
+    const request=JSON.parse(options.body);
+    if(request.method==="eth_getLogs")ranges.push(request.params[0]);
+    return Response.json({jsonrpc:"2.0",id:request.id,result:request.method==="eth_blockNumber"?"0x400000":[]});
+  };
+  try{
+    const result=await loadMarketplaceIndex({chain:{id:4663,confirmations:12},address:seller,deployBlock:"1",rpcUrl:"https://indexer-test.invalid"});
+    assert.equal(ranges[0].fromBlock,"0x1");
+    assert.equal(ranges[0].toBlock,"0x400000");
+    assert.equal(result.sync.caughtUp,true);
+  }finally{globalThis.fetch=originalFetch;}
+});
+test("split scans checkpoint completed ranges before a later provider failure",async()=>{
+  const completed=[];
+  const client={request:async({params})=>{
+    const start=Number(BigInt(params[0].fromBlock)),end=Number(BigInt(params[0].toBlock));
+    if(end-start+1>2)throw new Error("requested range too large");
+    if(start>2)throw new Error("provider unavailable");
+    return [];
+  }};
+  await assert.rejects(()=>rangeLogs(client,seller,1,4,async(logs,through)=>{completed.push(through);}),/provider unavailable/);
+  assert.deepEqual(completed,[2]);
+});
+test("explorer history follows every page and excludes unindexed or out-of-range blocks",async()=>{
+  const originalFetch=globalThis.fetch;
+  const requests=[];
+  const item=(block,index)=>({block_number:block,index,topics:[],data:"0x",transaction_hash:hash,block_timestamp:"2026-10-05T00:00:00Z"});
+  globalThis.fetch=async input=>{
+    const url=new URL(input);requests.push(url);
+    if(url.pathname.endsWith("/blocks"))return Response.json({items:[{height:100}]});
+    if(url.searchParams.has("index"))return Response.json({items:[item(50,1),item(9,0)],next_page_params:null});
+    return Response.json({items:[item(101,3),item(100,2)],next_page_params:{index:2,block_number:100}});
+  };
+  try{
+    const result=await explorerLogs("https://explorer-test.invalid/api/v2",seller,10,110);
+    assert.equal(result.through,100);
+    assert.deepEqual(result.logs.map(log=>Number(BigInt(log.blockNumber))),[100,50]);
+    assert.equal(requests.length,3);
+    assert.equal(requests[2].searchParams.get("index"),"2");
+  }finally{globalThis.fetch=originalFetch;}
 });
 test("rate-limited log reads retry the same range without splitting it",async()=>{
   let calls=0;

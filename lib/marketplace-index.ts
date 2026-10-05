@@ -11,7 +11,7 @@ export type D1Database = {
   prepare: (query: string) => D1PreparedStatement;
   batch: (statements: D1PreparedStatement[]) => Promise<Array<{ results: Record<string, unknown>[] }>>;
 };
-export type RpcLog = { data: Hex; topics: [] | [Hex, ...Hex[]]; blockNumber: Hex; transactionHash: Hex; logIndex: Hex };
+export type RpcLog = { data: Hex; topics: [] | [Hex, ...Hex[]]; blockNumber: Hex; transactionHash: Hex; logIndex: Hex; timestamp?:number };
 export type Listing = {
   id: string; chainId: number; nftAddress: Address; tokenId: string; seller: Address;
   price: string; transactionHash: Hex; createdBlock: number; updatedBlock: number;
@@ -40,7 +40,7 @@ export function decodeMarketplaceLogs(chainId: number, logs: RpcLog[]): Activity
       eventType: "", nftAddress: null, tokenId: null, seller: null, buyer: null, price: null,
       marketplaceFee: null, royaltyRecipient: null, royaltyAmount: null,
       transactionHash: log.transactionHash, blockNumber: Number(BigInt(log.blockNumber)),
-      logIndex: Number(BigInt(log.logIndex)), timestamp: 0,
+      logIndex: Number(BigInt(log.logIndex)), timestamp: log.timestamp??0,
     };
     switch (decoded.eventName) {
       case "EditionOfferMade": {
@@ -149,6 +149,9 @@ export function indexClient(config:Config){
   // indexer's historical ranges, even though ordinary eth_call reads work.
   const dedicatedFirst=config.chain.id===137&&!!config.fallbackRpcUrl;
   const transports=dedicatedFirst?[http(config.fallbackRpcUrl!,{timeout:12_000,retryCount:1}),primary]:[primary];
+  // PublicNode requires a token for older Base logs. Tenderly's public endpoint
+  // serves historical ranges up to 1,000 blocks; rangeLogs splits accordingly.
+  if(config.chain.id===8453&&rpcUrl==="https://base-rpc.publicnode.com")transports.unshift(http("https://base.gateway.tenderly.co",{timeout:12_000,retryCount:1}));
   if(rpcUrl!==config.rpcUrl&&config.chain.id!==8453)transports.push(http(config.rpcUrl,{timeout:12_000,retryCount:1}));
   // Prefer PublicNode for Base log scans: mainnet.base.org caps ranges at
   // 500 blocks, causing recursive scans to exhaust its public rate limit.
@@ -157,7 +160,7 @@ export function indexClient(config:Config){
   // Arcscan's former fallback returns HTTP 530. Keep Arc on its configured
   // provider so rate-limit errors remain visible to the retry logic.
   if(config.fallbackRpcUrl&&!dedicatedFirst&&config.chain.id!==8453)transports.push(http(config.fallbackRpcUrl,{timeout:12_000,retryCount:1}));
-  const transport=transports.length>1?fallback(transports,{shouldThrow:()=>false}):primary;
+  const transport=transports.length>1?fallback(transports,{shouldThrow:error=>isRangeLimited(error)}):primary;
   return createPublicClient({transport});
 }
 
@@ -208,7 +211,8 @@ export function eventStatements(db:D1Database,scope:string,events:Activity[]){
   return statements;
 }
 
-const CHUNK_SIZE=8_000, BASE_CHUNK_SIZE=2_000, MAX_CHUNKS=8, MAX_STATELESS_CHUNKS=256;
+const CHUNK_SIZE=8_000, BASE_CHUNK_SIZE=2_000, MAX_CHUNKS=8;
+const isRangeLimited=(error:unknown)=>/range|too many.*(?:logs|results)|response size|limit.*block|maximum.*block|query.*exceed/i.test(String(error))&&!isRateLimited(error);
 const isRateLimited=(error:unknown)=>/429|rate limit|too many requests|compute units/i.test(String(error));
 const isContractRevert=(error:unknown)=>error instanceof BaseError&&error.walk(cause=>cause instanceof ContractFunctionRevertedError) instanceof ContractFunctionRevertedError;
 const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -216,8 +220,8 @@ async function withRateLimitRetry<T>(read:()=>Promise<T>):Promise<T>{
   for(let attempt=0;;attempt++){
     try{return await read();}
     catch(error){
-      if(!isRateLimited(error)||attempt===2)throw error;
-      await wait(600*2**attempt);
+      if(!isRateLimited(error)||attempt===4)throw error;
+      await wait(2_000*2**attempt);
     }
   }
 }
@@ -230,23 +234,61 @@ async function withVerificationRetry<T>(read:()=>Promise<T>):Promise<T>{
     }
   }
 }
-export async function rangeLogs(client:ReturnType<typeof indexClient>,address:Address,start:number,end:number):Promise<{logs:RpcLog[];through:number}> {
+export async function rangeLogs(client:ReturnType<typeof indexClient>,address:Address,start:number,end:number,onRange?:(logs:RpcLog[],through:number)=>Promise<void>):Promise<{logs:RpcLog[];through:number}> {
+  if(start>end)return {logs:[],through:end};
   try {
     const logs=await withRateLimitRetry(()=>client.request({method:"eth_getLogs",params:[{address,fromBlock:`0x${start.toString(16)}`,toBlock:`0x${end.toString(16)}`}]}) as Promise<RpcLog[]>);
+    await onRange?.(logs,end);
     return {logs,through:end};
   } catch(error) {
     // Retry only range/result-size errors, never turn authentication or throttling
     // failures into hundreds of additional requests. No cursor advances on error.
-    if(end===start||isRateLimited(error)||!/range|too many|response size|limit.*block|maximum.*block|query.*exceed/i.test(String(error)))throw error;
+    if(end===start||!isRangeLimited(error))throw error;
+    const maximum=Number(String(error).match(/maximum\s+(\d[\d,]*)\s+blocks/i)?.[1]?.replaceAll(",",""));
+    if(maximum>0&&maximum<end-start+1){
+      const logs:RpcLog[]=[];
+      for(let from=start;from<=end;from+=maximum){
+        const result=await rangeLogs(client,address,from,Math.min(from+maximum-1,end),onRange);
+        logs.push(...result.logs);
+      }
+      return {logs,through:end};
+    }
     const middle=Math.floor((start+end)/2);
     // Some RPCs cap eth_getLogs to fewer blocks than CHUNK_SIZE. Read both
     // halves so a stateless request does not repeatedly stop at the first cap.
-    const first=await rangeLogs(client,address,start,middle);
-    const second=await rangeLogs(client,address,middle+1,end);
+    const first=await rangeLogs(client,address,start,middle,onRange);
+    const second=await rangeLogs(client,address,middle+1,end,onRange);
     return {logs:[...first.logs,...second.logs],through:end};
   }
 }
 const pending=new Map<string,Promise<Awaited<ReturnType<typeof buildIndex>>>>();
+export async function explorerLogs(baseUrl:string,address:string,start:number,end:number,apiKey?:string){
+  async function read(url:URL){
+    if(apiKey)url.searchParams.set("apikey",apiKey);
+    const response=await fetch(url,{signal:AbortSignal.timeout(12_000)});
+    if(!response.ok)throw new Error("Explorer log history unavailable");
+    return response.json() as Promise<{items?:Array<{height?:number;block_number:number;index:number;topics:Array<Hex|null>;transaction_hash:Hex;data:Hex;block_timestamp:string}>;next_page_params?:Record<string,string|number>|null}>;
+  }
+  const head=await read(new URL(`${baseUrl}/blocks?type=block`));
+  const height=head.items?.[0]?.height;
+  if(height===undefined||!Number.isSafeInteger(height))throw new Error("Explorer height unavailable");
+  const through=Math.min(end,height),logs:RpcLog[]=[],seen=new Set<string>();
+  let cursor:Record<string,string|number>|null=null;
+  do{
+    const url=new URL(`${baseUrl}/addresses/${address}/logs`);
+    for(const [key,value] of Object.entries(cursor??{}))url.searchParams.set(key,String(value));
+    const page=await read(url);
+    if(!Array.isArray(page.items))throw new Error("Explorer log history malformed");
+    for(const item of page.items){
+      if(!Number.isSafeInteger(item.block_number)||!Number.isSafeInteger(item.index)||!Array.isArray(item.topics)||!item.transaction_hash||!item.data)throw new Error("Explorer log malformed");
+      if(item.block_number<start||item.block_number>through)continue;
+      logs.push({data:item.data,topics:item.topics.filter(Boolean) as RpcLog["topics"],blockNumber:`0x${item.block_number.toString(16)}`,logIndex:`0x${item.index.toString(16)}`,transactionHash:item.transaction_hash,timestamp:Math.floor(Date.parse(item.block_timestamp)/1000)||0});
+    }
+    cursor=page.next_page_params??null;
+    if(cursor){const key=JSON.stringify(cursor);if(seen.has(key))throw new Error("Explorer pagination did not advance");seen.add(key);}
+  }while(cursor);
+  return {logs,through};
+}
 const statelessSnapshots=new Map<string,{fromBlock:number;through:number;events:Activity[]}>();
 export async function loadMarketplaceIndex(config:Config,db?:D1Database){
   const scope=`marketplace:v3:${config.chain.id}:${config.address.toLowerCase()}`;
@@ -276,7 +318,9 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
   // listings and sales immediately and self-correct after a reorg.
   const safeLatest=Math.max(0,Number(await withRateLimitRetry(()=>client.getBlockNumber()))-(db?config.chain.confirmations:0));
   const deployBlock=Number(config.deployBlock);
-  let start=Math.max(deployBlock,safeLatest-chunkSize*MAX_STATELESS_CHUNKS+1);
+  // Always begin at deployment: a recent-block window loses older NFTs that
+  // remain listed. Warm snapshots resume historical scans without discarding them.
+  let start=deployBlock;
   if(db){await schema(db);const state=await db.prepare("SELECT last_block AS lastBlock FROM indexer_state WHERE id=?").bind(scope).first<{lastBlock:number}>();start=Math.max(deployBlock,(state?.lastBlock??deployBlock-1)+1);}
   const fromBlock=start, events:Activity[]=[];
   if(!db){
@@ -289,18 +333,35 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
     }
   }
   let chunks=0,logsProcessed=0;
+  let scanError:string|null=null;
   if(!db){
-    const ranges:Array<[number,number]>=[];
-    for(let from=start;from<=safeLatest&&ranges.length<MAX_STATELESS_CHUNKS;from+=chunkSize)
-      ranges.push([from,Math.min(from+chunkSize-1,safeLatest)]);
-    const results=await mapLimit(ranges,rpcConcurrency,async([from,to])=>rangeLogs(client,address,from,to));
-    const decoded=results.flatMap(result=>decodeMarketplaceLogs(chainId,result.logs));
-    const times=new Map<number,number>();
-    await mapLimit([...new Set(decoded.map(e=>e.blockNumber))],rpcConcurrency,async block=>{times.set(block,Number((await withRateLimitRetry(()=>client.getBlock({blockNumber:BigInt(block)}))).timestamp));});
-    decoded.forEach(e=>{e.timestamp=times.get(e.blockNumber)!;});
-    events.push(...decoded);
-    logsProcessed=results.reduce((sum,result)=>sum+result.logs.length,0);
-    start=results.length?results[results.length-1].through+1:start;
+    try{
+      // Try a full historical range first. Providers with range caps are split
+      // by rangeLogs; providers accepting broad ranges avoid hundreds of reads.
+      const recordRange=async(logs:RpcLog[],through:number)=>{
+        const decoded=decodeMarketplaceLogs(chainId,logs);
+        const times=new Map<number,number>();
+        await mapLimit([...new Set(decoded.filter(e=>!e.timestamp).map(e=>e.blockNumber))],rpcConcurrency,async block=>{times.set(block,Number((await withRateLimitRetry(()=>client.getBlock({blockNumber:BigInt(block)}))).timestamp));});
+        decoded.forEach(e=>{e.timestamp=e.timestamp||times.get(e.blockNumber)!;});
+        events.push(...decoded);
+        logsProcessed+=logs.length;
+        start=through+1;
+        statelessSnapshots.set(scope,{fromBlock,through,events:[...events]});
+        // Space Arc's capped reads rather than exhausting the public provider.
+        if(chainId===5042&&through<safeLatest)await wait(1_000);
+      };
+      if(chainId===8453||chainId===5042&&config.chain.explorerApiKey){
+        // Paginated explorer history avoids archive restrictions and thousands
+        // of tiny RPC log requests. Every resulting listing is still checked onchain.
+        const result=await explorerLogs(config.chain.explorerApiUrl,address,start,safeLatest,config.chain.explorerApiKey);
+        await recordRange(result.logs,result.through);
+        if(result.through<safeLatest)scanError=`Explorer history is ${safeLatest-result.through} blocks behind the network. Listings are complete through block ${result.through}; newer activity is still syncing.`;
+      }else await rangeLogs(client,address,start,safeLatest,recordRange);
+    }catch(error){
+      // Never turn a provider outage into an empty successful marketplace.
+      if(!events.length)throw error;
+      scanError="Historical indexing was interrupted. Previously indexed listings are being checked; retry to finish syncing.";
+    }
   }else while(start<=safeLatest&&chunks++<MAX_CHUNKS){
     const {logs,through:end}=await rangeLogs(client,address,start,Math.min(start+chunkSize-1,safeLatest));
     const decoded=decodeMarketplaceLogs(chainId,logs as RpcLog[]);
@@ -349,5 +410,5 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
   });
   const active=verified.filter((item):item is Listing=>item!==null).sort((a,b)=>b.updatedBlock-a.updatedBlock);
   const caughtUp=start>safeLatest&&(!!db||fromBlock===deployBlock);
-  return {listings:active,collections:summarizeCollections(chainId,active),offers,activity:activity.sort((a,b)=>b.timestamp-a.timestamp||b.blockNumber-a.blockNumber||b.logIndex-a.logIndex).slice(0,100),sync:{safeLatest,syncedThrough:Math.min(start-1,safeLatest),caughtUp,logsProcessed},syncError:verificationFailed?"Some listings could not be verified and are hidden. Please retry.":!caughtUp?"Indexing is incomplete; older listings and offers may not appear yet.":null};
+  return {listings:active,collections:summarizeCollections(chainId,active),offers,activity:activity.sort((a,b)=>b.timestamp-a.timestamp||b.blockNumber-a.blockNumber||b.logIndex-a.logIndex).slice(0,100),sync:{safeLatest,syncedThrough:Math.min(start-1,safeLatest),caughtUp,logsProcessed},syncError:verificationFailed?"Some listings could not be verified and are hidden. Please retry.":scanError??(!caughtUp?"Indexing is incomplete; older listings and offers may not appear yet.":null)};
 }

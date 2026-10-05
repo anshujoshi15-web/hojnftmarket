@@ -37,7 +37,7 @@ function removePurchasedFromCart(chainId:MarketplaceChainId, purchasedIds:string
 
 function useIndexer(chainId:MarketplaceChainId,legacy=false) {
   const chain=getMarketplaceChain(chainId);
-  const fallback=useMemo<IndexerData>(()=>({chainId,chain:chain.name,currency:chain.currency,explorerUrl:chain.explorerUrl,configured:false,listings:[],activity:[]}),[chainId,chain]);
+  const fallback=useMemo<IndexerData>(()=>({chainId,chain:chain.name,currency:chain.currency,explorerUrl:chain.explorerUrl,configured:chain.marketplaceStatus==="live",marketplaceAddress:legacy?undefined:chain.marketplaceAddress||undefined,listings:[],activity:[]}),[chainId,chain,legacy]);
   const [data,setData] = useState<IndexerData>(fallback);
   const [loading,setLoading] = useState(true);
   const pendingChains=useRef(new Set<number>());
@@ -47,7 +47,7 @@ function useIndexer(chainId:MarketplaceChainId,legacy=false) {
   const refresh=useCallback(async function refresh(force=false) {
     if(pendingChains.current.has(chainId)){if(force)queuedChains.current.add(chainId);return;}
     pendingChains.current.add(chainId);
-    try { const response=await fetch(`/api/indexer?chainId=${chainId}${legacy?"&legacy=1":""}`); const body=await response.json() as IndexerData;if(!response.ok)throw new Error("Indexer unavailable");if(selectedChain.current===chainId)setData(body); }
+    try { const response=await fetch(`/api/indexer?chainId=${chainId}${legacy?"&legacy=1":""}`); const body=await response.json() as IndexerData;if(!response.ok)throw new Error(body.syncError??"Listings could not be loaded. Please retry.");if(selectedChain.current===chainId)setData(body); }
     catch(error){if(selectedChain.current===chainId)setData(current=>({...(current.chainId===chainId&&current.configured?current:fallback),syncError:error instanceof Error?error.message:"Indexer temporarily unavailable"}));}
     finally { pendingChains.current.delete(chainId); if(selectedChain.current===chainId)setLoading(false); if(queuedChains.current.delete(chainId))void refresh(); }
   },[chainId,fallback,legacy]);
@@ -152,6 +152,7 @@ export function Portal({ view,legacy=false }: { view:View;legacy?:boolean }) {
   return <main className={`royal-portal-page royal-portal-${view}`}>
     <section className="royal-portal-hero"><label>Browse network <select value={selectedChainId} disabled={transaction.pending} onChange={event=>setSelectedChainId(Number(event.target.value) as MarketplaceChainId)}>{Object.values(marketplaceChains).map(network=><option key={network.id} value={network.id}>{network.name} · {network.currency}</option>)}</select></label><Link href="/" className="royal-back-link"><ArrowLeft size={14}/> House of Joshi</Link><span className="royal-section-no">{section}</span><h1>{title}</h1><p>{description}</p></section>
     {(data.syncError||data.configured&&!data.sync?.caughtUp)&&<p className="royal-index-warning" role="status">{data.syncError??"Marketplace history is still syncing; some listings and offers may be missing."}</p>}
+    {view==="market"&&<nav className="profile-management"><Link href={`/market?chainId=${selectedChainId}`}>Current listings</Link><Link href={`/legacy?chainId=${selectedChainId}`}>Earlier marketplace listings</Link>{data.syncError&&<button type="button" onClick={()=>void refresh(true)}>Retry listings</button>}</nav>}
     <fieldset className="royal-transaction-fields royal-portal-content" disabled={transaction.pending}>
       {view==="market"&&<MarketView key={selectedChainId} data={data} loading={loading} account={address} advancedMarketplace={advancedMarketplace} legacy={legacy} onBuy={buy} onBatchBuy={batchBuy} onOffer={makeOffer} onCancel={cancel}/>}
       {view==="activity"&&<ActivityView items={data.activity} loading={loading}/>}
@@ -213,7 +214,7 @@ function MarketView({data,loading,account,advancedMarketplace,legacy,onBuy,onBat
         <div className="price-filter-note">Prices shown in {data.currency}</div>
       </aside>}
       <section className="market-results">
-        {shown.length?<div className="market-listings-grid">{shown.map(item=><MarketListingCard key={item.id} item={item} currency={data.currency} chain={data.chain} legacy={legacy} account={account} onBuy={()=>onBuy(item)} inCart={cartIds.includes(item.id)} onToggleCart={()=>toggleCart(item)}/>)}</div>:<div className="market-no-results"><Search size={24}/><h2>{loading?"Loading listings…":data.configured?data.listings.length?"No matching NFTs":"No active listings on this network":`${data.chain} marketplace coming soon`}</h2><p>{loading?"Reading the latest marketplace listings.":data.syncError??(data.listings.length?"Try a different search or collection filter.":data.configured?"Choose another network or check back when an owner lists an NFT.":"Trading will open after the marketplace contract is deployed.")}</p>{data.listings.length>0&&<button onClick={()=>{setSearch("");setCollection("all")}}>Clear filters</button>}</div>}
+        {shown.length?<div className="market-listings-grid">{shown.map(item=><MarketListingCard key={item.id} item={item} currency={data.currency} chain={data.chain} legacy={legacy} account={account} onBuy={()=>onBuy(item)} inCart={cartIds.includes(item.id)} onToggleCart={()=>toggleCart(item)}/>)}</div>:<div className="market-no-results"><Search size={24}/><h2>{loading?"Loading listings…":data.syncError?"Listings could not be fully loaded":data.configured?data.listings.length?"No matching NFTs":"No active listings on this network":getMarketplaceChain(data.chainId).marketplaceStatus==="live"?`${data.chain} listings unavailable`:`${data.chain} marketplace coming soon`}</h2><p>{loading?"Reading the latest marketplace listings.":data.syncError??(data.listings.length?"Try a different search or collection filter.":data.configured?"Choose another network or check back when an owner lists an NFT.":getMarketplaceChain(data.chainId).marketplaceStatus==="live"?"Marketplace configuration could not be loaded. Please retry.":"Trading will open after the marketplace contract is deployed.")}</p>{data.listings.length>0&&<button onClick={()=>{setSearch("");setCollection("all")}}>Clear filters</button>}</div>}
       </section>
     </div>
     {cartOpen&&<CartDrawer items={cart} currency={data.currency} account={account} total={cartTotal} batchSupported={advancedMarketplace} onClose={()=>setCartOpen(false)} onRemove={item=>toggleCart(item)} onBuy={onBuy} onBatchBuy={()=>onBatchBuy(cart)}/>}

@@ -5,6 +5,7 @@ import { chainConfig, legacyChainConfig, type RuntimeEnv } from "@/lib/server-ma
 import { loadMarketplaceIndex } from "@/lib/marketplace-index";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 export async function GET(request:Request){
   const query=new URL(request.url).searchParams;
   const chainId=Number(query.get("chainId")??109);

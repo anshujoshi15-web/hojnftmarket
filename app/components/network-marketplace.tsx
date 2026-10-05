@@ -31,13 +31,12 @@ export function NetworkMarketplace({ chainId }: { chainId: MarketplaceChainId })
       if (refreshing) return;
       refreshing = true;
       try {
-        const feeds=chainId===5042?[false,true]:[false];
+        const feeds=[false,true];
         await Promise.allSettled(feeds.map(async legacy=>{
           const response=await fetch(`/api/indexer?chainId=${chainId}&view=discover${legacy?"&legacy=1":""}`);
           if(!response.ok)return;
           const data=await response.json() as ChainData;
           if(active)setChainData(previous=>{
-            if(chainId!==5042)return data;
             const retained=previous?.chainId===chainId?previous:null;
             return {...data,listings:[...(retained?.listings??[]).filter(item=>Boolean(item.legacy)!==legacy),...data.listings],activity:[...(retained?.activity??[]),...data.activity].filter((event,index,events)=>events.findIndex(other=>other.id===event.id)===index)};
           });

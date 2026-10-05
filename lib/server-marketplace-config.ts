@@ -2,6 +2,7 @@ import { isAddress } from "viem";
 import { getMarketplaceChain, type MarketplaceChainId } from "./marketplace-chains";
 import type { D1Database } from "./marketplace-index";
 export type RuntimeEnv = {
+  BLOCKSCOUT_API_KEY?: string;
   ALCHEMY_API_KEY?: string;
   OPENSEA_API_KEY?: string;
   DB?: D1Database;
@@ -60,7 +61,7 @@ const ZORA_V7_ADDRESS="0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab";
 const ZORA_V7_DEPLOY_BLOCK="51861519";
 
 export function chainConfig(runtime: RuntimeEnv, chainId: MarketplaceChainId) {
-  const chain = getMarketplaceChain(chainId);
+  const chain = {...getMarketplaceChain(chainId),explorerApiKey:runtime.BLOCKSCOUT_API_KEY};
   const alchemyNetwork:Partial<Record<MarketplaceChainId,string>>={1:"eth-mainnet",137:"polygon-mainnet",8453:"base-mainnet"};
   const fallbackRpcUrl=runtime.ALCHEMY_API_KEY&&alchemyNetwork[chainId]?`https://${alchemyNetwork[chainId]}.g.alchemy.com/v2/${runtime.ALCHEMY_API_KEY}`:undefined;
   if (chainId === 1) return {

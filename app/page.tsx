@@ -295,7 +295,7 @@ export default function Home() {
     const liveChains = (Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[])
       .filter(chainId => marketplaceChains[chainId].marketplaceStatus === "live");
     const feeds:Array<{chainId:MarketplaceChainId;legacy:boolean}>=liveChains.map(chainId=>({chainId,legacy:false}));
-    feeds.push({chainId:5042,legacy:true});
+    feeds.push(...liveChains.map(chainId=>({chainId,legacy:true})));
 
     function renderMarketplaceData() {
         if (!mounted) return;
@@ -383,6 +383,7 @@ export default function Home() {
         const data = await res.json() as IndexerResponse;
         if (!mounted) return;
         const feedKey=`${chainId}:${legacy?"legacy":"current"}`;
+        if (legacy&&res.status===404){setFeedIssues(current=>({...current,[feedKey]:undefined}));return;}
         if (!res.ok){setFeedIssues(current=>({...current,[feedKey]:data.syncError??`${getMarketplaceChain(chainId).name} listings could not be loaded. Please retry.`}));return;}
         setFeedIssues(current=>({...current,[feedKey]:data.syncError??undefined}));
         responses.set(`${chainId}:${legacy?"legacy":"current"}`, data);
