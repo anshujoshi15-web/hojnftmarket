@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatEther } from "viem";
 import { getMarketplaceChain, isMarketplaceChainId, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
-import { DISCOVER_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
+import { announceMarketplaceUpdate, DISCOVER_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 import { UsdEstimate } from "./components/usd-estimate";
 import { NftCardVideo } from "./components/nft-card-video";
 
@@ -383,13 +383,13 @@ export default function Home() {
         const data = await res.json() as IndexerResponse;
         if (!mounted) return;
         const feedKey=`${chainId}:${legacy?"legacy":"current"}`;
-        if (!res.ok){setFeedIssues(current=>({...current,[feedKey]:"Some marketplace listings are temporarily unavailable. Please retry shortly."}));return;}
+        if (!res.ok){setFeedIssues(current=>({...current,[feedKey]:data.syncError??`${getMarketplaceChain(chainId).name} listings could not be loaded. Please retry.`}));return;}
         setFeedIssues(current=>({...current,[feedKey]:data.syncError??undefined}));
         responses.set(`${chainId}:${legacy?"legacy":"current"}`, data);
         renderMarketplaceData();
         try { window.sessionStorage.setItem("hoj-discover-listings", JSON.stringify({at:Date.now(),data:[...responses.values()]})); }
         catch { /* Keep the current view when storage is unavailable. */ }
-        } catch { if(mounted)setFeedIssues(current=>({...current,[`${chainId}:${legacy?"legacy":"current"}`]:"Marketplace listings are temporarily unavailable. Please retry shortly."})); }
+        } catch { if(mounted)setFeedIssues(current=>({...current,[`${chainId}:${legacy?"legacy":"current"}`]:`${getMarketplaceChain(chainId).name} listings could not be loaded. Please retry.`})); }
       }));
       if (mounted) setLoading(false);
       } finally { refreshing = false; if (refreshAgain && mounted) { refreshAgain = false; void loadMarketplaceData(); } }
@@ -468,6 +468,7 @@ export default function Home() {
             <div><span className="royal-section-label">EXPLORE · {chain.name.toUpperCase()}</span><h2>{chain.name} NFTs</h2></div>
             <Link href={`/market?chainId=${chainId}`} className="royal-view-all">View {chain.name} market <ArrowUpRight size={16}/></Link>
           </div>
+          {!loading&&feedIssue&&<button type="button" className="royal-view-all" onClick={()=>announceMarketplaceUpdate(chainId)}>Retry {chain.name} listings</button>}
           {loading?<div className="royal-loading-grid">{[...Array(4)].map((_,index)=><div key={index} className="royal-skeleton-card"/>)}</div>
             :<><div className="royal-nfts-grid">{nfts.map(nft=><DiscoverNftCard key={`${nft.id}:${nft.legacy?"legacy":"current"}`} nft={nft} onExpand={setLightboxImage}/>)}{!nfts.length&&<p className="royal-market-empty">{feedIssue??`No active House of Joshi listings on ${chain.name} right now.`}</p>}</div>{nfts.length>0&&feedIssue&&<p className="royal-market-empty" role="status">{feedIssue}</p>}{allNfts.length>nfts.length&&<button type="button" className="royal-view-all" onClick={()=>setVisibleCountByChain(current=>({...current,[chainId]:(current[chainId]??4)+12}))}>Show more {chain.name} NFTs ({nfts.length} of {allNfts.length}) <ArrowUpRight size={16}/></button>}</>}
         </section>;

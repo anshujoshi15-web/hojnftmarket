@@ -143,18 +143,19 @@ type Config = ReturnType<typeof chainConfig>;
 export function indexClient(config:Config){
   // Cronos's default RPC limits log requests to 2,000 blocks. PublicNode
   // accepts the indexer's 8,000-block ranges, including the older V7 market.
-  const rpcUrl=config.chain.id===25&&config.rpcUrl==="https://evm.cronos.org"?"https://cronos-evm-rpc.publicnode.com":config.chain.id===8453&&config.rpcUrl==="https://base-rpc.publicnode.com"?"https://mainnet.base.org":config.rpcUrl;
+  const rpcUrl=config.chain.id===25&&config.rpcUrl==="https://evm.cronos.org"?"https://cronos-evm-rpc.publicnode.com":config.rpcUrl;
   const primary=http(rpcUrl,{timeout:12_000,retryCount:1});
   // Alchemy's free tier limits eth_getLogs to 10 blocks. It cannot serve this
   // indexer's historical ranges, even though ordinary eth_call reads work.
   const dedicatedFirst=config.chain.id===137&&!!config.fallbackRpcUrl;
   const transports=dedicatedFirst?[http(config.fallbackRpcUrl!,{timeout:12_000,retryCount:1}),primary]:[primary];
   if(rpcUrl!==config.rpcUrl&&config.chain.id!==8453)transports.push(http(config.rpcUrl,{timeout:12_000,retryCount:1}));
+  // Prefer PublicNode for Base log scans: mainnet.base.org caps ranges at
+  // 500 blocks, causing recursive scans to exhaust its public rate limit.
+  if(config.chain.id===8453&&rpcUrl!=="https://base-rpc.publicnode.com")transports.push(http("https://base-rpc.publicnode.com",{timeout:12_000,retryCount:1}));
   if(config.chain.id===8453&&rpcUrl!=="https://mainnet.base.org")transports.push(http("https://mainnet.base.org",{timeout:12_000,retryCount:1}));
-  // Arc's primary public endpoint can throttle log scans even at modest volume.
-  // Arcscan's independent public gateway serves the same mainnet and log history.
-  if(config.chain.id===5042&&config.rpcUrl!=="https://rpc.arc-scan.org")
-    transports.push(http("https://rpc.arc-scan.org",{timeout:12_000,retryCount:1}));
+  // Arcscan's former fallback returns HTTP 530. Keep Arc on its configured
+  // provider so rate-limit errors remain visible to the retry logic.
   if(config.fallbackRpcUrl&&!dedicatedFirst&&config.chain.id!==8453)transports.push(http(config.fallbackRpcUrl,{timeout:12_000,retryCount:1}));
   const transport=transports.length>1?fallback(transports,{shouldThrow:()=>false}):primary;
   return createPublicClient({transport});
@@ -269,7 +270,7 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
       ],{shouldThrow:()=>false})})
     : client;
   const chunkSize=chainId===8453?BASE_CHUNK_SIZE:CHUNK_SIZE;
-  const rpcConcurrency=chainId===8453?1:chainId===137?2:6;
+  const rpcConcurrency=chainId===8453||chainId===5042?1:chainId===137?2:6;
   // A durable index keeps a confirmation buffer before committing events. The
   // stateless path replays its window on every read, so it can show mined
   // listings and sales immediately and self-correct after a reorg.

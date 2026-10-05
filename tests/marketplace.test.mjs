@@ -4,11 +4,25 @@ import { DatabaseSync } from "node:sqlite";
 import { encodeAbiParameters, encodeEventTopics, parseEther } from "viem";
 import { loadModule } from "./load-module.mjs";
 const {marketplaceAbi,parseNativeAmount}=await loadModule("lib/marketplace-abi.ts");
-const {decodeMarketplaceLogs,replayEvents,eventStatements,rangeLogs}=await loadModule("lib/marketplace-index.ts");
+const {decodeMarketplaceLogs,replayEvents,eventStatements,rangeLogs,indexClient}=await loadModule("lib/marketplace-index.ts");
 const {sortActivity}=await loadModule("lib/activity-sort.ts");
 const {confirmedReceipt}=await loadModule("lib/transaction-receipt.ts");
 const seller="0x1111111111111111111111111111111111111111",buyer="0x2222222222222222222222222222222222222222",nft="0x3333333333333333333333333333333333333333";
 const hash=`0x${"ab".repeat(32)}`;
+test("Base index scans prefer PublicNode over the range-limited public gateway",async()=>{
+  const originalFetch=globalThis.fetch;
+  const urls=[];
+  globalThis.fetch=async(url,options)=>{
+    urls.push(String(url));
+    const request=JSON.parse(options.body);
+    return Response.json({jsonrpc:"2.0",id:request.id,result:"0x10"});
+  };
+  try{
+    const client=indexClient({chain:{id:8453},rpcUrl:"https://base-rpc.publicnode.com"});
+    assert.equal(await client.getBlockNumber({cacheTime:0}),16n);
+    assert.deepEqual(urls.map(url=>new URL(url).origin),["https://base-rpc.publicnode.com"]);
+  }finally{globalThis.fetch=originalFetch;}
+});
 function log(eventName,args,index){
   const event=marketplaceAbi.find(item=>item.type==="event"&&item.name===eventName);
   const values=event.inputs.filter(input=>!input.indexed);
