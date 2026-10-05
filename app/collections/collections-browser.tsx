@@ -16,9 +16,9 @@ type Mint = {
   numericalSignature:number; symmetry:number; rotation:number; hue:number; verificationStatus:string;
 };
 type MalkutaData = { status:string; collectionTotal:number; indexedThroughBlock:string; latestMints:Mint[] };
-type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:string; tokenId:string; seller:string; price:string; transactionHash:string };
+type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:string; tokenId:string; seller:string; price:string; transactionHash:string; legacy?:boolean };
 type Activity = { id:string; chainId:MarketplaceChainId; eventType:string; nftAddress:string|null; tokenId:string|null; price:string|null; blockNumber:number };
-type ChainListings = { chainId:MarketplaceChainId; chain:string; currency:string; configured:boolean; listings:Listing[]; activity:Activity[] };
+type ChainListings = { chainId:MarketplaceChainId; chain:string; currency:string; configured:boolean; legacy?:boolean; listings:Listing[]; activity:Activity[] };
 type NftMetadata = { name:string|null; collection:string|null; imageUrl:string|null; videoUrl?:string|null };
 type TrendingCollection = { key:string; chainId:MarketplaceChainId; nftAddress:string; sales:number; recentEvents:number; activeListings:number; floorPrice:bigint; representativeTokenId:string };
 
@@ -59,7 +59,7 @@ export function CollectionsBrowser(){
       // Load Shibarium first for instant content
       const shibariumResult = await Promise.allSettled([
         fetch("/api/malkuta",{cache:"no-store"}).then(response=>response.ok?response.json():Promise.reject()),
-        fetch(`/api/indexer?chainId=109`).then(response=>response.ok?response.json():Promise.reject()),
+        fetch(`/api/indexer?chainId=109&view=discover`).then(response=>response.ok?response.json():Promise.reject()),
       ]);
       
       if(!active){refreshing=false;return;}
@@ -69,15 +69,16 @@ export function CollectionsBrowser(){
       setLoading(false);
 
       // Load other chains in background
-      const otherChains = liveChainIds.filter(id => id !== 109);
+      const otherChains:Array<{chainId:MarketplaceChainId;legacy:boolean}>=liveChainIds.filter(id=>id!==109).map(chainId=>({chainId,legacy:false}));
+      otherChains.push({chainId:5042,legacy:true});
       const otherResults = await Promise.allSettled(
-        otherChains.map(chainId=>fetch(`/api/indexer?chainId=${chainId}`).then(response=>response.ok?response.json():Promise.reject()))
+        otherChains.map(({chainId,legacy})=>fetch(`/api/indexer?chainId=${chainId}&view=discover${legacy?"&legacy=1":""}`).then(response=>response.ok?response.json():Promise.reject()))
       );
       
       if(active){
         setChains(prev => {
-          const latest=new Map(prev.map(chain=>[chain.chainId,chain]));
-          otherResults.forEach(result=>{if(result.status==="fulfilled"){const chain=result.value as ChainListings;latest.set(chain.chainId,chain);}});
+          const latest=new Map(prev.map(chain=>[`${chain.chainId}:${chain.legacy?"legacy":"current"}`,chain]));
+          otherResults.forEach(result=>{if(result.status==="fulfilled"){const chain=result.value as ChainListings;latest.set(`${chain.chainId}:${chain.legacy?"legacy":"current"}`,chain);}});
           return [...latest.values()];
         });
       }
@@ -150,7 +151,7 @@ export function CollectionsBrowser(){
             {liveChainIds.map(chainId=>{const chain=getMarketplaceChain(chainId);const chainListings=listings.filter(item=>item.chainId===chainId);const count=chainListings.length;const floorPrice=chainListings.length>0?chainListings.reduce((min,item)=>{const price=BigInt(item.price);return price<min?price:min;},BigInt(chainListings[0].price)):0n;return <button key={chainId} type="button" className={activeChain===chainId?"active":""} aria-pressed={activeChain===chainId} onClick={()=>chooseNetwork(chainId)}><i aria-hidden="true"/><b>{chain.name}</b><em>{count} NFTs</em><small>Lowest: {floorPrice>0n?formatEther(floorPrice):"—"} {chain.currency}</small></button>})}
           </div>
         </aside>
-        <div className={`chain-listings ${layout}`}>{activeChain==="pick"?<div className="collection-loading">Pick a network to view listed NFTs.</div>:visibleListings.length?visibleListings.map(item=><ListedNft key={item.id} item={item}/>):<div className="collection-loading">{loading?"Reading confirmed listings…":<div><p>{query.trim()?"No NFTs match your search.":`No active NFT listings${activeChain==="all"?"":` on ${getMarketplaceChain(activeChain).name}`} yet.`}</p><Link href="/profile">View your NFTs <ArrowUpRight size={15}/></Link></div>}</div>}</div>
+        <div className={`chain-listings ${layout}`}>{activeChain==="pick"?<div className="collection-loading">Pick a network to view listed NFTs.</div>:visibleListings.length?visibleListings.map(item=><ListedNft key={`${item.id}:${item.legacy?"legacy":"current"}`} item={item}/>):<div className="collection-loading">{loading?"Reading confirmed listings…":<div><p>{query.trim()?"No NFTs match your search.":`No active NFT listings${activeChain==="all"?"":` on ${getMarketplaceChain(activeChain).name}`} yet.`}</p><Link href="/profile">View your NFTs <ArrowUpRight size={15}/></Link></div>}</div>}</div>
       </div>
     </section>
   </main>;
@@ -179,7 +180,7 @@ function ListedNft({item}:{item:Listing}){
   const [videoFailed,setVideoFailed]=useState(false);
   const chain=getMarketplaceChain(item.chainId);
   useEffect(()=>{let active=true;void fetch(`/api/nft?contract=${item.nftAddress}&tokenId=${item.tokenId}&chainId=${item.chainId}`).then(response=>response.ok?response.json():null).then(value=>{if(active)setNft(value as NftMetadata|null)}).catch(()=>{});return()=>{active=false};},[item]);
-  return <Link href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}`} className="chain-listing">
+  return <Link href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}${item.legacy?"?legacy=1":""}`} className="chain-listing">
     <div className="chain-listing-art">{nft?.videoUrl&&!videoFailed?<NftCardVideo src={nft.videoUrl} poster={nft.imageUrl} label={nft.name??`NFT #${item.tokenId}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setVideoFailed(true)}/>:!artFailed?<Image src={nft?.imageUrl??`/api/nft-image?${new URLSearchParams({chainId:String(item.chainId),contract:item.nftAddress,tokenId:item.tokenId})}`} alt={nft?.name??`NFT #${item.tokenId}`} fill unoptimized sizes="(max-width: 700px) 100vw, 220px" style={{objectFit:"cover"}} onError={()=>setArtFailed(true)}/>:<strong>#{item.tokenId}<small>Artwork unavailable</small></strong>}<span>{chain.name}</span></div>
     <div><small>{nft?.collection??short(item.nftAddress)}</small><h3>{nft?.name??`Token #${item.tokenId}`}</h3><p><span>LISTING PRICE</span><strong>{formatEther(BigInt(item.price))} {chain.currency}<UsdEstimate wei={item.price} currency={chain.currency}/></strong></p><span>View NFT <ArrowUpRight size={13}/></span></div>
   </Link>;

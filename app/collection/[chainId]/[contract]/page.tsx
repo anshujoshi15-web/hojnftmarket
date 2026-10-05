@@ -31,6 +31,7 @@ type IndexedListing = {
   createdBlock: number;
   updatedBlock: number;
   tokenType?: "ERC-721" | "ERC-1155";
+  legacy?: boolean;
 };
 
 type IndexedActivity = {
@@ -89,6 +90,7 @@ type CollectionData = {
 export default function CollectionPage({ params }: { params: Promise<{ chainId: string; contract: string }> }) {
   const [collectionData, setCollectionData] = useState<CollectionData | null>(null);
   const [nfts, setNfts] = useState<ListedNft[]>([]);
+  const [visibleItems,setVisibleItems]=useState(20);
   const [allListings, setAllListings] = useState<IndexedListing[]>([]);
   const [sweepQuantity, setSweepQuantity] = useState(2);
   const [collectionChainId, setCollectionChainId] = useState<MarketplaceChainId | null>(null);
@@ -120,7 +122,7 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
     catch { maxPriceInvalid = true; }
   }
   const sweepListings = [...allListings]
-    .filter(listing => listing.tokenType !== "ERC-1155" && BigInt(listing.price) > 0n)
+    .filter(listing => !listing.legacy && listing.tokenType !== "ERC-1155" && BigInt(listing.price) > 0n)
     .filter(listing => !maxPriceInvalid && (maxPriceWei === null || BigInt(listing.price) <= maxPriceWei))
     .sort((a, b) => BigInt(a.price) < BigInt(b.price) ? -1 : BigInt(a.price) > BigInt(b.price) ? 1 : 0);
   const sweepCount = Math.min(Math.max(1, sweepQuantity), sweepListings.length);
@@ -174,15 +176,27 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
         console.log(`Loading collection data for contract ${contract} on chain ${chainId}`);
 
         // Load indexer data
-        const indexerResponse = await fetch(`/api/indexer?chainId=${chainId}`);
-        const indexerData = indexerResponse.ok ? await indexerResponse.json() as IndexerResponse : null;
+        const sources=await Promise.allSettled((chainId===5042?[false,true]:[false]).map(async legacy=>{
+          const response=await fetch(`/api/indexer?chainId=${chainId}${legacy?"&legacy=1":""}`);
+          if(!response.ok)throw new Error("Marketplace index unavailable");
+          const data=await response.json() as IndexerResponse;
+          return {...data,listings:data.listings.map(item=>({...item,legacy}))};
+        }));
+        const available=sources.flatMap(result=>result.status==="fulfilled"?[result.value]:[]);
+        const indexerData:IndexerResponse|null=available.length?{
+          listings:available.flatMap(data=>data.listings),
+          activity:available.flatMap(data=>data.activity),
+          collections:available.flatMap(data=>data.collections??[]),
+          sync:{caughtUp:available.length===(chainId===5042?2:1)&&available.every(data=>data.sync?.caughtUp)},
+          syncError:available.find(data=>data.syncError)?.syncError??null,
+        }:null;
 
         if (indexerData) {
           const collectionListings = indexerData.listings.filter(
             (l: IndexedListing) => l.nftAddress.toLowerCase() === contract.toLowerCase()
           );
           setAllListings(collectionListings);
-          const initialNfts: ListedNft[] = collectionListings.slice(0, 20).map(listing => ({
+          const initialNfts: ListedNft[] = collectionListings.map(listing => ({
             listing, name: null, collection: null, description: null, externalUrl: null, traits: [],
             imageUrl: `/api/nft-image?${new URLSearchParams({chainId:String(chainId),contract:listing.nftAddress,tokenId:listing.tokenId})}`,
           }));
@@ -198,9 +212,8 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
           setActivity(collectionActivity);
 
           // Calculate collection stats
-          const summary = indexerData.collections?.find(item => item.nftAddress.toLowerCase() === contract.toLowerCase());
           setFloorComplete(Boolean(indexerData.sync?.caughtUp && !indexerData.syncError));
-          const floorPrice = summary ? BigInt(summary.floorPrice) : collectionListings.length > 0
+          const floorPrice = collectionListings.length > 0
             ? collectionListings.reduce((min: bigint, l: IndexedListing) => {
                 const price = BigInt(l.price);
                 return price < min ? price : min;
@@ -228,7 +241,7 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
             totalOwners: uniqueOwners.size,
             totalVolume,
             floorPrice,
-            listedItems: summary?.listingCount ?? collectionListings.length,
+            listedItems: collectionListings.length,
             totalSales,
             averagePrice: totalSales > 0n ? totalVolume / BigInt(totalSales) : 0n,
             highestSale: collectionActivity
@@ -250,13 +263,13 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
                 if (!res.ok) return initial;
                 const metadata = await res.json() as NftMetadata;
                 const resolved = { ...initial, ...metadata, imageUrl: metadata.imageUrl ?? initial.imageUrl };
-                setNfts(current => current.map(item => item.listing.id === listing.id ? resolved : item));
+                setNfts(current => current.map(item => item.listing.id === listing.id && item.listing.legacy === listing.legacy ? resolved : item));
                 return resolved;
               } catch { return initial; }
             })
           );
           const resolvedMetadata = nftMetadata.filter(Boolean) as ListedNft[];
-          setNfts(resolvedMetadata);
+          setNfts([...resolvedMetadata,...initialNfts.slice(20)]);
           const first = resolvedMetadata[0];
           setCollectionData({
             name: first?.collection ?? `${contract.slice(0, 6)}…${contract.slice(-4)} collection`,
@@ -617,17 +630,17 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
 
               {/* Collection Content */}
               <div className="royal-collection-tab-content">
-                {activeTab === "items" && (
+                {activeTab === "items" && (<>
                   <div className={`royal-nft-grid ${viewMode}`}>
                     {sortedNfts.length > 0 ? (
-                      sortedNfts.map((nft) => {
+                      sortedNfts.slice(0,visibleItems).map((nft) => {
                         const listing = nft.listing;
                         const chain = getMarketplaceChain(listing.chainId);
                         const lastSale = activity.find(a => a.tokenId === listing.tokenId && ["sold", "offer_accepted"].includes(a.eventType));
                         return (
-                          <div className="nft-card-with-action" key={listing.id}>
+                          <div className="nft-card-with-action" key={`${listing.id}:${listing.legacy?"legacy":"current"}`}>
                           <Link
-                            href={`/nft/${listing.chainId}/${listing.nftAddress}/${listing.tokenId}`}
+                            href={`/nft/${listing.chainId}/${listing.nftAddress}/${listing.tokenId}${listing.legacy?"?legacy=1":""}`}
                             className="royal-nft-card opensea-style"
                           >
                             <div className="royal-nft-image">
@@ -672,7 +685,7 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
                               )}
                             </div>
                           </Link>
-                          {BigInt(listing.price)>0n&&<Link className="nft-card-buy-now" href={`/nft/${listing.chainId}/${listing.nftAddress}/${listing.tokenId}`}>Buy now <ShoppingCart size={15}/></Link>}
+                          {BigInt(listing.price)>0n&&<Link className="nft-card-buy-now" href={`/nft/${listing.chainId}/${listing.nftAddress}/${listing.tokenId}${listing.legacy?"?legacy=1":""}`}>Buy now <ShoppingCart size={15}/></Link>}
                           </div>
                         );
                       })
@@ -684,7 +697,8 @@ export default function CollectionPage({ params }: { params: Promise<{ chainId: 
                       </div>
                     )}
                   </div>
-                )}
+                  {sortedNfts.length>visibleItems&&<button type="button" className="royal-view-all" onClick={()=>setVisibleItems(count=>count+20)}>Show more NFTs ({Math.min(visibleItems,sortedNfts.length)} of {sortedNfts.length})</button>}
+                </>)}
 
                 {activeTab === "activity" && (
                   <div className="royal-activity-timeline">

@@ -10,7 +10,7 @@ import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketp
 import { UsdEstimate } from "./usd-estimate";
 import { NftCardVideo } from "./nft-card-video";
 
-type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:string; tokenId:string; seller:string; price:string; transactionHash:string };
+type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:string; tokenId:string; seller:string; price:string; transactionHash:string; legacy?:boolean };
 type Activity = { id:string; chainId:MarketplaceChainId; eventType:string; nftAddress:string|null; tokenId:string|null; price:string|null; blockNumber:number };
 type ChainData = { chainId:MarketplaceChainId; chain:string; currency:string; configured:boolean; legacyMarketplaceAddress?:string|null; listings:Listing[]; activity:Activity[] };
 type NftMetadata = { name:string|null; collection:string|null; imageUrl:string|null; videoUrl?:string|null };
@@ -31,11 +31,17 @@ export function NetworkMarketplace({ chainId }: { chainId: MarketplaceChainId })
       if (refreshing) return;
       refreshing = true;
       try {
-        const response = await fetch(`/api/indexer?chainId=${chainId}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (active) setChainData(data as ChainData);
-        }
+        const feeds=chainId===5042?[false,true]:[false];
+        await Promise.allSettled(feeds.map(async legacy=>{
+          const response=await fetch(`/api/indexer?chainId=${chainId}&view=discover${legacy?"&legacy=1":""}`);
+          if(!response.ok)return;
+          const data=await response.json() as ChainData;
+          if(active)setChainData(previous=>{
+            if(chainId!==5042)return data;
+            const retained=previous?.chainId===chainId?previous:null;
+            return {...data,listings:[...(retained?.listings??[]).filter(item=>Boolean(item.legacy)!==legacy),...data.listings],activity:[...(retained?.activity??[]),...data.activity].filter((event,index,events)=>events.findIndex(other=>other.id===event.id)===index)};
+          });
+        }));
       } catch (error) {
         console.error(`Failed to load ${chain.name} data:`, error);
       } finally {
@@ -160,7 +166,7 @@ export function NetworkMarketplace({ chainId }: { chainId: MarketplaceChainId })
             <div className={`network-listings-grid ${layout}`}>
               {visibleListings.length ? (
                 visibleListings.map((item) => (
-                  <ListedNft key={item.id} item={item} chain={chain} />
+                  <ListedNft key={`${item.id}:${item.legacy?"legacy":"current"}`} item={item} chain={chain} />
                 ))
               ) : (
                 <div className="collection-loading">
@@ -221,7 +227,7 @@ function ListedNft({ item, chain }: { item: Listing; chain: ReturnType<typeof ge
 
   return (
     <div className="nft-card-with-action">
-    <Link href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}`} className="network-listing">
+    <Link href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}${item.legacy?"?legacy=1":""}`} className="network-listing">
       <div className="network-listing-art">
         {nft?.videoUrl&&!videoFailed ? <NftCardVideo src={nft.videoUrl} poster={nft.imageUrl} label={nft.name??`NFT #${item.tokenId}`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setVideoFailed(true)}/> : !artFailed ? (
           <Image
@@ -253,7 +259,7 @@ function ListedNft({ item, chain }: { item: Listing; chain: ReturnType<typeof ge
         </span>
       </div>
     </Link>
-    {BigInt(item.price)>0n&&<Link className="nft-card-buy-now" href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}`}>Buy now <ArrowUpRight size={15}/></Link>}
+    {BigInt(item.price)>0n&&<Link className="nft-card-buy-now" href={`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}${item.legacy?"?legacy=1":""}`}>Buy now <ArrowUpRight size={15}/></Link>}
     </div>
   );
 }

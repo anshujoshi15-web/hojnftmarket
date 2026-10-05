@@ -24,7 +24,7 @@ export async function GET(request:Request){
     if(discoverOnly){
       return Response.json({
         chainId,configured:true,legacy,collections:result.collections,
-        listings:result.listings.map(({id,chainId,nftAddress,tokenId,seller,price,transactionHash,createdBlock,updatedBlock})=>({id,chainId,nftAddress,tokenId,seller,price,transactionHash,createdBlock,updatedBlock,legacy})),
+        listings:result.listings.map(({id,chainId,nftAddress,tokenId,seller,price,transactionHash,createdBlock,updatedBlock,tokenType,quantity})=>({id,chainId,nftAddress,tokenId,seller,price,transactionHash,createdBlock,updatedBlock,tokenType,quantity,legacy})),
         activity:result.activity.filter(item=>item.eventType==="sold"||item.eventType==="offer_accepted").slice(0,20).map(({id,chainId,eventType,nftAddress,tokenId,seller,buyer,price,transactionHash,blockNumber,logIndex,timestamp})=>({id,chainId,eventType,nftAddress,tokenId,seller,buyer,price,transactionHash,blockNumber,logIndex,timestamp})),
         sync:{caughtUp:result.sync.caughtUp},syncError:result.syncError,
       },{headers:{"cache-control":"public, max-age=0, s-maxage=60, stale-while-revalidate=60"}});
@@ -32,7 +32,7 @@ export async function GET(request:Request){
     if(listingsOnly){
       return Response.json({
         chainId,
-        listings:result.listings.map(({id,chainId,nftAddress,tokenId,price})=>({id,chainId,nftAddress,tokenId,price})),
+        listings:result.listings.map(({id,chainId,nftAddress,tokenId,price})=>({id,chainId,nftAddress,tokenId,price,legacy})),
       },{headers:{"cache-control":"public, max-age=0, s-maxage=30, stale-while-revalidate=30"}});
     }
     return Response.json({...base,configured:true,marketplaceAddress:selected.address,legacyMarketplaceAddress:old?.address??null,...result},{headers:{"cache-control":"public, max-age=0, s-maxage=15, stale-while-revalidate=30"}});
