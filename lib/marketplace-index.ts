@@ -147,8 +147,7 @@ export function indexClient(config:Config){
   const primary=http(rpcUrl,{timeout:12_000,retryCount:1});
   // Alchemy's free tier limits eth_getLogs to 10 blocks. It cannot serve this
   // indexer's historical ranges, even though ordinary eth_call reads work.
-  const dedicatedFirst=config.chain.id===137&&!!config.fallbackRpcUrl;
-  const transports=dedicatedFirst?[http(config.fallbackRpcUrl!,{timeout:12_000,retryCount:1}),primary]:[primary];
+  const transports=[primary];
   // PublicNode requires a token for older Base logs. Tenderly's public endpoint
   // serves historical ranges up to 1,000 blocks; rangeLogs splits accordingly.
   if(config.chain.id===8453&&rpcUrl==="https://base-rpc.publicnode.com")transports.unshift(http("https://base.gateway.tenderly.co",{timeout:12_000,retryCount:1}));
@@ -159,13 +158,14 @@ export function indexClient(config:Config){
   if(config.chain.id===8453&&rpcUrl!=="https://mainnet.base.org")transports.push(http("https://mainnet.base.org",{timeout:12_000,retryCount:1}));
   // Arcscan's former fallback returns HTTP 530. Keep Arc on its configured
   // provider so rate-limit errors remain visible to the retry logic.
-  if(config.fallbackRpcUrl&&!dedicatedFirst&&config.chain.id!==8453)transports.push(http(config.fallbackRpcUrl,{timeout:12_000,retryCount:1}));
+  if(config.fallbackRpcUrl&&config.chain.id!==8453)transports.push(http(config.fallbackRpcUrl,{timeout:12_000,retryCount:1}));
   const transport=transports.length>1?fallback(transports,{shouldThrow:error=>isRangeLimited(error)}):primary;
   return createPublicClient({transport});
 }
 
 async function schema(db:D1Database){
   await db.batch([
+    db.prepare("CREATE TABLE IF NOT EXISTS marketplace_verified_snapshots (scope TEXT PRIMARY KEY NOT NULL, data TEXT NOT NULL, verified_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS indexer_state (id TEXT PRIMARY KEY NOT NULL, last_block INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
     // New, address-scoped tables ensure a version upgrade backfills previously skipped offer events.
     db.prepare("CREATE TABLE IF NOT EXISTS marketplace_v3_listings (scope TEXT NOT NULL,id TEXT NOT NULL,chain_id INTEGER NOT NULL,nft_address TEXT NOT NULL,token_id TEXT NOT NULL,seller TEXT NOT NULL,price TEXT NOT NULL,active INTEGER NOT NULL,transaction_hash TEXT NOT NULL,created_block INTEGER NOT NULL,updated_block INTEGER NOT NULL,PRIMARY KEY(scope,id))"),
@@ -262,6 +262,26 @@ export async function rangeLogs(client:ReturnType<typeof indexClient>,address:Ad
   }
 }
 const pending=new Map<string,Promise<Awaited<ReturnType<typeof buildIndex>>>>();
+const verifiedSnapshots=new Map<string,{data:string;verifiedAt:number}>();
+async function buildWithSnapshot(config:Config,scope:string,db?:D1Database){
+  if(db)await schema(db);
+  async function previous(){
+    const row=db?await db.prepare("SELECT data,verified_at AS verifiedAt FROM marketplace_verified_snapshots WHERE scope=?").bind(scope).first<{data:string;verifiedAt:number}>():verifiedSnapshots.get(scope);
+    if(!row)return null;
+    const saved=JSON.parse(row.data) as Awaited<ReturnType<typeof buildIndex>>;
+    return {...saved,stale:true,offers:[],sync:{...saved.sync,caughtUp:false},syncError:`Live verification is unavailable. Showing read-only listings last verified at ${new Date(row.verifiedAt).toISOString()}. Retry to refresh.`};
+  }
+  try{
+    const result=await buildIndex(config,scope,db);
+    if(result.verificationFailed){const saved=await previous();if(saved)return saved;}
+    else{
+      const data=JSON.stringify(result),verifiedAt=Date.now();
+      if(db)await db.batch([db.prepare("INSERT INTO marketplace_verified_snapshots VALUES (?,?,?) ON CONFLICT(scope) DO UPDATE SET data=excluded.data,verified_at=excluded.verified_at WHERE excluded.verified_at>=marketplace_verified_snapshots.verified_at").bind(scope,data,verifiedAt)]);
+      else verifiedSnapshots.set(scope,{data,verifiedAt});
+    }
+    return result;
+  }catch(error){const saved=await previous();if(saved)return saved;throw error;}
+}
 export async function explorerLogs(baseUrl:string,address:string,start:number,end:number,apiKey?:string){
   async function read(url:URL){
     if(apiKey)url.searchParams.set("apikey",apiKey);
@@ -295,7 +315,7 @@ export async function loadMarketplaceIndex(config:Config,db?:D1Database){
   const pendingScope=`${scope}:${db?"durable":"stateless"}`;
   // Serialize concurrent reads in this process; database batches commit events and cursor together.
   let work=pending.get(pendingScope);
-  if(!work){work=buildIndex(config,scope,db);pending.set(pendingScope,work);}
+  if(!work){work=buildWithSnapshot(config,scope,db);pending.set(pendingScope,work);}
   try{return await work;}finally{if(pending.get(pendingScope)===work)pending.delete(pendingScope);}
 }
 
@@ -334,6 +354,20 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
   }
   let chunks=0,logsProcessed=0;
   let scanError:string|null=null;
+  if(db&&[109,137,8453].includes(chainId)&&start<=safeLatest){
+    try{
+      const result=await explorerLogs(config.chain.explorerApiUrl,address,start,safeLatest);
+      const decoded=decodeMarketplaceLogs(chainId,result.logs);
+      if(result.through>=start){
+        const statements=eventStatements(db,scope,decoded);
+        statements.push(db.prepare("INSERT INTO indexer_state VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET last_block=MAX(last_block,excluded.last_block),updated_at=excluded.updated_at").bind(scope,result.through,Date.now()));
+        await db.batch(statements);
+        logsProcessed+=result.logs.length;
+        start=result.through+1;
+      }
+      if(result.through<safeLatest)scanError=`Explorer history is ${safeLatest-result.through} blocks behind the network; newer activity is still syncing.`;
+    }catch{/* Resume the bounded RPC scan from the last committed cursor. */}
+  }
   if(!db){
     try{
       // Try a full historical range first. Providers with range caps are split
@@ -350,19 +384,21 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
         // Space Arc's capped reads rather than exhausting the public provider.
         if(chainId===5042&&through<safeLatest)await wait(1_000);
       };
-      if(chainId===8453||chainId===5042&&config.chain.explorerApiKey){
+      if([109,137,8453].includes(chainId)||chainId===5042&&config.chain.explorerApiKey){
         // Paginated explorer history avoids archive restrictions and thousands
         // of tiny RPC log requests. Every resulting listing is still checked onchain.
-        const result=await explorerLogs(config.chain.explorerApiUrl,address,start,safeLatest,config.chain.explorerApiKey);
-        await recordRange(result.logs,result.through);
-        if(result.through<safeLatest)scanError=`Explorer history is ${safeLatest-result.through} blocks behind the network. Listings are complete through block ${result.through}; newer activity is still syncing.`;
+        try{
+          const result=await explorerLogs(config.chain.explorerApiUrl,address,start,safeLatest,chainId===5042?config.chain.explorerApiKey:undefined);
+          await recordRange(result.logs,result.through);
+          if(result.through<safeLatest)scanError=`Explorer history is ${safeLatest-result.through} blocks behind the network. Listings are complete through block ${result.through}; newer activity is still syncing.`;
+        }catch{await rangeLogs(client,address,start,safeLatest,recordRange);}
       }else await rangeLogs(client,address,start,safeLatest,recordRange);
     }catch(error){
       // Never turn a provider outage into an empty successful marketplace.
       if(!events.length)throw error;
       scanError="Historical indexing was interrupted. Previously indexed listings are being checked; retry to finish syncing.";
     }
-  }else while(start<=safeLatest&&chunks++<MAX_CHUNKS){
+  }else while(start<=safeLatest&&!scanError&&chunks++<MAX_CHUNKS){
     const {logs,through:end}=await rangeLogs(client,address,start,Math.min(start+chunkSize-1,safeLatest));
     const decoded=decodeMarketplaceLogs(chainId,logs as RpcLog[]);
     const times=new Map<number,number>();
@@ -410,5 +446,5 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
   });
   const active=verified.filter((item):item is Listing=>item!==null).sort((a,b)=>b.updatedBlock-a.updatedBlock);
   const caughtUp=start>safeLatest&&(!!db||fromBlock===deployBlock);
-  return {listings:active,collections:summarizeCollections(chainId,active),offers,activity:activity.sort((a,b)=>b.timestamp-a.timestamp||b.blockNumber-a.blockNumber||b.logIndex-a.logIndex).slice(0,100),sync:{safeLatest,syncedThrough:Math.min(start-1,safeLatest),caughtUp,logsProcessed},syncError:verificationFailed?"Some listings could not be verified and are hidden. Please retry.":scanError??(!caughtUp?"Indexing is incomplete; older listings and offers may not appear yet.":null)};
+  return {stale:false,verificationFailed,listings:active,collections:summarizeCollections(chainId,active),offers,activity:activity.sort((a,b)=>b.timestamp-a.timestamp||b.blockNumber-a.blockNumber||b.logIndex-a.logIndex).slice(0,100),sync:{safeLatest,syncedThrough:Math.min(start-1,safeLatest),caughtUp,logsProcessed},syncError:verificationFailed?"Some listings could not be verified and are hidden. Please retry.":scanError??(!caughtUp?"Indexing is incomplete; older listings and offers may not appear yet.":null)};
 }

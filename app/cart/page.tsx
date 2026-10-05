@@ -26,7 +26,8 @@ export default function CartPage(){
     queueMicrotask(()=>{if(active)setGroups(initial);});
     for(const group of initial){void fetch(`/api/indexer?chainId=${group.chainId}&view=listings`).then(async response=>{
       if(!response.ok)throw new Error("Listings are temporarily unavailable.");
-      const body=await response.json() as {listings:Listing[]};
+      const body=await response.json() as {listings:Listing[];stale?:boolean};
+      if(body.stale)throw new Error("Live verification is unavailable; checkout is paused.");
       if(active)setGroups(current=>current.map(item=>item.chainId===group.chainId?{...item,listings:body.listings.filter(listing=>item.ids.includes(listing.id)),loading:false}:item));
     }).catch(()=>{if(active)setGroups(current=>current.map(item=>item.chainId===group.chainId?{...item,loading:false,error:"Listings are temporarily unavailable. Retry by reloading this page."}:item));});}
     return()=>{active=false;};

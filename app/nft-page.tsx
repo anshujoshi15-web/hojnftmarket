@@ -24,7 +24,7 @@ type Nft={name:string|null;collection:string|null;imageUrl:string|null;videoUrl?
 type Listing={id:string;chainId:MarketplaceChainId;nftAddress:`0x${string}`;tokenId:string;seller:`0x${string}`;price:string;transactionHash:`0x${string}`;updatedBlock:number;tokenType?:"ERC-721"|"ERC-1155";quantity?:string};
 type Activity={id:string;chainId:MarketplaceChainId;eventType:string;nftAddress:`0x${string}`|null;tokenId:string|null;seller:`0x${string}`|null;buyer:`0x${string}`|null;price:string|null;transactionHash:`0x${string}`;blockNumber:number};
 type CollectionSummary={nftAddress:string;floorPrice:string;listingCount:number;latestBlock:number;sampleTokenId:string};
-type Indexer={configured:boolean;marketplaceAddress?:`0x${string}`;listings:Listing[];offers?:IndexedOffer[];collections?:CollectionSummary[];activity:Activity[];sync?:{caughtUp:boolean}|null;syncError?:string|null};
+type Indexer={stale?:boolean;configured:boolean;marketplaceAddress?:`0x${string}`;listings:Listing[];offers?:IndexedOffer[];collections?:CollectionSummary[];activity:Activity[];sync?:{caughtUp:boolean}|null;syncError?:string|null};
 
 const erc721Abi=[
   {type:"function",name:"ownerOf",stateMutability:"view",inputs:[{name:"tokenId",type:"uint256"}],outputs:[{name:"owner",type:"address"}]},
@@ -360,7 +360,7 @@ export function NftPage({chainId,contract,tokenId,returnTo="/market",legacy=fals
           </div>
         </div>
 
-        {!marketplaceLive?<div className="royal-nft-action-section"><div className="royal-not-listed"><span>MARKETPLACE STATUS</span><strong>Coming soon on {chain.name}</strong></div><p>You can view this NFT, but HOJ listing, buying, and offers are not yet available on this network.</p></div>:isEdition?<EditionTrading chainId={marketChainId} market={marketplaceAddress} nft={nftAddress} tokenId={parsedTokenId} listings={indexer?.listings.filter(item=>item.nftAddress.toLowerCase()===contract.toLowerCase()&&item.tokenId===tokenId)??[]} offers={indexer?.offers?.filter(item=>item.nftAddress.toLowerCase()===contract.toLowerCase()&&item.tokenId===tokenId)??[]} collectionFloorWei={collectionFloorWei} completeFloor={completeFloor} onChanged={refreshTrading}/>:<div className="royal-nft-action-section">
+        {!marketplaceLive?<div className="royal-nft-action-section"><div className="royal-not-listed"><span>MARKETPLACE STATUS</span><strong>Coming soon on {chain.name}</strong></div><p>You can view this NFT, but HOJ listing, buying, and offers are not yet available on this network.</p></div>:indexer?.stale?<div className="royal-nft-action-section"><p role="status">{indexer.syncError}</p><button type="button" onClick={refreshTrading}>Refresh live trading</button></div>:isEdition?<EditionTrading chainId={marketChainId} market={marketplaceAddress} nft={nftAddress} tokenId={parsedTokenId} listings={indexer?.listings.filter(item=>item.nftAddress.toLowerCase()===contract.toLowerCase()&&item.tokenId===tokenId)??[]} offers={indexer?.offers?.filter(item=>item.nftAddress.toLowerCase()===contract.toLowerCase()&&item.tokenId===tokenId)??[]} collectionFloorWei={collectionFloorWei} completeFloor={completeFloor} onChanged={refreshTrading}/>:<div className="royal-nft-action-section">
           {listing?<>
             <div className="royal-current-price">
               <span>CURRENT PRICE</span>

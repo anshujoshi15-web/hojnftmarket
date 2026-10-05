@@ -10,8 +10,17 @@ Local Next.js and durable Node servers use `.data/marketplace.sqlite` (Node 22.1
 Set `MARKETPLACE_DB_PATH` to a persistent volume path in production. Back up the
 database together with its WAL using SQLite's backup tooling, not a live single-file copy.
 Cloudflare deployments use the existing `DB` D1 binding. Ephemeral Vercel/Lambda
-filesystems are deliberately not used as durable storage; those deployments still
-need a persistent database adapter before historical indexing can be complete.
+filesystems are deliberately not used as durable storage. Vercel/Lambda now support
+a persistent libSQL/Turso database through server-only `TURSO_DATABASE_URL` and
+`TURSO_AUTH_TOKEN`. Configure both in the actual production hosting project and
+redeploy; pushing source alone cannot provision the database. Event batches and
+their cursor commit atomically. Successfully verified listings are also saved
+per chain and contract. During an RPC outage those snapshots remain visible as
+read-only, with their verification time; trading resumes after live verification.
+
+Polygon, Shibarium and Base use paginated public explorer history to avoid
+rescanning tiny RPC ranges. The Blockscout multichain API requires a working key
+and plan; HTTP 402 is a provider access failure, not an empty marketplace.
 
 Each `/api/indexer?chainId=…` call resumes the address-scoped cursor and scans up
 to eight 8,000-block ranges. Provider range limits cause ranges to split. A failed
