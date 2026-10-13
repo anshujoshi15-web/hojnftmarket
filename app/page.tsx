@@ -214,6 +214,7 @@ export default function Home() {
   const [randomNftsByChain,setRandomNftsByChain]=useState<Partial<Record<MarketplaceChainId,IndexedListing[]>>>({});
   const [visibleCountByChain,setVisibleCountByChain]=useState<Partial<Record<MarketplaceChainId,number>>>({});
   const [feedIssues,setFeedIssues]=useState<Record<string,string|undefined>>({});
+  const [loadedChains,setLoadedChains]=useState<number[]>([]);
   const latestListings=useRef<IndexedListing[]>([]);
   const pickedKeys=useRef<Record<number,string[]>>({});
   const picksUpdatedAt=useRef(0);
@@ -369,6 +370,8 @@ export default function Home() {
       if (cached && Date.now() - cached.at < DISCOVER_REFRESH_INTERVAL && Array.isArray(cached.data)) {
         cached.data.forEach(data => { if (liveChains.includes(data.chainId)) responses.set(`${data.chainId}:${data.legacy?"legacy":"current"}`, data); });
         if (responses.size) renderMarketplaceData();
+        const cachedChains=[...new Set([...responses.values()].filter(data=>data.configured).map(data=>data.chainId))];
+        queueMicrotask(()=>{if(mounted)setLoadedChains(cachedChains);});
         cacheFresh=feeds.every(feed=>responses.has(`${feed.chainId}:${feed.legacy?"legacy":"current"}`));
       }
     } catch { /* A fresh network read will replace an unavailable snapshot. */ }
@@ -391,6 +394,7 @@ export default function Home() {
         try { window.sessionStorage.setItem("hoj-discover-listings", JSON.stringify({at:Date.now(),data:[...responses.values()]})); }
         catch { /* Keep the current view when storage is unavailable. */ }
         } catch { if(mounted)setFeedIssues(current=>({...current,[`${chainId}:${legacy?"legacy":"current"}`]:`${getMarketplaceChain(chainId).name} listings could not be loaded. Please retry.`})); }
+        finally { if(mounted&&!legacy)setLoadedChains(current=>current.includes(chainId)?current:[...current,chainId]); }
       }));
       if (mounted) setLoading(false);
       } finally { refreshing = false; if (refreshAgain && mounted) { refreshAgain = false; void loadMarketplaceData(); } }
@@ -464,13 +468,14 @@ export default function Home() {
         const count=visibleCountByChain[chainId]??4;
         const nfts=allNfts.slice(0,count);
         const feedIssue=feedIssues[`${chainId}:current`]??feedIssues[`${chainId}:legacy`];
+        const chainLoading=!loadedChains.includes(chainId)&&!allNfts.length;
         return <section className="royal-section royal-section-alt royal-featured-section discover-network-section" key={chainId} aria-label={`${chain.name} NFTs`}>
           <div className="royal-section-header">
             <div><span className="royal-section-label">EXPLORE · {chain.name.toUpperCase()}</span><h2>{chain.name} NFTs</h2></div>
             <Link href={`/market?chainId=${chainId}`} className="royal-view-all">View {chain.name} market <ArrowUpRight size={16}/></Link>
           </div>
           {!loading&&feedIssue&&<button type="button" className="royal-view-all" onClick={()=>announceMarketplaceUpdate(chainId)}>Retry {chain.name} listings</button>}
-          {loading?<div className="royal-loading-grid">{[...Array(4)].map((_,index)=><div key={index} className="royal-skeleton-card"/>)}</div>
+          {chainLoading?<div className="royal-loading-grid">{[...Array(4)].map((_,index)=><div key={index} className="royal-skeleton-card"/>)}</div>
             :<><div className="royal-nfts-grid">{nfts.map(nft=><DiscoverNftCard key={`${nft.id}:${nft.legacy?"legacy":"current"}`} nft={nft} onExpand={setLightboxImage}/>)}{!nfts.length&&<p className="royal-market-empty">{feedIssue??`No active House of Joshi listings on ${chain.name} right now.`}</p>}</div>{nfts.length>0&&feedIssue&&<p className="royal-market-empty" role="status">{feedIssue}</p>}{allNfts.length>nfts.length&&<button type="button" className="royal-view-all" onClick={()=>setVisibleCountByChain(current=>({...current,[chainId]:(current[chainId]??4)+12}))}>Show more {chain.name} NFTs ({nfts.length} of {allNfts.length}) <ArrowUpRight size={16}/></button>}</>}
         </section>;
       })}

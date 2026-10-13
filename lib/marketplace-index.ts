@@ -212,8 +212,23 @@ export function eventStatements(db:D1Database,scope:string,events:Activity[]){
 }
 
 const CHUNK_SIZE=8_000, BASE_CHUNK_SIZE=2_000, MAX_CHUNKS=8;
-const isRangeLimited=(error:unknown)=>/range|too many.*(?:logs|results)|response size|limit.*block|maximum.*block|query.*exceed/i.test(String(error))&&!isRateLimited(error);
-const isRateLimited=(error:unknown)=>/429|rate limit|too many requests|compute units/i.test(String(error));
+function rpcErrorText(error:unknown):string {
+  // Providers may put their range cap in JSON-RPC error.data while the visible
+  // message says only "invalid params". Preserve it through viem's wrappers.
+  const parts:string[]=[];
+  const seen=new Set<unknown>();
+  while(error&&typeof error==="object"&&!seen.has(error)){
+    seen.add(error);
+    parts.push(String(error));
+    const nested=error as {data?:unknown;cause?:unknown};
+    if(nested.data!==undefined)parts.push(JSON.stringify(nested.data));
+    error=nested.cause;
+  }
+  if(error)parts.push(String(error));
+  return parts.join(" ");
+}
+const isRangeLimited=(error:unknown)=>/range|too many.*(?:logs|results)|response size|limit.*block|maximum.*block|query.*exceed/i.test(rpcErrorText(error))&&!isRateLimited(error);
+const isRateLimited=(error:unknown)=>/429|rate limit|request limit reached|too many requests|compute units/i.test(rpcErrorText(error));
 const isContractRevert=(error:unknown)=>error instanceof BaseError&&error.walk(cause=>cause instanceof ContractFunctionRevertedError) instanceof ContractFunctionRevertedError;
 const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 async function withRateLimitRetry<T>(read:()=>Promise<T>):Promise<T>{
@@ -244,12 +259,19 @@ export async function rangeLogs(client:ReturnType<typeof indexClient>,address:Ad
     // Retry only range/result-size errors, never turn authentication or throttling
     // failures into hundreds of additional requests. No cursor advances on error.
     if(end===start||!isRangeLimited(error))throw error;
-    const maximum=Number(String(error).match(/maximum\s+(\d[\d,]*)\s+blocks/i)?.[1]?.replaceAll(",",""));
+    const maximum=Number(rpcErrorText(error).match(/maximum\s+(\d[\d,]*)\s+blocks/i)?.[1]?.replaceAll(",",""));
     if(maximum>0&&maximum<end-start+1){
       const logs:RpcLog[]=[];
-      for(let from=start;from<=end;from+=maximum){
-        const result=await rangeLogs(client,address,from,Math.min(from+maximum-1,end),onRange);
-        logs.push(...result.logs);
+      // Fetch a bounded batch concurrently, then checkpoint in block order.
+      // A failed range must never advance the cursor past missing history.
+      for(let from=start;from<=end;from+=maximum*4){
+        const ranges=Array.from({length:Math.min(4,Math.ceil((end-from+1)/maximum))},(_,index)=>from+index*maximum);
+        const results=await Promise.allSettled(ranges.map(first=>rangeLogs(client,address,first,Math.min(first+maximum-1,end))));
+        for(const result of results){
+          if(result.status==="rejected")throw result.reason;
+          await onRange?.(result.value.logs,result.value.through);
+          logs.push(...result.value.logs);
+        }
       }
       return {logs,through:end};
     }
@@ -321,18 +343,18 @@ export async function loadMarketplaceIndex(config:Config,db?:D1Database){
 
 async function buildIndex(config:Config,scope:string,db?:D1Database){
   const client=indexClient(config), address=config.address as Address, chainId=config.chain.id as MarketplaceChainId;
-  // Base's public RPCs intermittently fail eth_call during listing verification.
+  // Public RPCs can stall or fail eth_call during listing verification.
   // Alchemy can serve these small reads even though its free tier cannot scan
   // the broad log ranges used by the indexer above.
-  const verificationClient=chainId===8453&&config.fallbackRpcUrl
+  const verificationClient=(chainId===8453||chainId===137)&&config.fallbackRpcUrl
     ? createPublicClient({transport:fallback([
         http(config.fallbackRpcUrl,{timeout:8_000,retryCount:1}),
         http(config.rpcUrl,{timeout:8_000,retryCount:1}),
-        http("https://mainnet.base.org",{timeout:8_000,retryCount:1}),
+        ...(chainId===8453?[http("https://mainnet.base.org",{timeout:8_000,retryCount:1})]:[]),
       ],{shouldThrow:()=>false})})
     : client;
   const chunkSize=chainId===8453?BASE_CHUNK_SIZE:CHUNK_SIZE;
-  const rpcConcurrency=chainId===8453||chainId===5042?1:chainId===137?2:6;
+  const rpcConcurrency=(chainId===8453||chainId===137)&&config.fallbackRpcUrl?4:chainId===8453||chainId===5042?1:chainId===137?2:6;
   // A durable index keeps a confirmation buffer before committing events. The
   // stateless path replays its window on every read, so it can show mined
   // listings and sales immediately and self-correct after a reorg.

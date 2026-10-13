@@ -28,6 +28,42 @@ function log(eventName,args,index){
   const values=event.inputs.filter(input=>!input.indexed);
   return {topics:encodeEventTopics({abi:marketplaceAbi,eventName,args}),data:encodeAbiParameters(values,values.map(input=>args[input.name])),transactionHash:hash,blockNumber:"0xa",logIndex:`0x${index.toString(16)}`};
 }
+test("Base splits caps in RPC error.data without falling through to archive-restricted providers",async()=>{
+  const originalFetch=globalThis.fetch;
+  const urls=[],committed=[];
+  globalThis.fetch=async(url,options)=>{
+    urls.push(new URL(String(url)).origin);
+    const request=JSON.parse(options.body);
+    const range=request.params[0];
+    const size=Number(BigInt(range.toBlock)-BigInt(range.fromBlock))+1;
+    return Response.json(size>2
+      ? {jsonrpc:"2.0",id:request.id,error:{code:-32602,message:"invalid params",data:"Block range too large for public access: maximum 2 blocks."}}
+      : {jsonrpc:"2.0",id:request.id,result:[]});
+  };
+  try{
+    const client=indexClient({chain:{id:8453},rpcUrl:"https://base-rpc.publicnode.com"});
+    const result=await rangeLogs(client,seller,1,8,async(logs,through)=>{committed.push(through);});
+    assert.equal(result.through,8);
+    assert.deepEqual(committed,[2,4,6,8]);
+    assert.ok(urls.every(url=>url==="https://base.gateway.tenderly.co"));
+  }finally{globalThis.fetch=originalFetch;}
+});
+test("provider-capped history reads overlap but checkpoint only a contiguous prefix",async()=>{
+  let active=0,peak=0;
+  const committed=[];
+  const client={request:async({params})=>{
+    const first=Number(BigInt(params[0].fromBlock)),last=Number(BigInt(params[0].toBlock));
+    if(last-first+1>2)throw new Error("maximum 2 blocks");
+    active++;peak=Math.max(peak,active);
+    await new Promise(resolve=>setTimeout(resolve,5));
+    active--;
+    if(first===5)throw new Error("provider unavailable");
+    return [{blockNumber:params[0].fromBlock}];
+  }};
+  await assert.rejects(rangeLogs(client,seller,1,8,async(logs,through)=>{committed.push(through);}),/provider unavailable/);
+  assert.equal(peak,4);
+  assert.deepEqual(committed,[2,4]);
+});
 const logs=[
   log("ItemListed",{seller,nftAddress:nft,tokenId:1n,price:parseEther("1")},0),
   log("OfferMade",{buyer,nftAddress:nft,tokenId:1n,amount:parseEther("0.1"),expiresAt:2000n},1),
