@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AstralsMint from "./astrals-mint";
 
 const astralsContract = "0x402f4ead8909145a57a45eeb27446111e6738c48";
 
@@ -24,6 +25,7 @@ export default function DropsPage() {
           <Link className="royal-view-all" href={`/collection/5042/${astralsContract}`}>Explore collection →</Link>
         </div>
       </div>
+      <AstralsMint />
     </section>
   </main>;
 }
