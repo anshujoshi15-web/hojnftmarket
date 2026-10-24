@@ -9,6 +9,7 @@ import { getMarketplaceChain, isMarketplaceChainId, marketplaceChains, type Mark
 import { announceMarketplaceUpdate, DISCOVER_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 import { UsdEstimate } from "./components/usd-estimate";
 import { NftCardVideo } from "./components/nft-card-video";
+import AstralsDiscoverDrop from "./components/astrals-discover-drop";
 
 type IndexedListing = {
   id: string;
@@ -421,6 +422,7 @@ export default function Home() {
           {(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live").map(id=><button key={id} type="button" aria-pressed={activeChain===id} onClick={()=>chooseNetwork(id)}>{marketplaceChains[id].name}</button>)}
         </div>
       </section>
+      {(activeChain==="all"||activeChain===5042)&&<AstralsDiscoverDrop />}
       <form action="/search" method="get" className="nft-inline-search discover-nft-search" role="search">
         <Search size={18} aria-hidden="true"/>
         <input type="search" name="q" aria-label="Search all NFTs" placeholder="Search NFTs by name, collection, contract or token ID"/>
