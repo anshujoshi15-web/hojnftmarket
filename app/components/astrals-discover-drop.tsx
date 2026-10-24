@@ -34,7 +34,6 @@ export default function AstralsDiscoverDrop() {
       <p className="astrals-discover-date">Planned public mint · 25 October 2026, 12:00 AM GMT</p>
       {seconds===undefined?<p>Loading countdown…</p>:seconds>0?<div className="astrals-discover-countdown" role="timer" aria-label="Countdown to the planned public mint" aria-live="off">{units.map(([value,label])=><div key={label}><strong>{String(value).padStart(2,"0")}</strong><span>{label}</span></div>)}</div>:<p>Planned launch time reached. Check live mint availability on Drops.</p>}
       <Link href="/drops" className="royal-view-all">{seconds===0?"Check mint availability":"View drop"} ↗</Link>
-      <small>Final availability is controlled by the official OpenSea Drop.</small>
     </div>
   </section>;
 }

@@ -22,7 +22,7 @@ export default function DropsPage() {
           <div><dt>PUBLIC ACCESS</dt><dd>No wallet limit · No buyer whitelist</dd></div>
           <div><dt>CONTRACT</dt><dd><a href={`https://explorer.arc.io/address/${astralsContract}`} target="_blank" rel="noopener noreferrer">{astralsContract}</a></dd></div>
         </dl>
-        <p>Final availability is controlled by the official OpenSea Drop. Network gas is additional. Resale creator earnings are initially set to 7%, subject to marketplace rules.</p>
+        <p>Network gas is additional. Resale creator earnings are initially set to 7%, subject to marketplace rules.</p>
         <p>After minting, connect the wallet that holds your NFT to Astral Studio to create a wallpaper, banner or profile picture.</p>
         <div className="astrals-drop-links">
           <a className="royal-view-all" href="https://joshiastrals.thehouseofjoshi.com/" target="_blank" rel="noopener noreferrer">Visit mint site ↗</a>

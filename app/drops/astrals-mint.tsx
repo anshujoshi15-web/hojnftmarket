@@ -40,7 +40,7 @@ export default function AstralsMint() {
   return <div className="astrals-mint">
     <h3>Mint Joshi Astrals</h3>
     <p>25 USDC each + Arc network gas · No wallet limit. No buyer whitelist.</p>
-    <p>Planned public mint: 25 October 2026. Final availability is controlled by the official OpenSea Drop; live availability appears below.</p>
+    <p>Planned public mint: 25 October 2026. Live mint availability appears below.</p>
     {data&&<p>{data.stats[1].toString()} / {data.stats[2].toString()} minted</p>}
     <label>Quantity <input type="number" min={1} step={1} value={Number.isNaN(quantity)?"":quantity} disabled={transaction.pending||transaction.uncertain} onChange={event=>setQuantity(event.target.valueAsNumber)} /></label>
     {Number.isSafeInteger(quantity)&&quantity>0&&<p>Total: {(BigInt(quantity)*25n).toString()} USDC + network gas</p>}
