@@ -19,7 +19,7 @@ export default function DropsPage() {
           <div><dt>NETWORK</dt><dd>Arc</dd></div>
           <div><dt>PLANNED PUBLIC MINT</dt><dd>25 October 2026</dd></div>
           <div><dt>PUBLIC SUPPLY</dt><dd>7,577 NFTs after the 200-NFT House allocation</dd></div>
-          <div><dt>PLANNED WALLET LIMIT</dt><dd>Two public mints per wallet · No buyer whitelist</dd></div>
+          <div><dt>PUBLIC ACCESS</dt><dd>No wallet limit · No buyer whitelist</dd></div>
           <div><dt>CONTRACT</dt><dd><a href={`https://explorer.arc.io/address/${astralsContract}`} target="_blank" rel="noopener noreferrer">{astralsContract}</a></dd></div>
         </dl>
         <p>Final availability is controlled by the official OpenSea Drop. Network gas is additional. Resale creator earnings are initially set to 7%, subject to marketplace rules.</p>

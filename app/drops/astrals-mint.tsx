@@ -39,10 +39,11 @@ export default function AstralsMint() {
   }
   return <div className="astrals-mint">
     <h3>Mint Joshi Astrals</h3>
-    <p>25 USDC each + Arc network gas · Planned limit: two public mints per wallet. No buyer whitelist.</p>
+    <p>25 USDC each + Arc network gas · No wallet limit. No buyer whitelist.</p>
     <p>Planned public mint: 25 October 2026. Final availability is controlled by the official OpenSea Drop; live availability appears below.</p>
     {data&&<p>{data.stats[1].toString()} / {data.stats[2].toString()} minted</p>}
-    <label>Quantity <select value={quantity} disabled={transaction.pending||transaction.uncertain} onChange={event=>setQuantity(Number(event.target.value))}><option value={1}>1 Astral — 25 USDC</option><option value={2}>2 Astrals — 50 USDC</option></select></label>
+    <label>Quantity <input type="number" min={1} step={1} value={Number.isNaN(quantity)?"":quantity} disabled={transaction.pending||transaction.uncertain} onChange={event=>setQuantity(event.target.valueAsNumber)} /></label>
+    {Number.isSafeInteger(quantity)&&quantity>0&&<p>Total: {(BigInt(quantity)*25n).toString()} USDC + network gas</p>}
     <div className="astrals-drop-links">
       {address?<button type="button" className="royal-view-all" disabled={checking||!!issue||!data||transaction.pending||transaction.uncertain} onClick={()=>void mint()}>{transaction.pending?"Mint in progress…":`Mint ${quantity} ${quantity===1?"Astral":"Astrals"}`}</button>:<ConnectButton.Custom>{({openConnectModal})=><button type="button" className="royal-view-all" onClick={openConnectModal}>Connect wallet to mint</button>}</ConnectButton.Custom>}
       <button type="button" className="royal-view-all" disabled={checking||transaction.pending} onClick={()=>void refresh()}>Refresh availability</button>

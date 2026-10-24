@@ -32,14 +32,14 @@ export async function readAstralsMint(wallet: Address = zeroAddress) {
 
 export function astralsMintQuote(data: Awaited<ReturnType<typeof readAstralsMint>>, quantity: number) {
   const {drop,payout,recipients,stats,timestamp}=data;
-  if(!Number.isInteger(quantity)||quantity<1||quantity>2)throw Error("Choose one or two Astrals.");
+  if(!Number.isSafeInteger(quantity)||quantity<1)throw Error("Choose a positive whole number of Astrals.");
   if(!drop.startTime||!drop.endTime||!drop.maxTotalMintableByWallet)throw Error("Public mint has not been configured yet.");
   if(timestamp<BigInt(drop.startTime))throw Error(`Mint opens ${new Date(Number(drop.startTime)*1000).toLocaleString(undefined,{timeZoneName:"short"})}.`);
   if(timestamp>BigInt(drop.endTime))throw Error("Public mint has ended.");
-  if(drop.mintPrice!==25n*10n**18n||drop.maxTotalMintableByWallet!==2||stats[2]!==7777n||stats[1]<200n||stats[1]>stats[2])throw Error("Live mint settings need review. Please check the official mint site.");
+  if(drop.mintPrice!==25n*10n**18n||stats[2]!==7777n||stats[1]<200n||stats[1]>stats[2])throw Error("Live mint settings need review. Please check the official mint site.");
   if(payout===zeroAddress||recipients.length!==1||recipients[0]===zeroAddress)throw Error("Mint payout settings need review.");
   if(stats[1]===stats[2])throw Error("All Astrals have been minted.");
-  if(stats[0]+BigInt(quantity)>2n)throw Error("This quantity exceeds your remaining two-per-wallet mint allowance.");
+  if(stats[0]+BigInt(quantity)>BigInt(drop.maxTotalMintableByWallet))throw Error("This quantity exceeds your remaining onchain mint allowance.");
   if(stats[1]+BigInt(quantity)>stats[2])throw Error("Not enough Astrals remain for this quantity.");
   return {value:drop.mintPrice*BigInt(quantity),feeRecipient:recipients[0]};
 }
