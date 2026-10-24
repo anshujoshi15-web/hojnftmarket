@@ -17,8 +17,13 @@ export default function DropsPage() {
         <p>Discover Joshi Astrals on Arc. Visit the collection’s website for mint details or explore it on OpenSea.</p>
         <dl>
           <div><dt>NETWORK</dt><dd>Arc</dd></div>
+          <div><dt>PLANNED PUBLIC MINT</dt><dd>25 October 2026</dd></div>
+          <div><dt>PUBLIC SUPPLY</dt><dd>7,577 NFTs after the 200-NFT House allocation</dd></div>
+          <div><dt>PLANNED WALLET LIMIT</dt><dd>Two public mints per wallet · No buyer whitelist</dd></div>
           <div><dt>CONTRACT</dt><dd><a href={`https://explorer.arc.io/address/${astralsContract}`} target="_blank" rel="noopener noreferrer">{astralsContract}</a></dd></div>
         </dl>
+        <p>Final availability is controlled by the official OpenSea Drop. Network gas is additional. Resale creator earnings are initially set to 7%, subject to marketplace rules.</p>
+        <p>After minting, connect the wallet that holds your NFT to Astral Studio to create a wallpaper, banner or profile picture.</p>
         <div className="astrals-drop-links">
           <a className="royal-view-all" href="https://joshiastrals.thehouseofjoshi.com/" target="_blank" rel="noopener noreferrer">Visit mint site ↗</a>
           <a className="royal-view-all" href="https://opensea.io/collection/joshi-astrals" target="_blank" rel="noopener noreferrer">View on OpenSea ↗</a>

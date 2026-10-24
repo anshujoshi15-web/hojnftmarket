@@ -39,7 +39,8 @@ export default function AstralsMint() {
   }
   return <div className="astrals-mint">
     <h3>Mint Joshi Astrals</h3>
-    <p>25 USDC each + Arc network gas · Maximum 2 per wallet, shared with OpenSea.</p>
+    <p>25 USDC each + Arc network gas · Planned limit: two public mints per wallet. No buyer whitelist.</p>
+    <p>Planned public mint: 25 October 2026. Final availability is controlled by the official OpenSea Drop; live availability appears below.</p>
     {data&&<p>{data.stats[1].toString()} / {data.stats[2].toString()} minted</p>}
     <label>Quantity <select value={quantity} disabled={transaction.pending||transaction.uncertain} onChange={event=>setQuantity(Number(event.target.value))}><option value={1}>1 Astral — 25 USDC</option><option value={2}>2 Astrals — 50 USDC</option></select></label>
     <div className="astrals-drop-links">
