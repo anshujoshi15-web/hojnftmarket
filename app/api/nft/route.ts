@@ -58,7 +58,9 @@ function imageUrl(value: string | null | undefined) {
 function marketplaceImageUrl(source: string | null, chainId: number, contract: string, tokenId: string, refresh = false) {
   if (source?.startsWith("data:")) return source;
   const ipfsImage = directIpfsImageUrl(source);
-  if (ipfsImage) return ipfsImage;
+  // Polygon artwork must retain the resolver's alternate gateways and cached
+  // provider images when a collection's original IPFS host is unavailable.
+  if (ipfsImage && chainId !== 137) return ipfsImage;
   const params = new URLSearchParams({ chainId: String(chainId), contract, tokenId });
   if (source) params.set("source", source);
   if (refresh) params.set("refresh", String(Date.now()));
@@ -167,6 +169,9 @@ async function loadNft(request: NextRequest) {
     const item = await response.json() as ExplorerNft;
     const sourceImage = imageUrl(item.metadata?.image ?? item.metadata?.image_url ?? item.metadata?.image_data ?? item.image_url);
     const media = nftMedia(sourceImage, imageUrl(item.metadata?.animation_url));
+    // Blockscout can return 200 with a collection name but no token metadata.
+    // That is not a resolved NFT: continue to tokenURI and provider metadata.
+    if (!media.imageUrl && !media.videoUrl) throw new Error("Explorer NFT media is missing");
     return NextResponse.json({
       contractAddress: address,
       chainId,

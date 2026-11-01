@@ -117,7 +117,7 @@ function marketplaceImageUrl(source: string | null, chainId: MarketplaceChainId,
   if (!source) return metadataImageFallback(chainId, contractAddress, tokenId);
   if (source.startsWith("data:")) return source;
   const ipfsImage = directIpfsImageUrl(source);
-  if (ipfsImage) return ipfsImage;
+  if (ipfsImage && chainId !== 137) return ipfsImage;
   const params = new URLSearchParams({ chainId: String(chainId), contract: contractAddress, tokenId, source });
   return `/api/nft-image?${params}`;
 }

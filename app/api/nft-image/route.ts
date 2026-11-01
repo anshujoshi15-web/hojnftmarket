@@ -143,9 +143,17 @@ async function fetchAlchemyImage(chainId: number, contract: Address, tokenId: st
     image?: { cachedUrl?: string | null; pngUrl?: string | null; thumbnailUrl?: string | null; originalUrl?: string | null };
     raw?: { metadata?: { image?: string | null; image_url?: string | null } };
   };
-  const image = metadata.raw?.metadata?.image ?? metadata.raw?.metadata?.image_url ?? metadata.image?.originalUrl ?? metadata.image?.cachedUrl ?? metadata.image?.pngUrl ?? metadata.image?.thumbnailUrl;
-  if (!image) throw new Error("Alchemy metadata has no image");
-  return fetchFirstImage(image, tokenId, refresh);
+  // Originals may be offline while Alchemy still has a working cached copy.
+  // Try every distinct image rather than selecting the same broken original.
+  const images = [...new Set([
+    metadata.image?.cachedUrl, metadata.image?.pngUrl, metadata.image?.thumbnailUrl,
+    metadata.raw?.metadata?.image, metadata.raw?.metadata?.image_url, metadata.image?.originalUrl,
+  ].filter((image): image is string => !!image))];
+  for (const image of images) {
+    try { return await fetchFirstImage(image, tokenId, refresh); }
+    catch { /* Continue to a cached rendition or another source. */ }
+  }
+  throw new Error("Alchemy metadata has no usable image");
 }
 
 async function contractMetadataUri(chainId: number, contract: Address, tokenId: bigint) {
