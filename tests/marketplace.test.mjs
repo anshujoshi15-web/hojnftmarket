@@ -186,3 +186,16 @@ test("mock offer mutation endpoints reject writes",async()=>{
   const {POST,PUT}=await loadModule("app/api/offers/route.ts");
   for(const method of [POST,PUT]){const response=await method(new Request("http://localhost/api/offers",{method:"POST",body:JSON.stringify({offerer:buyer,amount:"1",action:"accept"})}));assert.equal(response.status,405);assert.equal(response.headers.get("Allow"),"GET");}
 });
+
+test("Polygon PublicNode range caps use full allowed batches and preserve ordered progress",async()=>{
+  const ranges=[],committed=[];
+  const client={request:async({params})=>{
+    const first=Number(BigInt(params[0].fromBlock)),last=Number(BigInt(params[0].toBlock));
+    ranges.push([first,last]);
+    if(last-first+1>10000)throw new Error('exceed maximum block range: 10000');
+    return [];
+  }};
+  await rangeLogs(client,seller,1,25000,async(logs,through)=>{committed.push(through);});
+  assert.deepEqual(ranges,[[1,25000],[1,10000],[10001,20000],[20001,25000]]);
+  assert.deepEqual(committed,[10000,20000,25000]);
+});

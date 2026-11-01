@@ -259,7 +259,9 @@ export async function rangeLogs(client:ReturnType<typeof indexClient>,address:Ad
     // Retry only range/result-size errors, never turn authentication or throttling
     // failures into hundreds of additional requests. No cursor advances on error.
     if(end===start||!isRangeLimited(error))throw error;
-    const maximum=Number(rpcErrorText(error).match(/maximum\s+(\d[\d,]*)\s+blocks/i)?.[1]?.replaceAll(",",""));
+    const detail=rpcErrorText(error);
+    const maximum=Number((detail.match(/maximum\s+(\d[\d,]*)\s+blocks/i)?.[1]
+      ??detail.match(/maximum\s+block\s+range\s*:\s*(\d[\d,]*)/i)?.[1])?.replaceAll(",",""));
     if(maximum>0&&maximum<end-start+1){
       const logs:RpcLog[]=[];
       // Fetch a bounded batch concurrently, then checkpoint in block order.
