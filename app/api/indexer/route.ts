@@ -24,7 +24,7 @@ export async function GET(request:Request){
     const result=await loadMarketplaceIndex(selected,runtime.DB);
     if(discoverOnly){
       return Response.json({
-        chainId,configured:true,legacy,stale:result.stale,collections:result.collections,
+        chainId,configured:true,legacy,stale:result.stale,verifiedAt:result.verifiedAt,collections:result.collections,
         listings:result.listings.map(({id,chainId,nftAddress,tokenId,seller,price,transactionHash,createdBlock,updatedBlock,tokenType,quantity})=>({id,chainId,nftAddress,tokenId,seller,price,transactionHash,createdBlock,updatedBlock,tokenType,quantity,legacy})),
         activity:result.activity.filter(item=>item.eventType==="sold"||item.eventType==="offer_accepted").slice(0,20).map(({id,chainId,eventType,nftAddress,tokenId,seller,buyer,price,transactionHash,blockNumber,logIndex,timestamp})=>({id,chainId,eventType,nftAddress,tokenId,seller,buyer,price,transactionHash,blockNumber,logIndex,timestamp})),
         sync:{caughtUp:result.sync.caughtUp},syncError:result.syncError,

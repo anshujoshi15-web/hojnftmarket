@@ -43,7 +43,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script dangerouslySetInnerHTML={{ __html: `window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-VV75NFVYLR');` }} />
       </head>
       <body suppressHydrationWarning>
-        <Web3Provider><GlobalHeader/>{children}<GlobalFooter/></Web3Provider>
+        <Web3Provider><GlobalHeader/><div className="aura-page-frame">{children}</div><GlobalFooter/></Web3Provider>
       </body>
     </html>
   );

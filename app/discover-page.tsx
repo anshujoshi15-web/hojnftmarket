@@ -1,15 +1,15 @@
 "use client";
 
-import { ArrowUpRight, Sparkles, TrendingUp, Clock, Search, ImageIcon, Maximize2, X } from "lucide-react";
+import { ArrowUpRight, Search, ImageIcon, Maximize2, X } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatEther } from "viem";
 import { getMarketplaceChain, isMarketplaceChainId, marketplaceChains, type MarketplaceChainId } from "@/lib/marketplace-chains";
-import { announceMarketplaceUpdate, DISCOVER_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
+import { DISCOVER_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 import { UsdEstimate } from "./components/usd-estimate";
-import { NftCardVideo } from "./components/nft-card-video";
 import AstralsDiscoverDrop from "./components/astrals-discover-drop";
+import { NftCardVideo } from "./components/nft-card-video";
 
 type IndexedListing = {
   id: string;
@@ -24,132 +24,32 @@ type IndexedListing = {
   legacy?:boolean;
 };
 
-type IndexedActivity = {
-  id: string;
-  chainId: MarketplaceChainId;
-  eventType: "listed" | "sold" | "canceled" | "withdrawn";
-  nftAddress: `0x${string}` | null;
-  tokenId: string | null;
-  seller: `0x${string}` | null;
-  buyer: `0x${string}` | null;
-  price: string | null;
-  transactionHash: `0x${string}`;
-  blockNumber: number;
-  logIndex: number;
-  timestamp?: number;
-};
-
 type IndexerResponse = {
   chainId: MarketplaceChainId;
-  chain: string;
-  currency: string;
   configured: boolean;
-  marketplaceAddress?: `0x${string}`;
-  legacyMarketplaceAddress?:`0x${string}`|null;
-  legacy?:boolean;
+  legacy?: boolean;
+  stale?: boolean;
+  verifiedAt?: number;
   listings: IndexedListing[];
-  activity: IndexedActivity[];
-  collections?: Array<{ nftAddress: `0x${string}`; floorPrice: string; listingCount: number; latestBlock: number; sampleTokenId: string }>;
-  sync: { caughtUp: boolean; syncedThrough: number; safeLatest: number } | null;
   syncError?: string | null;
-};
-
-type ListedCollection = {
-  sampleTokenId: string;
-  address: `0x${string}`;
-  floorPrice: string;
-  listingCount: number;
-  complete: boolean;
-  chainId: MarketplaceChainId;
-  salesVolume: bigint;
-  salesCount: number;
 };
 
 function shortAddress(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
-function ListedCollectionCard({collection,rank}:{collection:ListedCollection;rank:number}) {
-  const [metadata,setMetadata]=useState<{collection?:string;imageUrl?:string|null;videoUrl?:string|null}|null>(null);
-  const [failed,setFailed]=useState(false);
-  const [videoFailed,setVideoFailed]=useState(false);
-  const chain = getMarketplaceChain(collection.chainId);
-  const artworkUrl = `/api/nft-image?chainId=${collection.chainId}&contract=${collection.address}&tokenId=${collection.sampleTokenId}`;
-  useEffect(()=>{
-    const controller=new AbortController();
-    void fetch(`/api/nft?chainId=${collection.chainId}&contract=${collection.address}&tokenId=${collection.sampleTokenId}`,{signal:controller.signal})
-      .then(response=>response.ok?response.json() as Promise<{collection?:string;imageUrl?:string|null;videoUrl?:string|null}>:null).then(data=>setMetadata(data)).catch(()=>{});
-    return()=>controller.abort();
-  },[collection.chainId,collection.address,collection.sampleTokenId]);
-  return <Link href={`/collection/${collection.chainId}/${collection.address}`} className="hoj-listed-collection">
-    <div className="hoj-listed-art">{metadata?.videoUrl&&!videoFailed?<NftCardVideo src={metadata.videoUrl} poster={metadata.imageUrl} label={metadata.collection??"Collection artwork"} onError={()=>setVideoFailed(true)}/>:!failed?<Image src={metadata?.imageUrl??artworkUrl} alt={metadata?.collection??"Collection artwork"} width={112} height={112} unoptimized onError={()=>setFailed(true)}/>:<ImageIcon size={30} aria-label="Artwork unavailable"/>}</div>
-    <div className="hoj-listed-content">
-      <div className="hoj-listed-heading"><span className="hoj-trending-badge"><TrendingUp size={14}/> #{String(rank).padStart(2,"0")}</span><span>{chain.name}</span><ArrowUpRight size={17} aria-hidden="true"/></div>
-      <h3>{metadata?.collection??shortAddress(collection.address)}</h3>
-      <div className="hoj-listed-metrics">
-        <div><small>LISTED</small><strong>{collection.listingCount}</strong></div>
-        <div><small>SALES</small><strong>{collection.salesCount}</strong></div>
-        <div><small>VOLUME</small><strong>{collection.salesVolume > 0n ? formatEther(collection.salesVolume) : "—"} {chain.currency}</strong></div>
-        <div><small>{collection.complete?"FLOOR":"LOW"}</small><strong>{formatEther(BigInt(collection.floorPrice))} {chain.currency}<UsdEstimate wei={collection.floorPrice} currency={chain.currency}/></strong></div>
-      </div>
-    </div>
-  </Link>;
-}
-
-function DiscoverShowcaseCard({collection,rank}:{collection:ListedCollection;rank:number}) {
-  const [metadata,setMetadata]=useState<{collection?:string|null;imageUrl?:string|null;videoUrl?:string|null}|null>(null);
-  const [failed,setFailed]=useState(false);
-  const [videoFailed,setVideoFailed]=useState(false);
-  const chain=getMarketplaceChain(collection.chainId);
-  const artworkUrl=`/api/nft-image?chainId=${collection.chainId}&contract=${collection.address}&tokenId=${collection.sampleTokenId}`;
-  useEffect(()=>{
-    const controller=new AbortController();
-    void fetch(`/api/nft?chainId=${collection.chainId}&contract=${collection.address}&tokenId=${collection.sampleTokenId}`,{signal:controller.signal})
-      .then(response=>response.ok?response.json() as Promise<{collection?:string|null;imageUrl?:string|null;videoUrl?:string|null}>:null)
-      .then(data=>setMetadata(data)).catch(()=>{});
-    return()=>controller.abort();
-  },[collection.chainId,collection.address,collection.sampleTokenId]);
-  return <Link className="discover-showcase-card" href={`/collection/${collection.chainId}/${collection.address}`}>
-    {metadata?.videoUrl&&!videoFailed?<NftCardVideo src={metadata.videoUrl} poster={metadata.imageUrl} label={metadata.collection??`${chain.name} collection artwork`} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setVideoFailed(true)}/>:!failed?<Image src={metadata?.imageUrl??artworkUrl} alt={metadata?.collection??`${chain.name} collection artwork`} fill unoptimized sizes="(max-width: 700px) 85vw, 34vw" onError={()=>setFailed(true)}/>:<div className="discover-showcase-fallback"><ImageIcon size={42}/></div>}
-    <span className="discover-showcase-shade"/>
-    <div className="discover-showcase-top"><span>FEATURED #{rank}</span><span>{chain.name}</span></div>
-    <div className="discover-showcase-copy"><h2>{metadata?.collection??shortAddress(collection.address)}</h2><div><span><small>LISTED</small><strong>{collection.listingCount}</strong></span><span><small>FLOOR</small><strong>{formatEther(BigInt(collection.floorPrice))} {chain.currency}<UsdEstimate wei={collection.floorPrice} currency={chain.currency}/></strong></span><span><small>SALES</small><strong>{collection.salesCount}</strong></span></div></div>
-  </Link>;
-}
-
 function FeaturedArtwork({ listing, media, metadataLoaded, onExpand }: { listing: IndexedListing; media:{imageUrl?:string|null;videoUrl?:string|null}|null; metadataLoaded:boolean; onExpand: (url: string) => void }) {
-  const [failedUrl, setFailedUrl] = useState<string|null>(null);
-  const imageUrl = `/api/nft-image?chainId=${listing.chainId}&contract=${listing.nftAddress}&tokenId=${listing.tokenId}`;
-  const artworkUrl=media?.videoUrl??media?.imageUrl??imageUrl;
-  if(!metadataLoaded)return <div className="royal-nft-placeholder"><ImageIcon size={36} aria-label="Loading artwork"/></div>;
-  return failedUrl!==artworkUrl
-    ? (
-      <>
-        {media?.videoUrl?<NftCardVideo src={media.videoUrl} poster={media.imageUrl} label={`NFT #${listing.tokenId}`} className="royal-featured-artwork" onError={()=>setFailedUrl(artworkUrl)}/>:<img
-          src={artworkUrl}
-          alt={`NFT #${listing.tokenId}`}
-          loading="lazy"
-          onError={() => setFailedUrl(artworkUrl)}
-          className="royal-featured-artwork"
-          onClick={(e) => {
-            e.preventDefault();
-            onExpand(imageUrl);
-          }}
-          style={{ cursor: 'pointer' }}
-        />}
-        {!media?.videoUrl&&<button
-          className="royal-expand-button"
-          onClick={(e) => {
-            e.preventDefault();
-            onExpand(imageUrl);
-          }}
-          aria-label="Expand image"
-        >
-          <Maximize2 size={20} />
-        </button>}
-      </>
-    )
-    : <div className="royal-nft-placeholder"><ImageIcon size={36} aria-label="Artwork unavailable" /></div>;
+  const [failedUrls,setFailedUrls]=useState<string[]>([]);
+  const resolver=`/api/nft-image?chainId=${listing.chainId}&contract=${listing.nftAddress}&tokenId=${listing.tokenId}`;
+  const video=media?.videoUrl&&!failedUrls.includes(media.videoUrl)?media.videoUrl:null;
+  const image=[media?.imageUrl,resolver].find(url=>url&&!failedUrls.includes(url));
+  const fail=(url:string)=>setFailedUrls(current=>current.includes(url)?current:[...current,url]);
+  if(video)return <NftCardVideo src={video} poster={media?.imageUrl} label={`NFT #${listing.tokenId}`} className="royal-featured-artwork" onError={()=>fail(video)}/>;
+  if(!image)return <div className="royal-nft-placeholder"><ImageIcon size={36} aria-label={metadataLoaded?"Artwork unavailable":"Loading artwork"}/></div>;
+  return <>
+    <Image src={image} alt={`NFT #${listing.tokenId}`} fill unoptimized sizes="(max-width: 620px) 90vw, (max-width: 1100px) 45vw, 25vw" className="royal-featured-artwork" onError={()=>fail(image)}/>
+    <button type="button" className="royal-expand-button" onClick={event=>{event.preventDefault();onExpand(image);}} aria-label="Expand image"><Maximize2 size={20}/></button>
+  </>;
 }
 
 const PICK_ROTATION_MS=2*60*60*1000;
@@ -210,16 +110,16 @@ function DiscoverNftCard({nft,onExpand}:{nft:IndexedListing;onExpand:(url:string
 }
 
 export default function Home() {
-  const [listedCollections, setListedCollections] = useState<ListedCollection[]>([]);
   const [featuredNFTs, setFeaturedNFTs] = useState<IndexedListing[]>([]);
   const [randomNftsByChain,setRandomNftsByChain]=useState<Partial<Record<MarketplaceChainId,IndexedListing[]>>>({});
   const [visibleCountByChain,setVisibleCountByChain]=useState<Partial<Record<MarketplaceChainId,number>>>({});
+  const [verifiedByChain,setVerifiedByChain]=useState<Partial<Record<MarketplaceChainId,number>>>({});
   const [feedIssues,setFeedIssues]=useState<Record<string,string|undefined>>({});
   const [loadedChains,setLoadedChains]=useState<number[]>([]);
+  const retryListings = useRef<(chainId?: number) => void>(() => {});
   const latestListings=useRef<IndexedListing[]>([]);
   const pickedKeys=useRef<Record<number,string[]>>({});
   const picksUpdatedAt=useRef(0);
-  const [recentActivity, setRecentActivity] = useState<IndexedActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [activeChain,setActiveChain]=useState<MarketplaceChainId|"all">("all");
@@ -236,11 +136,8 @@ export default function Home() {
     setActiveChain(chain);
     try{window.sessionStorage.setItem("hoj-marketplace-network",String(chain));}catch{/* The page can still be filtered without storage. */}
   }
-  const visibleCollections=listedCollections.filter(collection=>activeChain==="all"||collection.chainId===activeChain);
   const liveChainIds=(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live");
   const visibleChainIds=activeChain==="all"?liveChainIds:liveChainIds.filter(id=>id===activeChain);
-  const visibleActivity=recentActivity.filter(item=>activeChain==="all"||item.chainId===activeChain).slice(0,6);
-
   useEffect(()=>{
     try{
       const saved=JSON.parse(window.sessionStorage.getItem("hoj-discover-picks")??"null") as {at?:number;keys?:Record<number,string[]>}|null;
@@ -252,7 +149,6 @@ export default function Home() {
   },[]);
 
   const updatePicks=useCallback((listings:IndexedListing[],rotate=false)=>{
-    if(!listings.length)return;
     if(rotate||!picksUpdatedAt.current){
       picksUpdatedAt.current=Date.now();
       if(rotate)pickedKeys.current={};
@@ -300,108 +196,48 @@ export default function Home() {
     feeds.push(...liveChains.map(chainId=>({chainId,legacy:true})));
 
     function renderMarketplaceData() {
-        if (!mounted) return;
-        const allListings: IndexedListing[] = [];
-        const allActivity: IndexedActivity[] = [];
-
-        const collections: ListedCollection[] = [];
-        responses.forEach((data) => {
-            if (!data.configured) return;
-            allListings.push(...data.listings);
-            allActivity.push(...data.activity);
-            for (const collection of data.collections ?? []) {
-              collections.push({
-                address: collection.nftAddress,
-                sampleTokenId: collection.sampleTokenId,
-                chainId: data.chainId,
-                floorPrice: collection.floorPrice,
-                listingCount: collection.listingCount,
-                complete: Boolean(data.sync?.caughtUp && !data.syncError),
-                salesVolume: 0n,
-                salesCount: 0,
-              });
-            }
-        });
-
-        // Calculate sales volume and count for each collection
-        const collectionSales = new Map<string, { volume: bigint; count: number }>();
-        allActivity.forEach(activity => {
-          if (activity.nftAddress && ["sold", "offer_accepted"].includes(activity.eventType) && activity.price) {
-            const key = `${activity.chainId}:${activity.nftAddress.toLowerCase()}`;
-            const current = collectionSales.get(key) || { volume: 0n, count: 0 };
-            collectionSales.set(key, {
-              volume: current.volume + BigInt(activity.price),
-              count: current.count + 1
-            });
-          }
-        });
-
-        // Update collections with sales data
-        collections.forEach(collection => {
-          const key = `${collection.chainId}:${collection.address.toLowerCase()}`;
-          const salesData = collectionSales.get(key);
-          if (salesData) {
-            collection.salesVolume = salesData.volume;
-            collection.salesCount = salesData.count;
-          }
-        });
-
-        const activityTimes = new Map(allActivity.map(event => [`${event.chainId}:${event.transactionHash.toLowerCase()}`, event.timestamp ?? 0]));
-
-        const sortedListings = allListings.sort((a,b) => {
-          const aTime = activityTimes.get(`${a.chainId}:${a.transactionHash.toLowerCase()}`) ?? 0;
-          const bTime = activityTimes.get(`${b.chainId}:${b.transactionHash.toLowerCase()}`) ?? 0;
-          return bTime-aTime || (a.chainId===b.chainId ? b.updatedBlock-a.updatedBlock : 0);
-        });
-
-        setFeaturedNFTs(sortedListings);
-        const sales = allActivity.filter(a => (["sold","offer_accepted"].includes(a.eventType)))
-          .sort((a,b)=>(b.timestamp??0)-(a.timestamp??0)||b.blockNumber-a.blockNumber||b.logIndex-a.logIndex);
-        setRecentActivity(sales);
-
-        // Sort collections by sales count (trending)
-        setListedCollections(collections.sort((a, b) => b.salesCount-a.salesCount || b.listingCount-a.listingCount));
-
-        if (allListings.length || collections.length) setLoading(false);
+      const listings: IndexedListing[] = [];
+      const verified: Partial<Record<MarketplaceChainId, number>> = {};
+      for (const data of responses.values()) {
+        if (!data.configured || data.stale) continue;
+        if (!data.legacy && data.verifiedAt) verified[data.chainId] = data.verifiedAt;
+        listings.push(...data.listings);
+      }
+      setVerifiedByChain(verified);
+      setFeaturedNFTs(listings.sort((a, b) => b.updatedBlock - a.updatedBlock));
     }
 
-    let cacheFresh=false;
-    try {
-      const cached = JSON.parse(window.sessionStorage.getItem("hoj-discover-listings") ?? "null") as {at:number;data:IndexerResponse[]}|null;
-      if (cached && Date.now() - cached.at < DISCOVER_REFRESH_INTERVAL && Array.isArray(cached.data)) {
-        cached.data.forEach(data => { if (liveChains.includes(data.chainId)) responses.set(`${data.chainId}:${data.legacy?"legacy":"current"}`, data); });
-        if (responses.size) renderMarketplaceData();
-        const cachedChains=[...new Set([...responses.values()].filter(data=>data.configured).map(data=>data.chainId))];
-        queueMicrotask(()=>{if(mounted)setLoadedChains(cachedChains);});
-        cacheFresh=feeds.every(feed=>responses.has(`${feed.chainId}:${feed.legacy?"legacy":"current"}`));
-      }
-    } catch { /* A fresh network read will replace an unavailable snapshot. */ }
-
     async function loadMarketplaceData(onlyChainId?: number) {
-      if (refreshing) { if (onlyChainId !== undefined) refreshAgain = true; return; }
+      if (refreshing) { refreshAgain = true; return; }
       refreshing = true;
       try {
       await Promise.allSettled(feeds.filter(feed => onlyChainId === undefined || feed.chainId === onlyChainId).map(async ({chainId,legacy}) => {
+        const feedKey = `${chainId}:${legacy ? "legacy" : "current"}`;
         try {
-        const res = await fetch(`/api/indexer?chainId=${chainId}&view=discover${legacy?"&legacy=1":""}`);
-        const data = await res.json() as IndexerResponse;
-        if (!mounted) return;
-        const feedKey=`${chainId}:${legacy?"legacy":"current"}`;
-        if (legacy&&res.status===404){setFeedIssues(current=>({...current,[feedKey]:undefined}));return;}
-        if (!res.ok){setFeedIssues(current=>({...current,[feedKey]:data.syncError??`${getMarketplaceChain(chainId).name} listings could not be loaded. Please retry.`}));return;}
-        setFeedIssues(current=>({...current,[feedKey]:data.syncError??undefined}));
-        responses.set(`${chainId}:${legacy?"legacy":"current"}`, data);
-        renderMarketplaceData();
-        try { window.sessionStorage.setItem("hoj-discover-listings", JSON.stringify({at:Date.now(),data:[...responses.values()]})); }
-        catch { /* Keep the current view when storage is unavailable. */ }
-        } catch { if(mounted)setFeedIssues(current=>({...current,[`${chainId}:${legacy?"legacy":"current"}`]:`${getMarketplaceChain(chainId).name} listings could not be loaded. Please retry.`})); }
+          const res = await fetch(`/api/indexer?chainId=${chainId}&view=discover${legacy ? "&legacy=1" : ""}`, { cache: "no-store" });
+          const data = await res.json() as IndexerResponse;
+          if (!mounted) return;
+          const issue = legacy && res.status === 404 ? undefined
+            : data.stale ? "Live verification is unavailable. Retry to check for active listings."
+            : data.syncError ?? (!res.ok ? "Listings could not be loaded. Please retry." : undefined);
+          setFeedIssues(current => ({ ...current, [feedKey]: issue }));
+          if (res.ok) responses.set(feedKey, data);
+          else responses.delete(feedKey);
+          renderMarketplaceData();
+        } catch {
+          if (!mounted) return;
+          responses.delete(feedKey);
+          setFeedIssues(current => ({ ...current, [feedKey]: "Listings could not be loaded. Please retry." }));
+          renderMarketplaceData();
+        }
         finally { if(mounted&&!legacy)setLoadedChains(current=>current.includes(chainId)?current:[...current,chainId]); }
       }));
       if (mounted) setLoading(false);
       } finally { refreshing = false; if (refreshAgain && mounted) { refreshAgain = false; void loadMarketplaceData(); } }
     }
 
-    if(!cacheFresh)void loadMarketplaceData();
+    retryListings.current = loadMarketplaceData;
+    void loadMarketplaceData();
     let lastRefresh=Date.now();
     const timer = window.setInterval(() => { if (!document.hidden) {lastRefresh=Date.now();void loadMarketplaceData();} }, DISCOVER_REFRESH_INTERVAL);
     const onFocus = () => { if (!document.hidden&&Date.now()-lastRefresh>=DISCOVER_REFRESH_INTERVAL) {lastRefresh=Date.now();void loadMarketplaceData();} };
@@ -411,159 +247,67 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="royal-homepage">
+    <main className="royal-homepage discover-page">
       <section className="discover-intro">
         <div className="discover-intro-head">
-          <div><span className="royal-section-label">AURA BY JOSHI · NFT MARKETPLACE</span><h1>Discover</h1><p>Find work across live networks. Explore collections and listings, then trade from your wallet.</p></div>
+          <h1>Discover</h1>
+          <form action="/search" method="get" className="nft-inline-search discover-nft-search" role="search">
+            <Search size={18} aria-hidden="true"/>
+            <input type="search" name="q" aria-label={activeChain==="all"?"Search all NFTs":`Search ${getMarketplaceChain(activeChain).name} NFTs`} placeholder="Search collections or tokens…"/>
+            {typeof activeChain==="number"&&<input type="hidden" name="chainId" value={activeChain}/>}
+            <button type="submit" aria-label="Search NFTs"><ArrowUpRight size={17} aria-hidden="true" /></button>
+          </form>
         </div>
-        <div className="discover-chain-pills" aria-label="Filter by network">
+      </section>
+
+      <AstralsDiscoverDrop />
+
+      <section className="discover-listings" aria-labelledby="available-nfts">
+        <div className="discover-listings-heading">
+          <h2 id="available-nfts">Available NFTs</h2>
+          <Link href="/market" className="royal-view-all">Explore market <ArrowUpRight size={16} aria-hidden="true" /></Link>
+        </div>
+        <div className="discover-chain-pills" role="group" aria-label="Filter by network">
           <span className="discover-chain-label">Networks</span>
           <button type="button" aria-pressed={activeChain==="all"} onClick={()=>chooseNetwork("all")}>All networks</button>
           {(Object.keys(marketplaceChains).map(Number) as MarketplaceChainId[]).filter(id=>marketplaceChains[id].marketplaceStatus==="live").map(id=><button key={id} type="button" aria-pressed={activeChain===id} onClick={()=>chooseNetwork(id)}>{marketplaceChains[id].name}</button>)}
         </div>
-      </section>
-      {(activeChain==="all"||activeChain===5042)&&<AstralsDiscoverDrop />}
-      <form action="/search" method="get" className="nft-inline-search discover-nft-search" role="search">
-        <Search size={18} aria-hidden="true"/>
-        <input type="search" name="q" aria-label="Search all NFTs" placeholder="Search NFTs by name, collection, contract or token ID"/>
-        {typeof activeChain==="number"&&<input type="hidden" name="chainId" value={activeChain}/>}
-        <button type="submit">Search NFTs</button>
-      </form>
-      <section className="discover-showcase" aria-label="Featured collections">
-        {loading?<div className="discover-showcase-loading">Loading collections…</div>:visibleCollections.length?visibleCollections.slice(0,5).map((collection,index)=><DiscoverShowcaseCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>):<div className="discover-showcase-loading">No House of Joshi collections are listed here yet. Explore NFTs by network below.</div>}
-      </section>
 
-      {/* Trending Collections based on sales */}
-      <section className="royal-section royal-listed-section">
-        <div className="royal-section-header">
-          <div>
-            <span className="royal-section-label">TRENDING</span>
-            <h2>Top Collections</h2>
-          </div>
-          <Link href="/collections" className="royal-view-all">
-            View All
-            <ArrowUpRight size={16} />
-          </Link>
-        </div>
-        {loading ? (
-          <div className="royal-loading-grid">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="royal-skeleton-card" />
-            ))}
-          </div>
-        ) : (
-          <div className="royal-collections-grid">
-            {visibleCollections.length === 0 && <p className="royal-market-empty">No collections have active House of Joshi listings on this network yet.</p>}
-            {visibleCollections.map((collection, index) => (
-              <ListedCollectionCard key={`${collection.chainId}:${collection.address}`} collection={collection} rank={index+1}/>
-            ))}
+        {activeChain === "all" && !featuredNFTs.length && (
+          <div className="royal-section royal-market-empty" role="status">
+            <p>{loading ? "Checking for available NFTs…" : Object.values(feedIssues).some(Boolean) ? "No active listings could be verified. Some networks are unavailable." : "No NFTs are currently listed for sale."}</p>
+            {!loading && Object.values(feedIssues).some(Boolean) && <button type="button" className="royal-view-all" onClick={() => retryListings.current()}>Retry listings</button>}
           </div>
         )}
-      </section>
 
-      {/* Four rotating NFTs from each live network. */}
-      {visibleChainIds.map(chainId=>{
-        const chain=getMarketplaceChain(chainId);
-        const picks=randomNftsByChain[chainId]??[];
-        const picked=new Set(picks.map(nftKey));
-        const allNfts=[...picks,...featuredNFTs.filter(item=>item.chainId===chainId&&!picked.has(nftKey(item)))];
-        const count=visibleCountByChain[chainId]??4;
-        const nfts=allNfts.slice(0,count);
-        const feedIssue=feedIssues[`${chainId}:current`]??feedIssues[`${chainId}:legacy`];
-        const chainLoading=!loadedChains.includes(chainId)&&!allNfts.length;
-        return <section className="royal-section royal-section-alt royal-featured-section discover-network-section" key={chainId} aria-label={`${chain.name} NFTs`}>
-          <div className="royal-section-header">
-            <div><span className="royal-section-label">EXPLORE · {chain.name.toUpperCase()}</span><h2>{chain.name} NFTs</h2></div>
-            <Link href={`/market?chainId=${chainId}`} className="royal-view-all">View {chain.name} market <ArrowUpRight size={16}/></Link>
-          </div>
-          {!loading&&feedIssue&&<button type="button" className="royal-view-all" onClick={()=>announceMarketplaceUpdate(chainId)}>Retry {chain.name} listings</button>}
-          {chainLoading?<div className="royal-loading-grid">{[...Array(4)].map((_,index)=><div key={index} className="royal-skeleton-card"/>)}</div>
-            :<><div className="royal-nfts-grid">{nfts.map(nft=><DiscoverNftCard key={`${nft.id}:${nft.legacy?"legacy":"current"}`} nft={nft} onExpand={setLightboxImage}/>)}{!nfts.length&&<p className="royal-market-empty">{feedIssue??`No active House of Joshi listings on ${chain.name} right now.`}</p>}</div>{nfts.length>0&&feedIssue&&<p className="royal-market-empty" role="status">{feedIssue}</p>}{allNfts.length>nfts.length&&<button type="button" className="royal-view-all" onClick={()=>setVisibleCountByChain(current=>({...current,[chainId]:(current[chainId]??4)+12}))}>Show more {chain.name} NFTs ({nfts.length} of {allNfts.length}) <ArrowUpRight size={16}/></button>}</>}
+        {visibleChainIds.map(chainId=>{
+          const chain=getMarketplaceChain(chainId);
+          const chainListings = featuredNFTs.filter(item => item.chainId === chainId);
+          if (activeChain === "all" && !chainListings.length) return null;
+          const byKey = new Map(chainListings.map(nft => [nftKey(nft), nft]));
+          const picks = (randomNftsByChain[chainId] ?? []).flatMap(nft => {
+            const current = byKey.get(nftKey(nft));
+            return current ? [current] : [];
+          });
+          const picked=new Set(picks.map(nftKey));
+          const allNfts=[...picks,...chainListings.filter(item=>!picked.has(nftKey(item)))];
+          const count=visibleCountByChain[chainId]??3;
+          const nfts=allNfts.slice(0,count);
+          const feedIssue=feedIssues[`${chainId}:current`]??feedIssues[`${chainId}:legacy`];
+          const chainLoading=!loadedChains.includes(chainId)&&!allNfts.length;
+          const verifiedAt=verifiedByChain[chainId];
+          return <section className="royal-section royal-section-alt royal-featured-section discover-network-section" key={chainId} aria-label={`${chain.name} NFTs`}>
+            <div className="royal-section-header">
+              <div><span className="royal-section-label">EXPLORE · {chain.name.toUpperCase()}</span><h2>{chain.name} NFTs</h2></div>
+              <Link href={`/market?chainId=${chainId}`} className="royal-view-all">View {chain.name} market <ArrowUpRight size={16}/></Link>
+            </div>
+            {verifiedAt&&<p className="discover-shelf-note">Current marketplace checked <time dateTime={new Date(verifiedAt).toISOString()}>{new Date(verifiedAt).toLocaleString()}</time></p>}
+            {!loading&&feedIssue&&<button type="button" className="royal-view-all" onClick={()=>retryListings.current(chainId)}>Retry {chain.name} listings</button>}
+            {chainLoading?<div className="royal-loading-grid">{[...Array(4)].map((_,index)=><div key={index} className="royal-skeleton-card"/>)}</div>
+              :<><div className="royal-nfts-grid">{nfts.map(nft=><DiscoverNftCard key={`${nft.id}:${nft.legacy?"legacy":"current"}`} nft={nft} onExpand={setLightboxImage}/>)}{!nfts.length&&<p className="royal-market-empty">{feedIssue??`No active House of Joshi listings on ${chain.name} right now.`}</p>}</div>{nfts.length>0&&feedIssue&&<p className="royal-market-empty" role="status">{feedIssue}</p>}{allNfts.length>nfts.length&&<button type="button" className="royal-view-all" onClick={()=>setVisibleCountByChain(current=>({...current,[chainId]:(current[chainId]??3)+12}))}>Show more {chain.name} NFTs ({nfts.length} of {allNfts.length}) <ArrowUpRight size={16}/></button>}</>}
         </section>;
       })}
 
-      {/* Recent Activity */}
-      <section className="royal-section royal-section-alt">
-        <div className="royal-section-header">
-          <div>
-            <span className="royal-section-label">ACTIVITY</span>
-            <h2>Recent Activity</h2>
-          </div>
-          <Link href="/activity" className="royal-view-all">
-            View All
-            <ArrowUpRight size={16} />
-          </Link>
-        </div>
-        <div className="royal-activity-list">
-          {loading ? (
-            <div className="royal-loading-activity">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="royal-activity-skeleton" />
-              ))}
-            </div>
-          ) : (
-            visibleActivity.length===0?<p className="royal-market-empty">No recorded sales on this network yet.</p>:visibleActivity.map((activity) => {
-              const chain = getMarketplaceChain(activity.chainId);
-              return (
-                <div key={activity.id} className="royal-activity-item">
-                  <div className="royal-activity-type">
-                    <Clock size={16} />
-                    <span>Sold</span>
-                  </div>
-                  <div className="royal-activity-details">
-                    <strong>Token #{activity.tokenId}</strong>
-                    <span>{shortAddress(activity.nftAddress || "")}</span>
-                  </div>
-                  <div className="royal-activity-price">
-                    <strong>{activity.price ? formatEther(BigInt(activity.price)) : "0"} {chain.currency}{activity.price&&<UsdEstimate wei={activity.price} currency={chain.currency}/>}</strong>
-                  </div>
-                  <div className="royal-activity-chain">
-                    <span>{chain.name}</span>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </section>
-
-      {/* Royal Vault CTA */}
-      <section className="royal-vault-cta">
-        <div className="royal-vault-content">
-          <h2>Explore collections</h2>
-          <p>
-            Browse collections with marketplace activity, then open an NFT to see its verified metadata and listing details.
-          </p>
-          <Link href="/collections" className="royal-vault-button">
-            Browse collections
-            <Sparkles size={20} />
-          </Link>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="royal-section">
-        <div className="royal-section-header centered">
-          <span className="royal-section-label">GUIDE</span>
-          <h2>How It Works</h2>
-        </div>
-        <div className="royal-steps-grid">
-          <div className="royal-step-card">
-            <div className="royal-step-number">1</div>
-            <h3>Connect Your Wallet</h3>
-            <p>Connect your wallet and choose the live network where you want to trade.</p>
-          </div>
-          <div className="royal-step-card">
-            <div className="royal-step-number">2</div>
-            <h3>Explore Collections</h3>
-            <p>Check each NFT’s network, collection contract, token ID, price, and listing status.</p>
-          </div>
-          <div className="royal-step-card">
-            <div className="royal-step-number">3</div>
-            <h3>Make Your Move</h3>
-            <p>Confirm purchases in your wallet. To sell, approve the collection if needed, then list one NFT or a V8 batch.</p>
-          </div>
-        </div>
       </section>
 
       {/* Lightbox for full image view */}

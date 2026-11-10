@@ -5,7 +5,7 @@ export const siteDescription = "Aura by Joshi is a non-custodial NFT marketplace
 export const siteUrl = (path: string) => new URL(path, siteOrigin).href;
 
 export const publicPages = [
-  ["/", "Discover", "Browse featured NFT collections, drops, and listings by network."],
+  ["/", "Discover", "Browse NFTs currently listed for sale by network."],
   ["/market", "Market", "Browse and filter marketplace listings."],
   ["/collections", "Collections", "Explore verified collections and listed NFTs."],
   ["/drops", "Drops", "Find featured releases, including Joshi Astrals."],
@@ -105,7 +105,7 @@ export const homeMarkdown = `# Discover NFTs on ${siteName}
 
 ${siteDescription}
 
-Explore collections and listings by network, browse featured drops, and review item details before trading from your wallet. Prices and availability can change. Check the item's current listing on the marketplace.
+Browse NFTs currently listed for sale by network and review item details before trading from your wallet. Prices and availability can change. Check the item's current listing on the marketplace.
 
 ## Start exploring
 

@@ -1,3 +1,18 @@
+/* Shared black and gold surfaces for Aura. */
+:root {
+  --aura-black: #080808;
+  --aura-panel: #141414;
+  --aura-control: #1b1b1b;
+  --aura-gold: #e4bf75;
+  --aura-border: #806536;
+  --aura-text: #f5eee1;
+  --aura-muted: #c8bcaa;
+  --royal-black: var(--aura-black);
+  --royal-dark-gray: var(--aura-panel);
+  --royal-gold: var(--aura-gold);
+  --royal-border: var(--aura-border);
+}
+
 /* AURA logo sizing and local preview controls. */
 .aura-brand-lockup {
   display: block;
@@ -80,4 +95,440 @@
   background: #1a1916;
   color: #f5f1e8;
   font-size: 13px;
+}
+
+.discover-page {
+  --discover-gutter: clamp(18px, 2.6vw, 48px);
+  --discover-ink: var(--aura-text);
+  background: var(--aura-black);
+  color: var(--discover-ink);
+}
+.royal-homepage.discover-page .discover-intro {
+  padding: 12px var(--discover-gutter);
+  background: transparent;
+}
+.discover-page .discover-intro-head {
+  align-items: center;
+  gap: 16px;
+}
+.royal-homepage.discover-page .discover-intro h1,
+.discover-listings-heading h2 {
+  margin: 0;
+  color: var(--discover-ink);
+  font: 600 clamp(36px, 4vw, 60px)/1.08 var(--font-serif, Georgia), serif;
+}
+.discover-page .discover-intro-head .discover-nft-search {
+  flex: 0 1 460px;
+  width: 100%;
+  margin: 0;
+  border: 1px solid var(--aura-border);
+  border-radius: 8px;
+  background: var(--aura-control);
+}
+.discover-page .discover-nft-search input::placeholder { color: #cbbdb7; opacity: 1; }
+.discover-page .discover-nft-search button { padding-inline: 12px; color: #f0c36f; }
+
+.royal-homepage.discover-page .astrals-discover-drop {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: radial-gradient(ellipse at 100% 100%, #49381c, transparent 56%), var(--aura-black);
+}
+.royal-homepage.discover-page .astrals-discover-art {
+  min-height: clamp(310px, 26vw, 500px);
+  mask-image: linear-gradient(to right, black 80%, transparent);
+}
+.discover-page .astrals-discover-art img {
+  object-fit: cover;
+  object-position: center 44%;
+}
+.discover-page .astrals-discover-copy {
+  align-self: center;
+  padding: clamp(24px, 3.2vw, 58px) var(--discover-gutter) clamp(24px, 3.2vw, 58px) clamp(12px, 2vw, 32px);
+  background: transparent;
+}
+.discover-page .astrals-discover-copy h2 {
+  margin: 0 0 16px;
+  color: var(--discover-ink);
+  font: italic 500 clamp(40px, 6vw, 96px)/1.02 var(--font-serif, Georgia), serif;
+}
+.discover-page .astrals-discover-copy p {
+  max-width: 36ch;
+  margin: 0;
+  font-size: clamp(16px, 1.45vw, 23px);
+  line-height: 1.45;
+}
+.discover-page .astrals-discover-action {
+  gap: 12px;
+  margin-top: 24px;
+  padding: 10px 24px;
+  background: linear-gradient(#f3cc80, #c89a46);
+  color: #1a1009;
+  text-decoration: none;
+}
+.discover-listings { padding: 20px var(--discover-gutter) 36px; }
+.discover-listings-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
+.discover-listings-heading h2 { font-size: clamp(28px, 3vw, 44px); }
+.discover-listings .discover-chain-pills { margin: 12px 0 0; }
+.royal-homepage.discover-page .discover-network-section { padding: 20px 0 0; background: transparent; }
+.discover-page .discover-network-section .royal-nfts-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(12px, 1.4vw, 22px); }
+.discover-page .royal-nft-card { display: block; position: relative; overflow: hidden; border-radius: 10px; }
+.royal-homepage.discover-page .royal-nft-card .royal-nft-image { aspect-ratio: 7 / 5; }
+.discover-page .royal-nft-card .royal-featured-artwork { object-fit: cover; }
+.discover-page .royal-nft-card .royal-nft-info {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 32px 14px 12px;
+  background: linear-gradient(transparent, var(--aura-panel) 70%);
+  pointer-events: none;
+}
+.discover-page .royal-nft-card .royal-nft-info h3 { color: var(--discover-ink); font-family: var(--font-serif, Georgia), serif; }
+.discover-page .discover-listings > .royal-market-empty { padding-inline: 0; }
+
+@media (max-width: 700px) {
+  .discover-page .discover-intro-head { align-items: stretch; }
+  .discover-page .discover-intro-head .discover-nft-search { flex: auto; }
+  .royal-homepage.discover-page .astrals-discover-drop { grid-template-columns: 1fr; }
+  .royal-homepage.discover-page .astrals-discover-art {
+    min-height: 0;
+    aspect-ratio: 16 / 10;
+    mask-image: linear-gradient(to bottom, black 85%, transparent);
+  }
+  .discover-page .astrals-discover-copy { padding: 12px var(--discover-gutter) 24px; }
+  .discover-page .discover-network-section .royal-nfts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 460px) {
+  .discover-page .discover-network-section .royal-nfts-grid { grid-template-columns: 1fr; }
+}
+
+.royal-portal-market {
+  --market-ink: var(--aura-text);
+  --market-line: var(--aura-border);
+  background: var(--aura-black);
+  color: var(--market-ink);
+}
+.royal-portal-market .royal-portal-content { padding: 14px clamp(14px, 2vw, 34px) 40px; }
+.royal-portal-market .market-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.market-heading { flex: 1 1 250px; }
+.market-heading h1 { margin: 0; color: var(--market-ink); font: 600 clamp(36px, 4vw, 58px)/1.05 var(--font-serif, Georgia), serif; }
+.market-heading p { margin: 4px 0 0; color: #dfd1c7; font-size: 14px; }
+.royal-portal-market .market-toolbar > label:not(.sort-control) { flex: 2 1 210px; }
+.royal-portal-market .market-toolbar > label,
+.royal-portal-market .market-network-controls > *,
+.royal-portal-market .market-toolbar > button {
+  border: 1px solid var(--market-line);
+  background: var(--aura-control);
+  color: var(--market-ink);
+}
+.royal-portal-market .market-toolbar .sort-control { display: flex; align-items: center; gap: 6px; padding: 0 10px; }
+.royal-portal-market .sort-control > span { display: none; }
+.royal-portal-market .sort-control select { background: transparent; color: inherit; }
+.market-network-controls { display: flex; flex-wrap: wrap; gap: 6px; }
+.market-network-controls > * { border-radius: 20px; min-height: 36px; padding: 0 10px; }
+.royal-portal-market .market-network-controls button[aria-pressed="true"],
+.royal-portal-market .market-view-toggle button[aria-pressed="true"] { background: #d5ad69; color: #20160f; }
+.royal-portal-market .market-browser { grid-template-columns: minmax(170px, 19%) minmax(0, 1fr); }
+.royal-portal-market .market-filter-panel {
+  display: block;
+  padding: 12px 14px 12px 0;
+  border: 0;
+  border-right: 1px solid var(--market-line);
+  border-radius: 0;
+  background: transparent;
+}
+.market-filter-panel h2, .market-filter-panel h3 { color: var(--market-ink); font-family: var(--font-serif, Georgia), serif; }
+.market-filter-panel h2 { margin: 0; font-size: 24px; }
+.market-filter-panel h3 { margin: 12px 0 8px; padding-top: 12px; border-top: 1px solid var(--market-line); font-size: 18px; }
+.market-filter-panel > input { width: 100%; min-width: 0; margin-bottom: 8px; padding: 8px; border: 1px solid var(--market-line); border-radius: 7px; background: var(--aura-control); color: var(--market-ink); }
+.royal-portal-market .market-listing { border: 1px solid var(--market-line); background: var(--aura-panel); overflow: hidden; }
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-listing-art { aspect-ratio: 8 / 7; margin: 0; background: var(--aura-black); }
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-listing-art :is(img, video) { object-fit: cover !important; }
+.royal-portal-market .market-listing h2 { margin: 0 30px 3px 0; color: var(--market-ink); font-size: clamp(17px, 1.5vw, 24px); }
+.royal-portal-market .market-card-price { flex-wrap: wrap; }
+.royal-portal-market .market-card-price strong { color: var(--market-ink); }
+.market-card-price .market-chain-badge { padding: 3px 8px; border-radius: 16px; border: 1px solid var(--aura-border); background: #2e2415; color: var(--aura-gold); }
+.royal-portal-market .market-no-results { background: var(--aura-panel); border-color: var(--market-line); }
+@media (max-width: 700px) {
+  .royal-portal-market .market-browser { grid-template-columns: 1fr; }
+  .royal-portal-market .market-filter-panel { padding: 12px; border: 1px solid var(--market-line); border-radius: 8px; }
+  .royal-portal-market .market-cart-button { height: auto; }
+}
+@media (max-width: 420px) {
+  .royal-portal-market .market-listings-grid:not(.market-list-view) { grid-template-columns: 1fr; }
+}
+
+.royal-portal-market .market-toolbar {
+  gap: clamp(8px, 1.1vw, 18px);
+  margin-bottom: 22px;
+}
+.market-heading { flex: 0 1 290px; }
+.royal-portal-market .market-toolbar .filter-toggle { display: none; }
+.royal-portal-market .market-toolbar .market-cart-button {
+  min-width: 42px;
+  padding-inline: 8px;
+  gap: 5px;
+}
+.royal-portal-market .market-cart-button > span { display: none; }
+.royal-portal-market .market-view-toggle { gap: 0; }
+.royal-portal-market .market-view-toggle button { border-radius: 0; }
+.royal-portal-market .market-view-toggle button:first-child { border-radius: 7px 0 0 7px; }
+.royal-portal-market .market-view-toggle button:last-child { border-radius: 0 7px 7px 0; }
+.royal-portal-market .market-filter-panel > div:first-child > button {
+  width: auto;
+  color: #e4bf75;
+}
+.market-filter-panel details { padding: 15px 0; border-top: 1px solid var(--market-line); }
+.market-filter-panel details:first-of-type { margin-top: 12px; }
+.market-filter-panel summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  font: 600 18px var(--font-serif, Georgia), serif;
+}
+.market-filter-panel details[open] > summary { margin-bottom: 14px; }
+.market-filter-panel details[open] > summary svg { transform: rotate(180deg); }
+.market-filter-panel :is(input[type="search"], select) {
+  width: 100%;
+  min-height: 38px;
+  margin-bottom: 6px;
+  padding: 6px 9px;
+  border: 1px solid #796038;
+  border-radius: 6px;
+  background: var(--aura-black);
+  color: var(--market-ink);
+}
+.market-filter-panel .market-apply {
+  width: 100%;
+  min-height: 37px;
+  margin-top: 12px;
+  border: 1px solid #e4bf75;
+  border-radius: 6px;
+  background: #d5ad69;
+  color: #20160f;
+}
+.market-filter-panel .market-apply:disabled { opacity: .55; }
+.market-filter-panel .market-collection-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+.market-collection-option input { accent-color: #d5ad69; }
+.market-collection-option span:last-child { margin-left: auto; }
+.royal-portal-market .market-listing-copy { position: relative; }
+.royal-portal-market .market-listing-copy .market-favorite {
+  top: 9px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+}
+.market-listing-trade { margin-top: 7px; }
+.market-listing-trade summary { cursor: pointer; color: #e4bf75; font-size: 12px; }
+@media (min-width: 1250px) {
+  .royal-portal-market .market-listings-grid:not(.market-list-view) { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 15px; }
+}
+@media (max-width: 700px) {
+  .royal-portal-market .market-toolbar .filter-toggle { display: inline-flex; }
+  .market-heading { flex-basis: 100%; }
+}
+body:has(.royal-portal-market) .hoj-primary-nav a[aria-current="page"] {
+  background: transparent;
+  color: var(--aura-gold);
+}
+.royal-portal-market .market-listing-copy .market-card-price {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.royal-portal-market .market-filter-panel .market-apply { justify-content: center; text-align: center; }
+
+body,
+main:is(.royal-homepage, .royal-page, .royal-portal-page, .royal-collection-page,
+  .royal-nft-page, .drops-page, .collections-page, .hoj-cart-page, .hoj-proceeds-page,
+  .info-page, .directory-page, .network-marketplace),
+body .court-topbar,
+body .court-footer {
+  background: var(--aura-black);
+  color: var(--aura-text);
+}
+.local-preview-note {
+  padding: 12px 5vw;
+  border-bottom: 1px solid var(--aura-border);
+  background: var(--aura-panel);
+  color: var(--aura-muted);
+  font: 14px system-ui;
+}
+main :is(.royal-page-hero, .royal-content, .royal-empty-state, .royal-portal-hero,
+  .drops-hero, .collections-hero, .network-hero, .hoj-cart-empty, .hoj-cart-group,
+  .royal-nft-stage, .royal-nft-panel, .royal-nft-accordion),
+body :is(.cart-drawer, .court-cart-menu, .court-network-menu) {
+  background: var(--aura-panel);
+  border-color: var(--aura-border);
+  color: var(--aura-text);
+}
+main :is(.royal-page-hero, .royal-portal-hero, .drops-hero, .collections-hero,
+  .market-heading, .discover-intro, .network-hero) h1,
+main:is(.hoj-cart-page, .hoj-proceeds-page) > header h1,
+.royal-homepage.discover-page .discover-intro h1,
+.royal-homepage.discover-page .astrals-discover-copy h2,
+.discover-listings .discover-listings-heading h2 {
+  color: var(--aura-gold);
+}
+body :is(main, .court-topbar, .court-footer, .local-preview-header) :focus-visible {
+  outline: 2px solid var(--aura-gold);
+  outline-offset: 3px;
+}
+body :is(main, .court-topbar) :is(input, select, textarea) {
+  accent-color: var(--aura-gold);
+  color-scheme: dark;
+}
+
+.royal-portal-market .market-network-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+}
+.market-network-picker > span { color: var(--aura-gold); white-space: nowrap; font-size: 13px; }
+.market-network-picker select {
+  min-height: 36px;
+  max-width: 160px;
+  background: transparent;
+  color: inherit;
+}
+.market-network-picker option { background: var(--aura-control); }
+
+.royal-portal-market .market-toolbar {
+  position: static;
+  backdrop-filter: none;
+}
+.royal-portal-market .market-network-controls,
+.royal-portal-market .market-network-picker {
+  min-width: 0;
+  max-width: 100%;
+}
+.royal-portal-market .market-network-picker select { min-width: 0; }
+.market-collection-option input,
+.market-collection-option span:last-child { flex: none; }
+.market-collection-option span:not(:last-child) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.royal-portal-market .market-listings-grid:not(.market-list-view) {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 148px), 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-listing {
+  width: 100%;
+  max-width: 220px;
+}
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-listing-art {
+  height: auto;
+  aspect-ratio: 4 / 3;
+}
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-listing-copy {
+  padding: 9px 10px 10px;
+}
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-listing-copy h2 {
+  min-height: 0;
+  margin: 0 26px 3px 0;
+  font-size: 16px;
+  line-height: 22px;
+}
+.royal-portal-market .market-listing-copy > small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.royal-portal-market .market-listing-copy .market-favorite { top: 4px; right: 4px; margin: 0; }
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-card-price {
+  display: grid;
+  gap: 3px;
+  min-height: 54px;
+  margin: 7px 0 0;
+  padding: 5px 0 0;
+  justify-content: start;
+  align-content: start;
+}
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-chain-badge { justify-self: start; }
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-card-price strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discover-featured-collections { padding: 24px var(--discover-gutter) 0; }
+.discover-featured-collections > h2 {
+  margin: 0 0 14px;
+  color: var(--aura-gold);
+  font: 600 clamp(26px, 3vw, 40px)/1.1 var(--font-serif, Georgia), serif;
+}
+.discover-collection-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.discover-collection-feature {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--aura-border);
+  border-radius: 10px;
+  background: var(--aura-panel);
+  text-decoration: none;
+}
+.discover-collection-feature:hover { border-color: var(--aura-gold); }
+.discover-collection-feature-art { position: relative; aspect-ratio: 1; background: var(--aura-black); }
+.discover-collection-feature-art img { object-fit: contain; }
+.discover-collection-feature-copy { padding: clamp(10px, 2vw, 24px); }
+.discover-collection-feature-copy h3 {
+  margin: 0 0 8px;
+  color: var(--aura-text);
+  font: 600 clamp(20px, 2.5vw, 38px)/1.1 var(--font-serif, Georgia), serif;
+}
+.discover-collection-feature-copy span { display: inline-flex; align-items: center; gap: 6px; color: var(--aura-gold); }
+@media (max-width: 620px) {
+  .discover-collection-grid { grid-template-columns: 1fr; }
+}
+
+.aura-page-frame {
+  position: relative;
+  min-width: 0;
+  margin: 12px clamp(8px, 1.4vw, 24px) 20px;
+  border: 1px solid var(--aura-border);
+  border-radius: 12px;
+}
+.aura-page-frame::before,
+.aura-page-frame::after {
+  position: absolute;
+  z-index: 1;
+  inset: 4px;
+  border-radius: 8px;
+  pointer-events: none;
+  content: "";
+}
+.aura-page-frame::before { border: 1px solid rgb(228 191 117 / 13%); }
+.aura-page-frame::after {
+  background:
+    radial-gradient(circle, var(--aura-gold) 1px, transparent 2px) top left,
+    radial-gradient(circle, var(--aura-gold) 1px, transparent 2px) top right,
+    radial-gradient(circle, var(--aura-gold) 1px, transparent 2px) bottom left,
+    radial-gradient(circle, var(--aura-gold) 1px, transparent 2px) bottom right;
+  background-size: 8px 8px;
+  background-repeat: no-repeat;
 }
