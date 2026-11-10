@@ -58,8 +58,8 @@ const transport = {
 
 const config = walletConnectProjectId
   ? getDefaultConfig({
-      appName: "House of Joshi",
-      appDescription: "A multichain NFT marketplace by House of Joshi",
+      appName: "Aura by Joshi",
+      appDescription: "Aura by Joshi, a multichain NFT marketplace",
       projectId: walletConnectProjectId,
       chains: supportedChains,
       transports: transport,

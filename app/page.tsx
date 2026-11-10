@@ -414,7 +414,7 @@ export default function Home() {
     <main className="royal-homepage">
       <section className="discover-intro">
         <div className="discover-intro-head">
-          <div><span className="royal-section-label">HOUSE OF JOSHI · NFT MARKETPLACE</span><h1>Discover</h1><p>Find work across live networks. Explore collections and listings, then trade from your wallet.</p></div>
+          <div><span className="royal-section-label">AURA BY JOSHI · NFT MARKETPLACE</span><h1>Discover</h1><p>Find work across live networks. Explore collections and listings, then trade from your wallet.</p></div>
         </div>
         <div className="discover-chain-pills" aria-label="Filter by network">
           <span className="discover-chain-label">Networks</span>
