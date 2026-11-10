@@ -5,6 +5,43 @@
   height: 52px;
   max-width: 100%;
 }
+/* Shared navigation spacing, including deployments without preview styles. */
+.hoj-primary-nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 2vw, 30px);
+}
+.hoj-primary-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: #eee8dc;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  border-bottom: 0;
+  white-space: nowrap;
+}
+.hoj-primary-nav a:hover,
+.hoj-primary-nav a[aria-current="page"] { color: #e5c080; }
+.hoj-primary-nav a:focus-visible {
+  outline: 2px solid #e5c080;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+@media (max-width: 1100px) {
+  .court-topbar .hoj-primary-nav { display: none; }
+}
+@media (max-width: 420px) {
+  .court-topbar { gap: 6px; }
+  .court-topbar .aura-brand-lockup { height: 42px; }
+  .court-topbar-actions .court-topbar-icon,
+  .court-topbar-actions .court-network-button.symbol-only,
+  .court-topbar-actions .court-mobile-menu-button { width: 36px; }
+}
+@media (max-width: 380px) {
+  .court-topbar-actions > a[aria-label="Search"] { display: none; }
+}
 .local-preview-header {
   display: flex;
   align-items: center;
