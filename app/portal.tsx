@@ -1,5 +1,7 @@
 "use client";
 
+import { marketPriceBounds } from "@/lib/market-browse";
+import { PurchaseSummary } from "@/app/components/purchase-summary";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { ArrowLeft, ArrowUpRight, ChevronDown, ExternalLink, Grid2X2, Heart, List, Search, ShieldCheck, ShoppingCart, SlidersHorizontal, Trash2, Wallet, X } from "lucide-react";
 import Link from "next/link";
@@ -13,14 +15,15 @@ import { TransactionStatus, useMarketplaceTransaction } from "./components/use-m
 import { favoriteId, useFavorite } from "./favorites";
 import { MARKETPLACE_REFRESH_INTERVAL, onMarketplaceUpdate } from "@/lib/marketplace-refresh";
 import { notifyNFTPurchased } from "@/lib/notifications";
+import { NftCardVideo } from "./components/nft-card-video";
 import { UsdEstimate } from "./components/usd-estimate";
 
 type View = "market" | "activity" | "account" | "protocol";
-type Listing = { id:string; chainId:MarketplaceChainId; nftAddress:`0x${string}`; tokenId:string; seller:`0x${string}`; price:string; transactionHash:`0x${string}`; updatedBlock:number; tokenType?:"ERC-721"|"ERC-1155"; quantity?:string };
+type Listing = { legacy?:boolean; id:string; chainId:MarketplaceChainId; nftAddress:`0x${string}`; tokenId:string; seller:`0x${string}`; price:string; transactionHash:`0x${string}`; updatedBlock:number; tokenType?:"ERC-721"|"ERC-1155"; quantity?:string };
 type Activity = { id:string; chainId:MarketplaceChainId; eventType:string; nftAddress:`0x${string}`|null; tokenId:string|null; seller:`0x${string}`|null; buyer:`0x${string}`|null; price:string|null; marketplaceFee?:string|null; royaltyAmount?:string|null; transactionHash:`0x${string}`; blockNumber:number };
 type CollectionSummary = { chainId:MarketplaceChainId; nftAddress:string; floorPrice:string; listingCount:number; latestBlock:number; sampleTokenId:string };
 type IndexerData = { stale?:boolean; chainId:MarketplaceChainId; chain:string; currency:string; explorerUrl:string; configured:boolean; marketplaceAddress?:`0x${string}`; legacyMarketplaceAddress?:`0x${string}`|null; listings:Listing[]; collections?:CollectionSummary[]; activity:Activity[]; sync?:{caughtUp:boolean}|null; syncError?:string|null };
-type WalletNft = { contractAddress:string; tokenId:string; tokenType?:string; quantity?:string; name:string|null; collection:string|null; imageUrl:string|null; description:string|null; externalUrl:string|null; traits:Array<{type:string;value:string}> };
+type WalletNft = { contractAddress:string; tokenId:string; tokenType?:string; quantity?:string; name:string|null; collection:string|null; imageUrl:string|null; videoUrl?:string|null; description:string|null; externalUrl:string|null; traits:Array<{type:string;value:string}> };
 
 
 function short(value:string) { return `${value.slice(0,6)}…${value.slice(-4)}`; }
@@ -93,7 +96,7 @@ function useNftMetadata(listing: Listing | null) {
 
 export function Portal({ view,legacy=false }: { view:View;legacy?:boolean }) {
   const walletChainId=useChainId();
-  const [selectedChainId,setSelectedChainId]=useState<MarketplaceChainId>(isMarketplaceChainId(walletChainId)?walletChainId:109);
+  const [selectedChainId,setSelectedChainId]=useState<MarketplaceChainId>(view==="market"?137:isMarketplaceChainId(walletChainId)?walletChainId:109);
   useEffect(()=>{const requested=Number(new URLSearchParams(window.location.search).get("chainId"));if(isMarketplaceChainId(requested))queueMicrotask(()=>setSelectedChainId(requested));},[]);
   const selectedChain=getMarketplaceChain(selectedChainId);
   const { data,loading,refresh }=useIndexer(selectedChainId,legacy);
@@ -146,15 +149,14 @@ export function Portal({ view,legacy=false }: { view:View;legacy?:boolean }) {
   }
 
   const mine=useMemo(()=>data.listings.filter(x=>address&&x.seller.toLowerCase()===address.toLowerCase()),[data.listings,address]);
-  const labels:Record<View,[string,string,string]>= { market:["01 / MARKET","Browse NFTs",`NFTs currently listed for sale on ${selectedChain.name}.`], activity:["03 / ACTIVITY","Recent activity",`Listings, sales, cancellations, and withdrawals on ${selectedChain.name}.`], account:["04 / PROFILE","Your NFT profile",`View the NFTs held by your connected wallet, manage listings, and withdraw ${selectedChain.currency} earnings.`], protocol:["05 / HOW IT WORKS","How it works","Understand ownership, fees, royalties, and settlement before you trade."] };
+  const labels:Record<View,[string,string,string]>= { market:["HOUSE OF JOSHI","Market",`Browse verified marketplace listings on ${selectedChain.name}.`], activity:["03 / ACTIVITY","Recent activity",`Listings, sales, cancellations, and withdrawals on ${selectedChain.name}.`], account:["04 / PROFILE","Your NFT profile",`View the NFTs held by your connected wallet, manage listings, and withdraw ${selectedChain.currency} earnings.`], protocol:["05 / HOW IT WORKS","How it works","Understand ownership, fees, royalties, and settlement before you trade."] };
   const [section,title,description]=labels[view];
 
   return <main className={`royal-portal-page royal-portal-${view}`}>
-    <section className="royal-portal-hero"><label>Browse network <select value={selectedChainId} disabled={transaction.pending} onChange={event=>setSelectedChainId(Number(event.target.value) as MarketplaceChainId)}>{Object.values(marketplaceChains).map(network=><option key={network.id} value={network.id}>{network.name} · {network.currency}</option>)}</select></label><Link href="/" className="royal-back-link"><ArrowLeft size={14}/> House of Joshi</Link><span className="royal-section-no">{section}</span><h1>{title}</h1><p>{description}</p></section>
+    {view!=="market"&&<section className="royal-portal-hero"><label>Browse network <select value={selectedChainId} disabled={transaction.pending} onChange={event=>setSelectedChainId(Number(event.target.value) as MarketplaceChainId)}>{Object.values(marketplaceChains).map(network=><option key={network.id} value={network.id}>{network.name} · {network.currency}</option>)}</select></label><Link href="/" className="royal-back-link"><ArrowLeft size={14}/> House of Joshi</Link><span className="royal-section-no">{section}</span><h1>{title}</h1><p>{description}</p></section>}
     {(data.syncError||data.configured&&!data.sync?.caughtUp)&&<p className="royal-index-warning" role="status">{data.syncError??"Marketplace history is still syncing; some listings and offers may be missing."}</p>}
-    {view==="market"&&<nav className="profile-management"><Link href={`/market?chainId=${selectedChainId}`}>Current listings</Link><Link href={`/legacy?chainId=${selectedChainId}`}>Earlier marketplace listings</Link>{data.syncError&&<button type="button" onClick={()=>void refresh(true)}>Retry listings</button>}</nav>}
     <fieldset className="royal-transaction-fields royal-portal-content" disabled={transaction.pending||data.stale}>
-      {view==="market"&&<MarketView key={selectedChainId} data={data} loading={loading} account={address} advancedMarketplace={advancedMarketplace} legacy={legacy} onBuy={buy} onBatchBuy={batchBuy} onOffer={makeOffer} onCancel={cancel}/>}
+      {view==="market"&&<MarketView key={selectedChainId} onNetworkChange={chainId=>{if(chainId!=="all")setSelectedChainId(chainId);}} data={data} loading={loading} account={address} advancedMarketplace={advancedMarketplace} legacy={legacy} onBuy={buy} onBatchBuy={batchBuy} onOffer={makeOffer} onCancel={cancel} onRetry={()=>void refresh(true)}/>}
       {view==="activity"&&<ActivityView items={data.activity} loading={loading}/>}
       {view==="account"&&<AccountView connected={!!address} configured={!!data.marketplaceAddress} listings={mine} activity={data.activity} account={address} proceeds={proceeds ?? 0n} onCancel={cancel} onWithdraw={withdraw} currency={selectedChain.currency} walletNfts={walletNfts} chainId={selectedChainId} legacy={legacy}/>}
       {view==="protocol"&&<ProtocolView/>}
@@ -163,13 +165,22 @@ export function Portal({ view,legacy=false }: { view:View;legacy?:boolean }) {
   </main>;
 }
 
-function MarketView({data,loading,account,advancedMarketplace,legacy,onBuy,onBatchBuy,onOffer,onCancel}:{data:IndexerData;loading:boolean;account?:`0x${string}`;advancedMarketplace:boolean;legacy:boolean;onBuy:(x:Listing)=>void;onBatchBuy:(items:Listing[])=>void;onOffer:(item:Listing,amount:string)=>void;onCancel:(x:Listing)=>void}){
+export function MarketView({data,loading,account,advancedMarketplace,legacy,onBuy,onBatchBuy,onOffer,onCancel,onRetry,onNetworkChange,combined=false}:{combined?:boolean;onNetworkChange?:(chainId:MarketplaceChainId | "all")=>void;data:IndexerData;loading:boolean;account?:`0x${string}`;advancedMarketplace:boolean;legacy:boolean;onBuy:(x:Listing)=>void;onBatchBuy:(items:Listing[])=>void;onOffer:(item:Listing,amount:string)=>void;onCancel:(x:Listing)=>void;onRetry?:()=>void}){
   const[collection,setCollection]=useState("all");
   const[search,setSearch]=useState("");
   const[sort,setSort]=useState<"newest"|"low"|"high">("newest");
   const[filtersOpen,setFiltersOpen]=useState(true);
+  const[layout,setLayout]=useState<"grid"|"list">("grid");
+  const[minPrice,setMinPrice]=useState("");
+  const[maxPrice,setMaxPrice]=useState("");
+  const draftBounds=marketPriceBounds(minPrice,maxPrice);
+  const [bounds,setBounds]=useState(()=>marketPriceBounds("",""));
+  function clearFilters(){setSearch("");setCollectionSearch("");setCollection("all");setMinPrice("");setMaxPrice("");setBounds(marketPriceBounds("",""));}
   const[cartIds,setCartIds]=useState<string[]>([]);
+  const [combinedCart,setCombinedCart]=useState<Record<string,string[]>>({});
   const[cartOpen,setCartOpen]=useState(false);
+  const [visibleCount,setVisibleCount]=useState(24);
+  const allNetworks=combined&&data.chain==="All networks";
   useEffect(()=>{
     try{
       const stored=JSON.parse(window.localStorage.getItem(`hoj-market-cart:${data.chainId}${legacy?":legacy":""}`)??"[]") as unknown;
@@ -184,68 +195,144 @@ function MarketView({data,loading,account,advancedMarketplace,legacy,onBuy,onBat
     window.addEventListener("hoj-cart-updated",update);
     return()=>window.removeEventListener("hoj-cart-updated",update);
   },[data.chainId,legacy]);
-  const collections=[...new Set(data.listings.map(item=>item.nftAddress))];
+  useEffect(()=>{
+    if(!combined)return;
+    function update(){
+      const saved:Record<string,string[]>={};
+      for(const network of Object.values(marketplaceChains)){
+        for(const suffix of ["",":legacy"]){
+          const key=`hoj-market-cart:${network.id}${suffix}`;
+          try{
+            const value=JSON.parse(localStorage.getItem(key)??"[]") as unknown;
+            if(Array.isArray(value))saved[key]=value.filter((id):id is string=>typeof id==="string");
+          }catch{/* Ignore invalid saved data for this marketplace. */}
+        }
+      }
+      setCombinedCart(saved);
+    }
+    queueMicrotask(update);
+    window.addEventListener("hoj-cart-updated",update);
+    return ()=>window.removeEventListener("hoj-cart-updated",update);
+  },[combined]);
+  function combinedCartKey(item:Listing){
+    return `hoj-market-cart:${item.chainId}${item.legacy?":legacy":""}`;
+  }
+  function toggleCombinedCart(item:Listing){
+    const key=combinedCartKey(item);
+    const ids=combinedCart[key]??[];
+    const next=ids.includes(item.id)?ids.filter(id=>id!==item.id):[...ids,item.id];
+    try{
+      localStorage.setItem(key,JSON.stringify(next));
+      window.dispatchEvent(new Event("hoj-cart-updated"));
+    }catch{/* The existing cart is kept when storage is unavailable. */}
+  }
+  const [collectionSearch,setCollectionSearch]=useState("");
+  const collections=[...new Set(data.listings.map(item=>item.nftAddress.toLowerCase()))];
   const query=search.trim().toLowerCase();
-  const filtered=data.listings.filter(item=>(collection==="all"||item.nftAddress===collection)&&(!query||item.tokenId.includes(query)||item.nftAddress.toLowerCase().includes(query)));
-  const shown=[...filtered].sort((a,b)=>sort==="low"?Number(BigInt(a.price)-BigInt(b.price)):sort==="high"?Number(BigInt(b.price)-BigInt(a.price)):b.updatedBlock-a.updatedBlock);
+  const filtered=data.listings.filter(item=>{
+    if((collection!=="all"&&item.nftAddress.toLowerCase()!==collection)||(query&&!item.tokenId.includes(query)&&!item.nftAddress.toLowerCase().includes(query)))return false;
+    const price=BigInt(item.price);
+    return (bounds.min===undefined||price>=bounds.min)&&(bounds.max===undefined||price<=bounds.max);
+  });
+  const shown=allNetworks?filtered:[...filtered].sort((a,b)=>sort==="low"?Number(BigInt(a.price)-BigInt(b.price)):sort==="high"?Number(BigInt(b.price)-BigInt(a.price)):b.updatedBlock-a.updatedBlock);
   const cart=data.listings.filter(item=>item.tokenType!=="ERC-1155"&&cartIds.includes(item.id));
   const cartTotal=cart.reduce((total,item)=>total+BigInt(item.price),0n);
   function toggleCart(item:Listing){setCartIds(current=>{const next=current.includes(item.id)?current.filter(id=>id!==item.id):[...current,item.id];try{window.localStorage.setItem(`hoj-market-cart:${data.chainId}${legacy?":legacy":""}`,JSON.stringify(next));window.dispatchEvent(new Event("hoj-cart-updated"));}catch{/* Cart remains available for this visit. */}return next;});}
   return <>
     <section className="market-toolbar">
+      <div className="market-heading"><h1>{legacy?"Earlier marketplace":"Market"}</h1><p>Discover and collect NFTs across supported networks.</p></div>
       <button className={`filter-toggle ${filtersOpen?"active":""}`} onClick={()=>setFiltersOpen(value=>!value)} aria-expanded={filtersOpen}>
         <SlidersHorizontal size={17}/> Filters
       </button>
-      <label><Search size={17}/><input value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search NFTs" aria-label="Search NFTs"/></label>
-      <span><strong>{shown.length}</strong> items</span>
-      <label className="sort-control"><span>Sort by</span><select value={sort} onChange={event=>setSort(event.target.value as "newest"|"low"|"high")} aria-label="Sort NFTs"><option value="newest">Recently listed</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select><ChevronDown size={14}/></label>
-      <button className={`market-cart-button ${cart.length?"has-items":""}`} onClick={()=>setCartOpen(true)} aria-label={`Open cart with ${cart.length} items`}><ShoppingCart size={17}/><span>Cart</span><b>{cart.length}</b></button>
+      <label><Search size={17}/><input value={search} onChange={event=>setSearch(event.target.value)} placeholder="Token ID or contract" aria-label="Search by token ID or contract"/></label>
+      {onNetworkChange&&<div className="market-network-controls" role="group" aria-label="Browse network">
+        {combined&&<button type="button" aria-pressed={allNetworks} onClick={()=>onNetworkChange("all")}>All</button>}
+        {[137,8453,5042].map(id=>{const network=getMarketplaceChain(id as MarketplaceChainId);return <button type="button" key={id} aria-pressed={!allNetworks&&data.chainId===id} onClick={()=>onNetworkChange(network.id)}>{network.name}</button>;})}
+        <label className="market-network-picker">
+          <span>Choose network</span>
+          <select value={allNetworks?"all":data.chainId} onChange={event=>onNetworkChange(event.target.value==="all"?"all":Number(event.target.value) as MarketplaceChainId)}>{combined&&<option value="all">All networks</option>}{Object.values(marketplaceChains).map(network=><option key={network.id} value={network.id}>{network.name} · {network.currency}</option>)}</select>
+        </label>
+      </div>}
+      <div className="market-view-toggle" role="group" aria-label="Results layout">
+        <button type="button" aria-pressed={layout==="grid"} onClick={()=>setLayout("grid")}><Grid2X2 size={14} aria-hidden="true"/> Grid</button>
+        <button type="button" aria-pressed={layout==="list"} onClick={()=>setLayout("list")}><List size={14} aria-hidden="true"/> List</button>
+      </div>
+      {!allNetworks&&<label className="sort-control"><span>Sort by</span><select value={sort} onChange={event=>setSort(event.target.value as "newest"|"low"|"high")} aria-label="Sort NFTs"><option value="newest">Recently listed</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select><ChevronDown size={14}/></label>}
+      {combined?<Link href="/cart" className="market-cart-button" aria-label="Open cart"><ShoppingCart size={17}/></Link>:<button className={`market-cart-button ${cart.length?"has-items":""}`} onClick={()=>setCartOpen(true)} aria-label={`Open cart with ${cart.length} items`}><ShoppingCart size={17}/><span>Cart</span><b>{cart.length}</b></button>}
     </section>
     <div className={`market-browser ${filtersOpen?"":"filters-closed"}`}>
       {filtersOpen&&<aside className="market-filter-panel">
-        <div><span>STATUS</span><small>{data.chain}</small></div>
-        <div className="active"><span>Buy now</span><em>{data.listings.length}</em></div>
-        <p>COLLECTION</p>
-        <button className={collection==="all"?"active":""} onClick={()=>setCollection("all")}><span>All collections</span><em>{data.listings.length}</em></button>
-        {collections.map(address=><button className={collection===address?"active":""} key={address} onClick={()=>setCollection(address)}><span>{short(address)}</span><em>{data.listings.filter(item=>item.nftAddress===address).length}</em></button>)}
-        <p>CHAIN</p>
-        <div className="active"><span>{data.chain}</span><em>✓</em></div>
-        <p>PRICE</p>
-        <div className="price-filter-note">Prices shown in {data.currency}</div>
+        <div><h2>Filters</h2><button type="button" onClick={clearFilters}>Clear all</button></div>
+        {!allNetworks&&<details open>
+          <summary>Price ({data.currency}) <ChevronDown size={15} aria-hidden="true"/></summary>
+          <form onSubmit={event=>{event.preventDefault();if(!draftBounds.error)setBounds(draftBounds);}}>
+            <div className="market-price-bounds">
+              <input inputMode="decimal" placeholder="Min" aria-label="Minimum price" value={minPrice} onChange={event=>setMinPrice(event.target.value)} aria-invalid={!!draftBounds.error}/>
+              <input inputMode="decimal" placeholder="Max" aria-label="Maximum price" value={maxPrice} onChange={event=>setMaxPrice(event.target.value)} aria-invalid={!!draftBounds.error}/>
+            </div>
+            {draftBounds.error&&<p className="market-filter-error" role="status">{draftBounds.error}</p>}
+            <button type="submit" className="market-apply" disabled={!!draftBounds.error}>Apply</button>
+          </form>
+        </details>}
+        <details open>
+          <summary>Collection <ChevronDown size={15} aria-hidden="true"/></summary>
+          <input type="search" aria-label="Filter collections by contract" placeholder="Search collections…" value={collectionSearch} onChange={event=>setCollectionSearch(event.target.value)}/>
+          <label className="market-collection-option"><input type="radio" name="market-collection" checked={collection==="all"} onChange={()=>setCollection("all")}/> All collections <span>{data.listings.length}</span></label>
+          {collections.filter(address=>address.toLowerCase().includes(collectionSearch.trim().toLowerCase())).map(address=>
+            <label className="market-collection-option" key={address}><input type="radio" name="market-collection" checked={collection===address} onChange={()=>setCollection(address)}/> <span title={address}>{short(address)}</span><span>{data.listings.filter(item=>item.nftAddress.toLowerCase()===address).length}</span></label>
+          )}
+        </details>
+        {!onNetworkChange&&<details open>
+          <summary>Network <ChevronDown size={15} aria-hidden="true"/></summary>
+          <p>{data.chain} · {data.currency}</p>
+        </details>}
       </aside>}
       <section className="market-results">
-        {shown.length?<div className="market-listings-grid">{shown.map(item=><MarketListingCard key={item.id} item={item} currency={data.currency} chain={data.chain} legacy={legacy} account={account} onBuy={()=>onBuy(item)} inCart={cartIds.includes(item.id)} onToggleCart={()=>toggleCart(item)}/>)}</div>:<div className="market-no-results"><Search size={24}/><h2>{loading?"Loading listings…":data.syncError?"Listings could not be fully loaded":data.configured?data.listings.length?"No matching NFTs":"No active listings on this network":getMarketplaceChain(data.chainId).marketplaceStatus==="live"?`${data.chain} listings unavailable`:`${data.chain} marketplace coming soon`}</h2><p>{loading?"Reading the latest marketplace listings.":data.syncError??(data.listings.length?"Try a different search or collection filter.":data.configured?"Choose another network or check back when an owner lists an NFT.":getMarketplaceChain(data.chainId).marketplaceStatus==="live"?"Marketplace configuration could not be loaded. Please retry.":"Trading will open after the marketplace contract is deployed.")}</p>{data.listings.length>0&&<button onClick={()=>{setSearch("");setCollection("all")}}>Clear filters</button>}</div>}
+        {shown.length?<><div className={`market-listings-grid ${layout==="list"?"market-list-view":""}`}>
+          {shown.slice(0,visibleCount).map(item=>{
+            const network=getMarketplaceChain(item.chainId);
+            const earlier=item.legacy??legacy;
+            return <MarketListingCard key={`${item.chainId}:${earlier}:${item.id}`} item={item} currency={network.currency} chain={network.name} legacy={earlier}
+              account={account} onBuy={combined?undefined:()=>onBuy(item)} inCart={combined?combinedCart[combinedCartKey(item)]?.includes(item.id)??false:cartIds.includes(item.id)} onToggleCart={()=>combined?toggleCombinedCart(item):toggleCart(item)}/>;
+          })}
+        </div>{shown.length>visibleCount&&<button type="button" className="royal-view-all" onClick={()=>setVisibleCount(count=>count+24)}>Show more NFTs ({visibleCount} of {shown.length})</button>}</>:<div className="market-no-results"><Search size={24}/><h2>{loading?"Loading listings…":data.syncError&&!data.listings.length?"Listings could not be fully loaded":data.configured?data.listings.length?"No matching NFTs":"No active listings on this network":getMarketplaceChain(data.chainId).marketplaceStatus==="live"?`${data.chain} listings unavailable`:`${data.chain} marketplace coming soon`}</h2><p>{loading?"Reading the latest marketplace listings.":(data.listings.length?"Try a different search or collection filter.":data.syncError??(data.configured?"Choose another network or check back when an owner lists an NFT.":getMarketplaceChain(data.chainId).marketplaceStatus==="live"?"Marketplace configuration could not be loaded. Please retry.":"Trading will open after the marketplace contract is deployed."))}</p>{!loading&&data.syncError&&!data.listings.length&&onRetry?<button type="button" onClick={onRetry}>Retry listings</button>:data.listings.length>0&&<button type="button" onClick={clearFilters}>Clear filters</button>}</div>}
       </section>
     </div>
     {cartOpen&&<CartDrawer items={cart} currency={data.currency} account={account} total={cartTotal} batchSupported={advancedMarketplace} onClose={()=>setCartOpen(false)} onRemove={item=>toggleCart(item)} onBuy={onBuy} onBatchBuy={()=>onBatchBuy(cart)}/>}
   </>
 }
 
-function MarketListingCard({item,currency,chain,legacy,account,onBuy,inCart,onToggleCart}:{item:Listing;currency:string;chain:string;legacy:boolean;account?:`0x${string}`;onBuy:()=>void;inCart:boolean;onToggleCart:()=>void}){
+function MarketListingCard({item,currency,chain,legacy,account,onBuy,inCart,onToggleCart}:{item:Listing;currency:string;chain:string;legacy:boolean;account?:`0x${string}`;onBuy?:()=>void;inCart:boolean;onToggleCart?:()=>void}){
   const details=useNftMetadata(item);
   const nft=details.nft;
-  const [artFailed,setArtFailed]=useState(false);
-  const showArt=!!nft?.imageUrl&&!artFailed;
+  const [failedArt,setFailedArt]=useState<string[]>([]);
+  const fallback=`/api/nft-image?chainId=${item.chainId}&contract=${item.nftAddress}&tokenId=${item.tokenId}`;
+  const art=[nft?.imageUrl,fallback].find(url=>url&&!failedArt.includes(url));
+  const video=nft?.videoUrl&&!failedArt.includes(nft.videoUrl)?nft.videoUrl:null;
+  const showArt=!!(video||art);
   const saved=useFavorite(favoriteId(item.chainId,item.nftAddress,item.tokenId));
   const href=`/nft/${item.chainId}/${item.nftAddress}/${item.tokenId}${legacy?"?legacy=1":""}`;
   const isSeller=account?.toLowerCase()===item.seller.toLowerCase();
   return <article className="market-listing">
     <Link href={href} className={`market-listing-art ${showArt?"has-image":""}`}>
-      {showArt?<Image src={nft.imageUrl!} alt={nft.name??`NFT #${item.tokenId}`} fill unoptimized sizes="(max-width: 700px) 50vw, 220px" style={{objectFit:"contain"}} onError={()=>setArtFailed(true)}/>:<><span>{chain} · {item.tokenType??"ERC-721"}</span><strong>#{item.tokenId}</strong><i>Artwork unavailable</i></>}
+      {video?<NftCardVideo src={video} poster={nft?.imageUrl} label={nft?.name??`NFT #${item.tokenId}`} style={{width:"100%",height:"100%",objectFit:"contain"}} onError={()=>setFailedArt(current=>[...current,video])}/>:art?<Image src={art} alt={nft?.name??`NFT #${item.tokenId}`} fill unoptimized sizes="(max-width: 700px) 50vw, 220px" style={{objectFit:"contain"}} onError={()=>setFailedArt(current=>[...current,art])}/>:<><span>{chain} · {item.tokenType??"ERC-721"}</span><strong>#{item.tokenId}</strong><i>Artwork unavailable</i></>}
     </Link>
-    <button className={`market-favorite ${saved.favorite?"active":""}`} onClick={saved.toggle} aria-label={saved.favorite?"Remove from favorites":"Add to favorites"}><Heart size={15} fill={saved.favorite?"currentColor":"none"}/></button>
-    <div>
-      <small>{nft?.collection??short(item.nftAddress)}</small>
+    <div className="market-listing-copy">
       <h2><Link href={href}>{nft?.name??`Token #${item.tokenId}`}</Link></h2>
-      <div className="market-card-price"><span>{item.tokenType==="ERC-1155"?"PER EDITION":"PRICE"}</span><strong>{formatEther(BigInt(item.price))} {currency}<UsdEstimate wei={item.price} currency={currency}/></strong></div>
-      <div className="market-card-actions"><Link href={href}>View NFT <ArrowUpRight size={13}/></Link>{item.tokenType!=="ERC-1155"&&<button className={inCart?"active":""} onClick={onToggleCart} aria-label={inCart?"Remove from cart":"Add to cart"}><ShoppingCart size={14}/>{inCart?"Added":"Add"}</button>}</div>
-      {BigInt(item.price)>0n&&!isSeller&&(item.tokenType==="ERC-1155"?<Link className="nft-card-buy-now" href={href}>Buy now <ArrowUpRight size={15}/></Link>:account?<button className="nft-card-buy-now" onClick={onBuy}>Buy now <ArrowUpRight size={15}/></button>:<ConnectButton.Custom>{({openConnectModal})=><button className="nft-card-buy-now" onClick={openConnectModal}>Buy now <ArrowUpRight size={15}/></button>}</ConnectButton.Custom>)}
+      <button className={`market-favorite ${saved.favorite?"active":""}`} onClick={saved.toggle} aria-label={saved.favorite?"Remove from favorites":"Add to favorites"}><Heart size={15} fill={saved.favorite?"currentColor":"none"}/></button>
+      <small>{nft?.collection??short(item.nftAddress)}</small>
+      <div className="market-card-price"><span className="market-chain-badge" data-chain={item.chainId}>{chain}</span><strong>{formatEther(BigInt(item.price))} {currency}{item.tokenType==="ERC-1155"&&" / edition"}<UsdEstimate wei={item.price} currency={currency}/></strong></div>
+      <details className="market-listing-trade">
+        <summary>Trading options</summary>
+        <div className="market-card-actions"><Link href={href}>View NFT <ArrowUpRight size={13}/></Link>{onToggleCart&&item.tokenType!=="ERC-1155"&&<button className={inCart?"active":""} onClick={onToggleCart} aria-label={inCart?"Remove from cart":"Add to cart"}><ShoppingCart size={14}/>{inCart?"Added":"Add"}</button>}</div>
+        {BigInt(item.price)>0n&&!isSeller&&(!onBuy||item.tokenType==="ERC-1155"?<Link className="nft-card-buy-now" href={href}>Buy now <ArrowUpRight size={15}/></Link>:account?<button className="nft-card-buy-now" onClick={onBuy}>Buy now <ArrowUpRight size={15}/></button>:<ConnectButton.Custom>{({openConnectModal})=><button className="nft-card-buy-now" onClick={openConnectModal}>Buy now <ArrowUpRight size={15}/></button>}</ConnectButton.Custom>)}
+      </details>
     </div>
   </article>
 }
 
 function CartDrawer({items,currency,account,total,batchSupported,onClose,onRemove,onBuy,onBatchBuy}:{items:Listing[];currency:string;account?:`0x${string}`;total:bigint;batchSupported:boolean;onClose:()=>void;onRemove:(item:Listing)=>void;onBuy:(item:Listing)=>void;onBatchBuy:()=>void}){
-  return <div className="cart-backdrop" role="dialog" aria-modal="true" aria-label="Shopping cart" onMouseDown={event=>{if(event.target===event.currentTarget)onClose();}}><aside className="cart-drawer"><header><div><span>MARKETPLACE CART</span><h2>Your selections</h2></div><button onClick={onClose} aria-label="Close cart"><X size={18}/></button></header>{items.length?<><div className="cart-items">{items.map(item=><article key={item.id}><div><span>ERC-721 · #{item.tokenId}</span><strong>{short(item.nftAddress)}</strong><small>{formatEther(BigInt(item.price))} {currency}<UsdEstimate wei={item.price} currency={currency}/></small></div><button onClick={()=>onRemove(item)} aria-label={`Remove token ${item.tokenId} from cart`}><Trash2 size={15}/></button>{account?<button className="cart-buy" onClick={()=>onBuy(item)}>Buy now <ArrowUpRight size={14}/></button>:<ConnectButton.Custom>{({openConnectModal})=><button className="cart-buy" onClick={openConnectModal}>Connect to buy <Wallet size={14}/></button>}</ConnectButton.Custom>}</article>)}</div><footer><span>TOTAL · {items.length} {items.length===1?"ITEM":"ITEMS"}</span><strong>{formatEther(total)} {currency}<UsdEstimate wei={total} currency={currency}/></strong>{batchSupported&&account&&items.length>1?<button className="batch-checkout" onClick={onBatchBuy}>Buy all in one transaction <ShoppingCart size={15}/></button>:<p>{batchSupported?"Connect your wallet to use batch checkout.":"Each NFT is settled separately until the upgraded marketplace contract is deployed on this network."}</p>}</footer></>:<div className="cart-empty"><ShoppingCart size={28}/><h3>Your cart is empty.</h3><p>Add listed NFTs to keep them together while you browse.</p><button onClick={onClose}>Continue browsing</button></div>}</aside></div>;
+  return <div className="cart-backdrop" role="dialog" aria-modal="true" aria-label="Shopping cart" onMouseDown={event=>{if(event.target===event.currentTarget)onClose();}}><aside className="cart-drawer"><header><div><span>MARKETPLACE CART</span><h2>Your selections</h2></div><button onClick={onClose} aria-label="Close cart"><X size={18}/></button></header><Link className="cart-page-link" href="/cart">View full cart</Link>{items.length?<><div className="cart-items">{items.map(item=><article key={item.id}><div><span>ERC-721 · #{item.tokenId}</span><strong>{short(item.nftAddress)}</strong><small>{formatEther(BigInt(item.price))} {currency}<UsdEstimate wei={item.price} currency={currency}/></small></div><button onClick={()=>onRemove(item)} aria-label={`Remove token ${item.tokenId} from cart`}><Trash2 size={15}/></button>{account?<button className="cart-buy" onClick={()=>onBuy(item)}>Buy now <ArrowUpRight size={14}/></button>:<ConnectButton.Custom>{({openConnectModal})=><button className="cart-buy" onClick={openConnectModal}>Connect to buy <Wallet size={14}/></button>}</ConnectButton.Custom>}</article>)}</div><footer><span>SUBTOTAL · {items.length} {items.length===1?"ITEM":"ITEMS"}</span><strong>{formatEther(total)} {currency}<UsdEstimate wei={total} currency={currency}/></strong><PurchaseSummary network={getMarketplaceChain(items[0].chainId).name} source="House of Joshi" amount={`${formatEther(total)} ${currency}`}/>{batchSupported&&account&&items.length>1?<button className="batch-checkout" onClick={onBatchBuy}>Buy all in one transaction <ShoppingCart size={15}/></button>:<p>{batchSupported?"Connect your wallet to use batch checkout.":"Each NFT is settled separately until the upgraded marketplace contract is deployed on this network."}</p>}</footer></>:<div className="cart-empty"><ShoppingCart size={28}/><h3>Your cart is empty.</h3><p>Add listed NFTs to keep them together while you browse.</p><button onClick={onClose}>Continue browsing</button></div>}</aside></div>;
 }
 
 function MarketNftDetail({listing,details,account,advancedMarketplace,onClose,onBuy,onOffer,onDelist}:{listing:Listing;details:{nft:WalletNft|null;loading:boolean;error:string};account?:`0x${string}`;advancedMarketplace:boolean;onClose:()=>void;onBuy:()=>void;onOffer:(amount:string)=>void;onDelist:()=>void}){

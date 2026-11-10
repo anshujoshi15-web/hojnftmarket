@@ -285,15 +285,16 @@ export async function rangeLogs(client:ReturnType<typeof indexClient>,address:Ad
     return {logs:[...first.logs,...second.logs],through:end};
   }
 }
-const pending=new Map<string,Promise<Awaited<ReturnType<typeof buildIndex>>>>();
+type VerifiedIndex=Awaited<ReturnType<typeof buildIndex>>&{verifiedAt?:number};
+const pending=new Map<string,Promise<VerifiedIndex>>();
 const verifiedSnapshots=new Map<string,{data:string;verifiedAt:number}>();
-async function buildWithSnapshot(config:Config,scope:string,db?:D1Database){
+async function buildWithSnapshot(config:Config,scope:string,db?:D1Database):Promise<VerifiedIndex>{
   if(db)await schema(db);
   async function previous(){
     const row=db?await db.prepare("SELECT data,verified_at AS verifiedAt FROM marketplace_verified_snapshots WHERE scope=?").bind(scope).first<{data:string;verifiedAt:number}>():verifiedSnapshots.get(scope);
     if(!row)return null;
     const saved=JSON.parse(row.data) as Awaited<ReturnType<typeof buildIndex>>;
-    return {...saved,stale:true,offers:[],sync:{...saved.sync,caughtUp:false},syncError:`Live verification is unavailable. Showing read-only listings last verified at ${new Date(row.verifiedAt).toISOString()}. Retry to refresh.`};
+    return {...saved,verifiedAt:row.verifiedAt,stale:true,offers:[],sync:{...saved.sync,caughtUp:false},syncError:`Live verification is unavailable. Showing read-only listings last verified at ${new Date(row.verifiedAt).toISOString()}. Retry to refresh.`};
   }
   try{
     const result=await buildIndex(config,scope,db);
@@ -302,6 +303,7 @@ async function buildWithSnapshot(config:Config,scope:string,db?:D1Database){
       const data=JSON.stringify(result),verifiedAt=Date.now();
       if(db)await db.batch([db.prepare("INSERT INTO marketplace_verified_snapshots VALUES (?,?,?) ON CONFLICT(scope) DO UPDATE SET data=excluded.data,verified_at=excluded.verified_at WHERE excluded.verified_at>=marketplace_verified_snapshots.verified_at").bind(scope,data,verifiedAt)]);
       else verifiedSnapshots.set(scope,{data,verifiedAt});
+      return {...result,verifiedAt};
     }
     return result;
   }catch(error){const saved=await previous();if(saved)return saved;throw error;}
