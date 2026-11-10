@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
 import "./responsive.css";
+import "./aura-brand.css";
 import { Web3Provider } from "./web3-provider";
 import { GlobalFooter, GlobalHeader } from "./site-chrome";
 
@@ -11,11 +12,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   return {
     metadataBase: new URL(`${protocol}://${host}`),
-    title: "House of Joshi · NFT Marketplace",
+    title: "AURA · Aura by Joshi",
     description: "A premium, non-custodial NFT marketplace across Shibarium, Polygon, Base, Cronos, Arc, Robinhood Chain, and Zora. Experience elegance in digital collecting.",
-    openGraph: { title: "House of Joshi · NFT Marketplace", description: "Premium digital collectibles. Royal elegance. Chain-specific settlement.", images: [{ url:"/social-share-cover.png", width:1200, height:630, alt:"The House of Joshi Multichain NFT Marketplace" }], type: "website" },
-    twitter: { card: "summary_large_image", title: "House of Joshi · NFT Marketplace", description: "The Premium Multichain NFT Marketplace", images: ["/social-share-cover.png"] },
-    icons: { icon: "/house-of-joshi-logo.png", apple: "/house-of-joshi-logo.png" },
+    openGraph: { title: "AURA · Aura by Joshi", description: "Premium digital collectibles. Royal elegance. Chain-specific settlement.", images: [{ url:"/social-share-cover.png", width:1200, height:630, alt:"Aura by Joshi NFT Marketplace" }], type: "website" },
+    twitter: { card: "summary_large_image", title: "AURA · Aura by Joshi", description: "The Premium Multichain NFT Marketplace", images: ["/social-share-cover.png"] },
+    icons: { icon: "/aura-mark.svg", apple: "/aura-mark.svg" },
   };
 }
 

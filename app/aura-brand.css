@@ -1,0 +1,46 @@
+/* AURA logo sizing and local preview controls. */
+.aura-brand-lockup {
+  display: block;
+  width: auto;
+  height: 52px;
+  max-width: 100%;
+}
+.local-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 8px 5vw;
+  background: #080808;
+}
+.local-preview-header .hoj-primary-nav { display: flex; flex-wrap: wrap; }
+.local-preview-header .hoj-primary-nav a { min-height: 44px; }
+@media (max-width: 620px) {
+  .local-preview-header .hoj-primary-nav { order: 1; width: 100%; justify-content: space-between; }
+}
+.local-preview-wallet .wallet-button {
+  background: #e8be73;
+  color: #16100a;
+}
+.local-preview-wallet { position: relative; }
+.local-preview-wallet .wallet-button {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.local-preview-wallet [role="status"] {
+  position: absolute;
+  z-index: 2;
+  top: 100%;
+  right: 0;
+  width: min(260px, 75vw);
+  margin: 8px 0 0;
+  padding: 10px;
+  border: 1px solid #796038;
+  border-radius: 8px;
+  background: #1a1916;
+  color: #f5f1e8;
+  font-size: 13px;
+}
