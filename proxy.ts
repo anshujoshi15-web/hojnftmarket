@@ -8,14 +8,13 @@ export function proxy(request: NextRequest) {
     return new NextResponse(request.method === "HEAD" ? null : homeMarkdown, {
       headers: {
         "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "no-store",
         "Vary": "Accept, RSC",
         "Link": `<${siteUrl("/")}>; rel="canonical"`,
       },
     });
   }
-  const response = NextResponse.next();
-  response.headers.set("Vary", "Accept");
-  return response;
+  return NextResponse.next();
 }
 
 export const config = { matcher: "/" };
