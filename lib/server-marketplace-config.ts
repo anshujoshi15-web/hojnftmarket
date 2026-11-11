@@ -55,6 +55,7 @@ const CRONOS_V7_ADDRESS="0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab";
 const CRONOS_V7_DEPLOY_BLOCK="96267649";
 const ARC_V7_ADDRESS="0xD9883fDdf57Ca58f775Bdab96C0e7c3F1c918af3";
 const ARC_V7_DEPLOY_BLOCK="22840359";
+export const POLYGON_ARCHIVE_RPC = "https://polygon.gateway.tenderly.co";
 const POLYGON_V7_ADDRESS="0x3C626ff68e9a69526117B22D288ab71bdA2B377a";
 const POLYGON_V7_DEPLOY_BLOCK="94475428";
 const ZORA_V7_ADDRESS="0x74cE4e02E754DAdc3BA27CB4f8678538F0833eab";
@@ -92,7 +93,7 @@ export function chainConfig(runtime: RuntimeEnv, chainId: MarketplaceChainId) {
     const configuredAddress=runtime.POLYGON_MARKETPLACE_ADDRESS;
     const address=!configuredAddress||configuredAddress.toLowerCase()===POLYGON_V7_ADDRESS.toLowerCase()?chain.marketplaceAddress:configuredAddress;
     const deployBlock=address.toLowerCase()===chain.marketplaceAddress.toLowerCase()?String(chain.marketplaceDeployBlock):runtime.POLYGON_MARKETPLACE_DEPLOY_BLOCK??String(chain.marketplaceDeployBlock);
-    return {fallbackRpcUrl,chain,address,deployBlock,rpcUrl:runtime.POLYGON_RPC_URL??chain.rpcUrl};
+    return {fallbackRpcUrl,chain,address,deployBlock,rpcUrl:runtime.POLYGON_RPC_URL&&runtime.POLYGON_RPC_URL!==chain.rpcUrl?runtime.POLYGON_RPC_URL:POLYGON_ARCHIVE_RPC};
   }
   if (chainId === 8453) {
     const configuredAddress=runtime.BASE_MARKETPLACE_ADDRESS;
