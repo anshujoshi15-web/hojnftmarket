@@ -1,7 +1,8 @@
 import { BaseError, ContractFunctionRevertedError, createPublicClient, decodeEventLog, erc721Abi, erc1155Abi, fallback, http, type Address, type Hex } from "viem";
 import { marketplaceAbi, type IndexedOffer } from "./marketplace-abi";
 import type { MarketplaceChainId } from "./marketplace-chains";
-import type { chainConfig } from "./server-marketplace-config";
+import { polygon } from "viem/chains";
+import { POLYGON_ARCHIVE_RPC, type chainConfig } from "./server-marketplace-config";
 
 export type D1PreparedStatement = {
   bind: (...values: unknown[]) => D1PreparedStatement;
@@ -144,7 +145,8 @@ export function indexClient(config:Config){
   // Cronos's default RPC limits log requests to 2,000 blocks. PublicNode
   // accepts the indexer's 8,000-block ranges, including the older V7 market.
   const rpcUrl=config.chain.id===25&&config.rpcUrl==="https://evm.cronos.org"?"https://cronos-evm-rpc.publicnode.com":config.rpcUrl;
-  const primary=http(rpcUrl,{timeout:12_000,retryCount:1});
+  const polygonTenderly=config.chain.id===137&&rpcUrl===POLYGON_ARCHIVE_RPC;
+  const primary=http(rpcUrl,{timeout:12_000,retryCount:1,batch:polygonTenderly});
   // Alchemy's free tier limits eth_getLogs to 10 blocks. It cannot serve this
   // indexer's historical ranges, even though ordinary eth_call reads work.
   const transports=[primary];
@@ -350,15 +352,25 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
   // Public RPCs can stall or fail eth_call during listing verification.
   // Alchemy can serve these small reads even though its free tier cannot scan
   // the broad log ranges used by the indexer above.
-  const verificationClient=(chainId===8453||chainId===137)&&config.fallbackRpcUrl
+  const verificationClient=chainId===137
+    ? createPublicClient({
+        chain: polygon,
+        batch: { multicall: true },
+        transport: fallback([...new Set([
+          config.fallbackRpcUrl,
+          config.rpcUrl === POLYGON_ARCHIVE_RPC ? config.chain.rpcUrl : config.rpcUrl,
+          POLYGON_ARCHIVE_RPC,
+        ])].filter((url):url is string=>!!url).map(url=>http(url,{timeout:8_000,retryCount:0})),{shouldThrow:()=>false}),
+      })
+    : chainId===8453&&config.fallbackRpcUrl
     ? createPublicClient({transport:fallback([
         http(config.fallbackRpcUrl,{timeout:8_000,retryCount:1}),
         http(config.rpcUrl,{timeout:8_000,retryCount:1}),
-        ...(chainId===8453?[http("https://mainnet.base.org",{timeout:8_000,retryCount:1})]:[]),
+        http("https://mainnet.base.org",{timeout:8_000,retryCount:1}),
       ],{shouldThrow:()=>false})})
     : client;
   const chunkSize=chainId===8453?BASE_CHUNK_SIZE:CHUNK_SIZE;
-  const rpcConcurrency=(chainId===8453||chainId===137)&&config.fallbackRpcUrl?4:chainId===8453||chainId===5042?1:chainId===137?2:6;
+  const rpcConcurrency=chainId===137&&config.rpcUrl===POLYGON_ARCHIVE_RPC?8:(chainId===8453||chainId===137)&&config.fallbackRpcUrl?4:chainId===8453||chainId===5042?1:chainId===137?2:6;
   // A durable index keeps a confirmation buffer before committing events. The
   // stateless path replays its window on every read, so it can show mined
   // listings and sales immediately and self-correct after a reorg.
@@ -410,7 +422,7 @@ async function buildIndex(config:Config,scope:string,db?:D1Database){
         // Space Arc's capped reads rather than exhausting the public provider.
         if(chainId===5042&&through<safeLatest)await wait(1_000);
       };
-      if([109,137,8453].includes(chainId)||chainId===5042&&config.chain.explorerApiKey){
+      if([109,8453].includes(chainId)||chainId===137&&config.rpcUrl!==POLYGON_ARCHIVE_RPC||chainId===5042&&config.chain.explorerApiKey){
         // Paginated explorer history avoids archive restrictions and thousands
         // of tiny RPC log requests. Every resulting listing is still checked onchain.
         try{
