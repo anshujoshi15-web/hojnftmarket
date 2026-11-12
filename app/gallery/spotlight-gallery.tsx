@@ -380,9 +380,9 @@ export default function SpotlightGallery() {
         <div className="spotlight-welcome-card">
           <img src="/gallery/aura-mark.webp" alt="" width={56} height={56} />
           <p className="spotlight-welcome-kicker">A note from AURA by Joshi</p>
-          <h2 id="spotlight-welcome-title">To the artists behind LumiBots</h2>
-          <p>With a few pixels, you gave every droid a personality. A crooked grin, a gold star, a glint in the eye. Each detail rewards a closer look.</p>
-          <p>Keep making the worlds only you can imagine. And to every artist visiting this gallery, may this room remind you how much life a small idea can hold.</p>
+          <h2 id="spotlight-welcome-title">Welcome to the LumiBots gallery</h2>
+          <p>The artist behind LumiBots gave each droid a personality with just a few pixels. As you explore, look for the crooked grin, the gold star, and the glint in the eye.</p>
+          <p>We hope this room sparks an idea of your own. Whatever you’ve been dreaming up, give yourself permission to start small and see where it takes you.</p>
           <form method="dialog"><button type="submit" autoFocus>Enter gallery <ArrowUpRight size={16} aria-hidden="true" /></button></form>
         </div>
       </dialog>
