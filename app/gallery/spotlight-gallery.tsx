@@ -267,7 +267,9 @@ export default function SpotlightGallery() {
               return <div className="spotlight-wall" key={work.title}
                 inert={opposite}
                 style={{ "--wall-angle": `${index * -90}deg` } as CSSProperties}>
-                <div className="spotlight-panel" aria-hidden="true" />
+                <div className="spotlight-panel" aria-hidden="true">
+                  <span className="spotlight-medallion" />
+                </div>
                 <div className="spotlight-pendant" aria-hidden="true" />
                 <div className="spotlight-planter" aria-hidden="true" />
                 <div className="spotlight-picture">

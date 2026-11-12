@@ -643,8 +643,7 @@ body :is(main, .court-topbar) :is(input, select, textarea) {
   box-shadow: inset 0 0 0 4px #17110d66, inset 0 0 0 5px #ddb88355, 0 0 0 4px #0d090733;
   pointer-events: none;
 }
-.spotlight-panel::before {
-  content: "";
+.spotlight-medallion {
   position: absolute;
   top: 0;
   left: 50%;
@@ -653,8 +652,15 @@ body :is(main, .court-topbar) :is(input, select, textarea) {
   aspect-ratio: 1;
   border: 1px solid #b99355;
   border-radius: 50%;
-  background: url("/gallery/aura-mark.webp") center / 76% no-repeat,
-    radial-gradient(ellipse at top, #49351d, #19130f);
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at top, #49351d, #19130f);
+}
+.spotlight-medallion::before {
+  content: "";
+  width: 76%;
+  aspect-ratio: 1.35;
+  background: url("/gallery/aura-mark.webp") center 33% / 100% auto no-repeat;
 }
 .spotlight-panel::after {
   content: "";
