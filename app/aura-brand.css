@@ -983,8 +983,11 @@ body :is(main, .court-topbar) :is(input, select, textarea) {
   border-radius: 11px;
   text-align: center;
 }
-.spotlight-welcome-card img { display: block; margin: 0 auto 1rem; }
-.spotlight-welcome-card p { margin: 0 0 1rem; line-height: 1.6; color: #e2d1b7; }
+.spotlight-welcome-card p {
+  margin: 0 0 1rem;
+  color: #f1dec2;
+  font: 400 1.075rem/1.6 "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+}
 .spotlight-welcome-card .spotlight-welcome-kicker {
   color: #ecc477;
   font-size: .75rem;
@@ -993,7 +996,11 @@ body :is(main, .court-topbar) :is(input, select, textarea) {
 }
 .spotlight-welcome-card h2 {
   margin: 0 0 1rem;
-  font: 400 clamp(1.9rem, 5vw, 2.7rem)/1.08 Georgia, serif;
+  font-family: var(--font-serif, Georgia), serif;
+  font-size: clamp(1.95rem, 5vw, 2.7rem);
+  font-weight: 500;
+  line-height: 1.14;
+  text-wrap: balance;
 }
 .spotlight-welcome-card button {
   display: inline-flex;
