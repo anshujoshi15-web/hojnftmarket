@@ -14,8 +14,8 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(`${protocol}://${host}`),
     title: "AURA · Aura by Joshi",
     description: "A premium, non-custodial NFT marketplace across Shibarium, Polygon, Base, Cronos, Arc, Robinhood Chain, and Zora. Experience elegance in digital collecting.",
-    openGraph: { title: "AURA · Aura by Joshi", description: "Premium digital collectibles. Royal elegance. Chain-specific settlement.", images: [{ url:"/social-share-cover.png", width:1200, height:630, alt:"Aura by Joshi NFT Marketplace" }], type: "website" },
-    twitter: { card: "summary_large_image", title: "AURA · Aura by Joshi", description: "The Premium Multichain NFT Marketplace", images: ["/social-share-cover.png"] },
+    openGraph: { title: "AURA · Aura by Joshi", description: "Premium digital collectibles. Royal elegance. Chain-specific settlement.", images: [{ url:"/aura-marketplace-share.png", width:1200, height:630, alt:"AURA Multichain NFT Marketplace" }], type: "website" },
+    twitter: { card: "summary_large_image", title: "AURA · Aura by Joshi", description: "The Premium Multichain NFT Marketplace", images: ["/aura-marketplace-share.png"] },
     icons: { icon: "/aura-mark.svg", apple: "/aura-mark.svg" },
   };
 }

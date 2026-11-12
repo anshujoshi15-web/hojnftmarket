@@ -3,7 +3,7 @@ import SpotlightGallery from "./spotlight-gallery";
 
 const title = "Artist Spotlight · AURA by Joshi";
 const description = "Explore featured NFT artworks and collections in AURA’s 3D gallery.";
-const shareImage = { url: "/aura-gallery-share.png", width: 1200, height: 630, alt: "Gold AURA logo on a dark background" };
+const shareImage = { url: "/aura-marketplace-share.png", width: 1200, height: 630, alt: "AURA Multichain NFT Marketplace" };
 
 export const metadata: Metadata = {
   title,
