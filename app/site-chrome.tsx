@@ -23,6 +23,7 @@ function readCartCounts() {
 
 const navigation: ReadonlyArray<{ href:string; label:string; icon:LucideIcon; external?:boolean; admin?:boolean }> = [
   { href: "/", label: "Discover", icon: LayoutDashboard },
+  { href: "/gallery", label: "Gallery", icon: Gem },
   { href: "/drops", label: "Drops", icon: Sparkles },
   { href: "/favorites", label: "Saved", icon: Heart },
   { href: "/collections", label: "Collections", icon: Gem },
@@ -174,7 +175,7 @@ export function GlobalHeader() {
     <header className="court-topbar">
       <Link href="/" className="court-topbar-brand" aria-label="Aura by Joshi home"><Image className="aura-brand-lockup" src="/aura-logo.svg" alt="" width={800} height={710} priority unoptimized/></Link>
       <nav className="hoj-primary-nav" aria-label="Primary navigation">
-        {[["/","Discover"],["/market","Market"],["/drops","Drops"],["/favorites","Saved"]].map(([href,label])=><Link key={href} href={href} aria-current={pathname===href?"page":undefined}>{label}</Link>)}
+        {[["/","Discover"],["/market","Market"],["/drops","Drops"],["/gallery","Gallery"],["/favorites","Saved"]].map(([href,label])=><Link key={href} href={href} aria-current={pathname===href?"page":undefined}>{label}</Link>)}
       </nav>
       <div className="court-topbar-actions">
         <Link href="/search" className="court-topbar-icon" aria-label="Search"><Search size={18}/></Link>

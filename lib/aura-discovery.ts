@@ -8,6 +8,7 @@ export const publicPages = [
   ["/", "Discover", "Browse NFTs currently listed for sale by network."],
   ["/market", "Market", "Browse and filter marketplace listings."],
   ["/collections", "Collections", "Explore verified collections and listed NFTs."],
+  ["/gallery", "Artist Spotlight", "Explore featured NFT artworks and collections in a 3D gallery."],
   ["/drops", "Drops", "Find featured releases, including Joshi Astrals."],
   ["/search", "Search", "Find NFTs by name, collection, contract, or token ID."],
   ["/activity", "Activity", "See marketplace listing and sale activity."],

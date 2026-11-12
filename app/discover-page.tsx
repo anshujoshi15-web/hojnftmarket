@@ -261,6 +261,9 @@ export default function Home() {
       </section>
 
       <AstralsDiscoverDrop />
+      <div className="discover-gallery-link">
+        <Link href="/gallery" className="royal-view-all">Enter the 3D Artist Spotlight <ArrowUpRight size={16} aria-hidden="true" /></Link>
+      </div>
 
       <section className="discover-listings" aria-labelledby="available-nfts">
         <div className="discover-listings-heading">

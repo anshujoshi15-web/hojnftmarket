@@ -532,3 +532,366 @@ body :is(main, .court-topbar) :is(input, select, textarea) {
   background-size: 8px 8px;
   background-repeat: no-repeat;
 }
+
+.discover-gallery-link { padding: 14px var(--discover-gutter) 0; }
+.spotlight-page {
+  max-width: 1510px;
+  margin-inline: auto;
+  padding: clamp(24px, 4vw, 56px) clamp(16px, 5vw, 68px);
+  background: var(--aura-black);
+}
+.spotlight-heading, .spotlight-details {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 24px;
+}
+.spotlight-heading { margin-bottom: 20px; }
+.spotlight-heading h1 {
+  margin: 7px 0 0;
+  color: var(--aura-gold);
+  font: 600 clamp(36px, 5.5vw, 74px)/1.05 var(--font-serif, Georgia), serif;
+}
+.spotlight-heading p, .spotlight-details p { margin: 0; color: var(--aura-muted); font-size: 14px; }
+.spotlight-heading > div p { color: var(--aura-gold); font-size: 11px; font-weight: 700; letter-spacing: .19em; }
+.spotlight-gallery {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--aura-border);
+  border-radius: 12px;
+  background: #0d0a07;
+}
+.spotlight-stage {
+  position: relative;
+  height: clamp(340px, 39vw, 560px);
+  overflow: clip;
+  perspective: clamp(400px, 76vw, 1150px);
+  container-type: size;
+  touch-action: pan-y;
+  user-select: none;
+}
+.spotlight-room {
+  --room-size: 46cqw;
+  --room-radius: calc(var(--room-size) / 2);
+  --wall-height: 82%;
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  scale: 1;
+  transform: translateZ(var(--room-radius)) rotateY(var(--room-turn));
+  transition: transform 720ms cubic-bezier(.45, 0, .22, 1), scale 1800ms ease-in-out;
+}
+.spotlight-room[data-zoomed="true"] { scale: 1.18; }
+.spotlight-floor {
+  position: absolute;
+  top: var(--wall-height);
+  left: calc(50% - var(--room-radius));
+  width: var(--room-size);
+  height: var(--room-size);
+  background:
+    radial-gradient(ellipse at 50% 50%, #f9e1b868, transparent 58%),
+    linear-gradient(90deg, #0d0b0a80, transparent 14% 86%, #0d0b0a80),
+    repeating-linear-gradient(128deg, transparent 0 38px, #d7c49b23 40px, transparent 44px 63px),
+    repeating-conic-gradient(#847968 0 25%, #24211f 0 50%) 50% 0 / 105px 105px;
+  box-shadow: inset 0 0 0 3px #211711, inset 0 0 0 5px #b88a4b, inset 0 0 22px 6px #0f0b08b3;
+  transform: rotateX(90deg) translateY(calc(-1 * var(--room-radius)));
+  transform-origin: top;
+}
+.spotlight-wall {
+  position: absolute;
+  top: 0;
+  left: calc(50% - var(--room-radius));
+  width: var(--room-size);
+  height: var(--wall-height);
+  backface-visibility: hidden;
+  transform: rotateY(var(--wall-angle)) translateZ(calc(-1 * var(--room-radius)));
+  border: 1px solid #8e6c3d;
+  border-top: 6px double #b99555;
+  background:
+    radial-gradient(ellipse at 50% 18%, #d2a46429, transparent 66%),
+    repeating-linear-gradient(0deg, #0c0b0b 0 1px, #47403a 1px 2px, transparent 3px 22px),
+    repeating-linear-gradient(90deg, #0d0c0c 0 1px, #393430 1px 2px, transparent 3px 59px),
+    repeating-linear-gradient(114deg, transparent 0 4px, #d9cbbb08 5px 6px),
+    linear-gradient(110deg, #100f0e, #252220 50%, #100f0e);
+  box-shadow: inset 0 5px 0 #5a4127, inset 0 8px 0 #aa854e80, inset 0 0 22px #070605b3;
+}
+.spotlight-wall::before {
+  content: "";
+  position: absolute;
+  inset: 4% 0 11%;
+  background:
+    linear-gradient(90deg, #191614, #866436 18%, #d1ad6c 26%, #463924 34%, #a7834c 68%, #29231b) left 2% center,
+    linear-gradient(90deg, #191614, #866436 18%, #d1ad6c 26%, #463924 34%, #a7834c 68%, #29231b) right 2% center;
+  background-repeat: no-repeat;
+  background-size: 2.6% 100%;
+  pointer-events: none;
+}
+.spotlight-wall::after {
+  content: "";
+  position: absolute;
+  inset: 89% 0 0;
+  border-block: 4px double #a78149;
+  background:
+    linear-gradient(0deg, #120d0a80, transparent 42%, #cba16026),
+    repeating-linear-gradient(90deg, #2a231d 0 3px, #805b34 4px 5px, #141211 7px 44px, #583e26 45px 47px);
+  pointer-events: none;
+}
+.spotlight-panel {
+  position: absolute;
+  inset: 5% 7% 11%;
+  border: 3px double #b38e52;
+  border-radius: 50% 50% 3px 3px / 28% 28% 3px 3px;
+  background:
+    radial-gradient(ellipse at 50% 20%, #fff8e6, transparent 69%),
+    repeating-linear-gradient(110deg, transparent 0 5px, #8d6c4612 6px 7px),
+    linear-gradient(112deg, #bca986, #f0e5ce 53%, #b4a080);
+  box-shadow: inset 0 0 0 4px #17110d66, inset 0 0 0 5px #ddb88355, 0 0 0 4px #0d090733;
+  pointer-events: none;
+}
+.spotlight-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -43%);
+  width: clamp(24px, 4cqw, 44px);
+  aspect-ratio: 1;
+  border: 1px solid #b99355;
+  border-radius: 50%;
+  background: url("/aura-mark.svg") center / 76% no-repeat,
+    radial-gradient(ellipse at top, #49351d, #19130f);
+}
+.spotlight-panel::after {
+  content: "";
+  position: absolute;
+  inset: 29% 2.5% 0;
+  border-inline: 4px double #967440b3;
+}
+.spotlight-picture {
+  position: absolute;
+  inset: 18% 11% 14%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.spotlight-light {
+  width: 24%;
+  height: 5px;
+  flex: none;
+  border-radius: 5px;
+  background: linear-gradient(#a37a39, #ffe5a3);
+  box-shadow: 0 4px 12px #ffdd9b, 0 12px 35px 9px #ffc56e70;
+}
+.spotlight-frame {
+  position: relative;
+  /* Leave room inside the arch for the picture light, plaque, and frame trim. */
+  width: min(90%, calc(55cqh - 48px));
+  flex: none;
+  box-sizing: border-box;
+  aspect-ratio: 1;
+  border: clamp(4px, .55vw, 8px) ridge #c8a565;
+  background: linear-gradient(135deg, #2e2418, #0e0c0a 40% 65%, #2e2418);
+  box-shadow: inset 0 0 0 1px #d7ac5d80, 0 0 0 1px #4c351d, 0 0 0 3px #ac8856, 0 12px 24px #000a;
+}
+.spotlight-frame::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 3px;
+  box-shadow: 0 0 10px 2px #df9b485c, 0 0 24px 5px #e8a94b32;
+  pointer-events: none;
+}
+.spotlight-frame > :is(a, button) {
+  position: absolute;
+  inset: 5px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.spotlight-frame img, .spotlight-thumbnail img { object-fit: contain; pointer-events: none; }
+.spotlight-art-unavailable { color: var(--aura-muted); padding: 4px; font-size: 11px; }
+.spotlight-plaque {
+  padding: 2px 8px;
+  border: 1px solid #987443;
+  background: linear-gradient(115deg, #b48b4e, #f0d59b 48%, #c29a5d);
+  color: #21160b;
+  box-shadow: inset 0 0 0 1px #f6dfaa66, 0 2px 5px #0006;
+  font-size: clamp(9px, 1vw, 12px);
+}
+.spotlight-controls {
+  position: absolute;
+  inset: auto auto 12px 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: 42px minmax(115px, auto) 42px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px;
+  border: 1px solid var(--aura-border);
+  border-radius: 999px;
+  background: #17120e;
+  box-shadow: 0 4px 18px #0008;
+  text-align: center;
+}
+.spotlight-controls button {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 1px solid var(--aura-border);
+  border-radius: 50%;
+  background: var(--aura-control);
+  color: var(--aura-gold);
+  cursor: pointer;
+}
+.spotlight-controls button:hover { background: var(--aura-gold); color: var(--aura-black); }
+.spotlight-caption span { color: var(--aura-muted); font-size: 10px; }
+.spotlight-caption h2 { margin: 0; color: var(--aura-text); font-size: 14px; }
+.spotlight-details { margin: 14px 0; }
+.spotlight-detail { display: inline-flex; align-items: center; gap: 5px; color: var(--aura-gold); }
+.spotlight-works { display: grid; grid-template-columns: repeat(4, minmax(0, 125px)); gap: 10px; }
+.spotlight-works button {
+  min-width: 0;
+  padding: 5px;
+  border: 1px solid var(--aura-border);
+  border-radius: 8px;
+  background: var(--aura-control);
+  color: var(--aura-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+.spotlight-works button[aria-pressed="true"] { border-color: var(--aura-gold); color: var(--aura-gold); }
+.spotlight-thumbnail { position: relative; display: grid; place-items: center; aspect-ratio: 1.6; margin-bottom: 5px; background: #0e0c0a; }
+.spotlight-page :is(a, button, section):focus-visible { outline: 2px solid var(--aura-gold); outline-offset: 2px; }
+@media (max-width: 600px) {
+  .spotlight-room { --room-size: 66cqw; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spotlight-room { transition: none; }
+}
+
+.spotlight-artist {
+  display: grid;
+  grid-template-columns: clamp(78px, 14vw, 140px) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(14px, 3vw, 32px);
+  padding: clamp(14px, 2vw, 24px);
+  margin-bottom: 20px;
+  border: 1px solid var(--aura-border);
+  border-radius: 12px;
+  background: var(--aura-control);
+}
+.spotlight-artist-portrait {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1;
+  border: 2px solid var(--aura-border);
+  border-radius: 48% 48% 8px 8px;
+}
+.spotlight-artist-portrait img { object-fit: cover; }
+.spotlight-artist h2, .spotlight-details h2, .spotlight-viewer h2 {
+  margin: 0 0 6px;
+  color: var(--aura-gold);
+  font: 600 clamp(20px, 3vw, 32px)/1.1 var(--font-serif, Georgia), serif;
+}
+.spotlight-artist p { max-width: 68ch; margin: 0; color: var(--aura-muted); }
+.spotlight-artist blockquote { margin: 10px 0 0; padding-inline-start: 12px; border-inline-start: 1px solid var(--aura-border); }
+.spotlight-artist blockquote p { color: var(--aura-text); font-style: italic; }
+.spotlight-artist cite a { color: var(--aura-gold); font-size: 12px; }
+.spotlight-details { align-items: center; padding-block: 6px; }
+.spotlight-details .spotlight-edition { color: var(--aura-gold); margin-bottom: 6px; }
+.spotlight-details p { max-width: 66ch; }
+.spotlight-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.spotlight-actions :is(a, button), .spotlight-viewer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--aura-border);
+  border-radius: 8px;
+  background: var(--aura-control);
+  color: var(--aura-gold);
+  cursor: pointer;
+}
+.spotlight-viewer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: clamp(12px, 3vw, 28px);
+  border: 0;
+  background: #090807;
+  color: var(--aura-text);
+}
+.spotlight-viewer[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 12px; }
+.spotlight-viewer::backdrop { background: #090807; }
+.spotlight-viewer-header { display: flex; justify-content: space-between; align-items: center; }
+.spotlight-viewer-image { position: relative; display: grid; place-items: center; }
+.spotlight-viewer-image img { object-fit: contain; }
+
+.spotlight-planter {
+  position: absolute;
+  z-index: 1;
+  bottom: -1px;
+  left: -3%;
+  width: 24%;
+  height: 46%;
+  pointer-events: none;
+}
+.spotlight-planter::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("/gallery/white-gold-palm.webp") center bottom / contain no-repeat;
+  filter: drop-shadow(1px 4px 3px #100c08a6);
+}
+.spotlight-planter::after {
+  content: "";
+  position: absolute;
+  inset: auto 27% -1px;
+  height: 4%;
+  z-index: -1;
+  border-radius: 50%;
+  background: #0d0907b3;
+  filter: blur(2px);
+}
+
+.spotlight-light {
+  position: relative;
+  background: linear-gradient(#9c6b36, #ffe2a2 37%, #fff3d6 67%, #c58942);
+}
+.spotlight-light::after {
+  content: "";
+  position: absolute;
+  inset: 100% -85% auto;
+  height: 21cqh;
+  background: radial-gradient(ellipse at top, #ffe5ac50, #eab66a1c 40%, transparent 72%);
+  pointer-events: none;
+}
+
+.spotlight-pendant {
+  position: absolute;
+  z-index: 1;
+  inset: 0 auto auto 9%;
+  width: clamp(18px, 4cqw, 46px);
+  height: 30%;
+  transform: translateX(-50%);
+  background: url("/gallery/opal-pendant.webp") center top / auto 100% no-repeat;
+  pointer-events: none;
+}
+.spotlight-pendant::after {
+  content: "";
+  position: absolute;
+  inset: 76% -85% auto;
+  height: 90%;
+  background: radial-gradient(ellipse at 50% 12%, #ffcc724a, #efaa4618 48%, transparent 72%);
+}
