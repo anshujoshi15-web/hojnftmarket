@@ -961,4 +961,50 @@ body :is(main, .court-topbar) :is(input, select, textarea) {
   font-size: 12px;
 }
 
+.spotlight-capture-share { grid-column: 1 / -1; }
 .spotlight-capture-share p { margin-top: 6px; }
+
+.spotlight-welcome {
+  box-sizing: border-box;
+  width: min(33rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  margin: auto;
+  padding: 6px;
+  border: 1px solid #bc9653;
+  border-radius: 16px;
+  background: radial-gradient(ellipse at top, #352614, #12100e 68%);
+  color: #f9edda;
+  box-shadow: 0 24px 80px #000a;
+}
+.spotlight-welcome::backdrop { background: #070605c7; }
+.spotlight-welcome-card {
+  padding: clamp(1.25rem, 5vw, 2.5rem);
+  border: 1px solid #7e6138;
+  border-radius: 11px;
+  text-align: center;
+}
+.spotlight-welcome-card img { display: block; margin: 0 auto 1rem; }
+.spotlight-welcome-card p { margin: 0 0 1rem; line-height: 1.6; color: #e2d1b7; }
+.spotlight-welcome-card .spotlight-welcome-kicker {
+  color: #ecc477;
+  font-size: .75rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.spotlight-welcome-card h2 {
+  margin: 0 0 1rem;
+  font: 400 clamp(1.9rem, 5vw, 2.7rem)/1.08 Georgia, serif;
+}
+.spotlight-welcome-card button {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .5rem;
+  padding: .65rem 1rem;
+  border: 1px solid #e7bb72;
+  border-radius: 7px;
+  background: #e7bb72;
+  color: #18110a;
+  font-weight: 650;
+  cursor: pointer;
+}

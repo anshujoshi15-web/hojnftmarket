@@ -62,6 +62,7 @@ export default function SpotlightGallery() {
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
   const selected = works[active];
+  const welcome = useRef<HTMLDialogElement>(null);
   const viewer = useRef<HTMLDialogElement>(null);
   const scene = useRef<HTMLDivElement>(null);
   const [actionStatus, setActionStatus] = useState("");
@@ -77,7 +78,10 @@ export default function SpotlightGallery() {
       setTour("idle");
       setTurn(index);
     }
-    const frame = requestAnimationFrame(openLinkedArtwork);
+    const frame = requestAnimationFrame(() => {
+      openLinkedArtwork();
+      welcome.current?.showModal();
+    });
     window.addEventListener("hashchange", openLinkedArtwork);
     return () => {
       cancelAnimationFrame(frame);
@@ -372,6 +376,16 @@ export default function SpotlightGallery() {
           </blockquote>
         </div>
       </section>
+      <dialog className="spotlight-welcome" ref={welcome} aria-labelledby="spotlight-welcome-title">
+        <div className="spotlight-welcome-card">
+          <img src="/gallery/aura-mark.webp" alt="" width={56} height={56} />
+          <p className="spotlight-welcome-kicker">A note from AURA by Joshi</p>
+          <h2 id="spotlight-welcome-title">To the artists behind LumiBots</h2>
+          <p>With a few pixels, you gave every droid a personality. A crooked grin, a gold star, a glint in the eye. Each detail rewards a closer look.</p>
+          <p>Keep making the worlds only you can imagine. And to every artist visiting this gallery, may this room remind you how much life a small idea can hold.</p>
+          <form method="dialog"><button type="submit" autoFocus>Enter gallery <ArrowUpRight size={16} aria-hidden="true" /></button></form>
+        </div>
+      </dialog>
       <dialog className="spotlight-viewer" ref={viewer} aria-labelledby="spotlight-viewer-title">
         <div className="spotlight-viewer-header">
           <h2 id="spotlight-viewer-title">{selected.title}</h2>
