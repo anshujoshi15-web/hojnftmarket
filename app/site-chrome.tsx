@@ -167,13 +167,13 @@ export function GlobalHeader() {
   },[mobileMenuOpen]);
   return <>
     <aside className="court-sidebar">
-      <Link href="/" className="court-brand"><Image className="court-brand-logo" src="/aura-mark.svg" alt="Aura by Joshi" width={48} height={48} style={{height:"auto"}} priority unoptimized/><span><strong>AURA</strong><small>AURA BY JOSHI</small></span></Link>
+      <Link href="/" className="court-brand"><Image className="court-brand-logo" src="/gallery/aura-mark.webp" alt="Aura by Joshi" width={48} height={48} style={{height:"auto"}} priority unoptimized/><span><strong>AURA</strong><small>AURA BY JOSHI</small></span></Link>
       <nav aria-label="Marketplace navigation">{navigation.filter(item=>!item.admin||isAdmin).map(({href,label,icon:Icon,...item})=>item.external?<a key={href} href={href} target="_blank" rel="noreferrer"><Icon size={16}/><span>{label}</span></a>:<Link key={href} href={href} className={pathname===href?"active":""} aria-current={pathname===href?"page":undefined}><Icon size={16}/><span>{label}</span></Link>)}</nav>
       <div className="court-sidebar-secondary"><Link href="/protocol"><CircleHelp size={15}/> How it works</Link><Link href="/help-centre"><CircleHelp size={15}/> Help centre</Link><Link href="/about"><BookOpen size={15}/> About marketplace</Link><a href="https://www.nftlaunchpad.thehouseofjoshi.com/" target="_blank" rel="noopener noreferrer"><Rocket size={15}/> Create NFTs</a></div>
       <div className="court-pass"><small>MARKETPLACE ACCESS</small><strong>Multichain · Open</strong><p>Trade on Base, Cronos, Polygon, Shibarium, and Zora. More networks are coming soon.</p><a href="https://www.nftlaunchpad.thehouseofjoshi.com/" target="_blank" rel="noopener noreferrer">Create NFTs</a></div>
     </aside>
     <header className="court-topbar">
-      <Link href="/" className="court-topbar-brand" aria-label="Aura by Joshi home"><Image className="aura-brand-lockup" src="/aura-logo.svg" alt="" width={800} height={710} priority unoptimized/></Link>
+      <Link href="/" className="court-topbar-brand" aria-label="Aura by Joshi home"><Image className="aura-brand-lockup" src="/aura-logo.webp" alt="" width={320} height={284} priority unoptimized/></Link>
       <nav className="hoj-primary-nav" aria-label="Primary navigation">
         {[["/","Discover"],["/market","Market"],["/drops","Drops"],["/gallery","Gallery"],["/favorites","Saved"]].map(([href,label])=><Link key={href} href={href} aria-current={pathname===href?"page":undefined}>{label}</Link>)}
       </nav>
@@ -241,7 +241,7 @@ export function GlobalHeader() {
 export function GlobalFooter() {
   return <footer className="court-footer">
     <div className="court-footer-main">
-      <section className="court-footer-brand"><Link href="/"><Image className="aura-brand-lockup" src="/aura-logo.svg" alt="Aura by Joshi" width={800} height={710} unoptimized/></Link><p>The premier multichain NFT marketplace, built for collectors and creators.</p></section>
+      <section className="court-footer-brand"><Link href="/"><Image className="aura-brand-lockup" src="/aura-logo.webp" alt="Aura by Joshi" width={320} height={284} unoptimized/></Link><p>The premier multichain NFT marketplace, built for collectors and creators.</p></section>
       <nav aria-label="Marketplace footer links"><span>MARKETPLACE</span><Link href="/market">Explore</Link><Link href="/collections">Collections</Link><Link href="/drops">Drops</Link></nav>
       <nav aria-label="Resource footer links"><span>RESOURCES</span><Link href="/learn">Learn</Link><Link href="/protocol">How it works</Link><Link href="/help-centre">Help Centre</Link></nav>
       <nav aria-label="Company footer links"><span>COMPANY</span><Link href="/about">About</Link><Link href="/contact">Contact</Link><Link href="/support">Support</Link><a href="mailto:support@thehouseofjoshi.com">Email support</a></nav>

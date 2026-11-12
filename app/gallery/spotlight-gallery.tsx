@@ -9,7 +9,6 @@ import { siteOrigin } from "@/lib/aura-discovery";
 const contract = "0xa992ae2d48ab978410d7a56f13344edafcde2f3f";
 const chainId = 109;
 const edition = "LumiBots Droid Army · Shibarium";
-const artworkGateway = "https://gateway.pinata.cloud/ipfs/QmWuwyhjTmaYxuzsnTcc6cV9pNBxpfAsA6QQDToqKUdx4b";
 const galleryUrl = `${siteOrigin}/gallery`;
 const works = [
   {
@@ -42,7 +41,7 @@ const works = [
   },
 ].map(work => ({
   ...work,
-  image: `${artworkGateway}/${work.tokenId}.png`,
+  image: `/gallery/lumibot-${work.tokenId}.webp`,
   href: `/nft/${chainId}/${contract}/${work.tokenId}`,
 }));
 
@@ -50,7 +49,7 @@ function GalleryArtwork({ work, selected, fullSize = false }: { work: (typeof wo
   const [unavailable, setUnavailable] = useState(false);
 
   return unavailable ? <span className="spotlight-art-unavailable">Artwork unavailable</span> : (
-    <Image src={work.image} alt={work.alt} fill unoptimized loading={selected && !fullSize ? "eager" : "lazy"}
+    <Image src={work.image} alt={work.alt} fill unoptimized draggable={false} loading={selected && !fullSize ? "eager" : "lazy"}
       sizes={fullSize ? "100vw" : "(max-width: 600px) 64vw, 350px"} onError={() => setUnavailable(true)} />
   );
 }
@@ -68,6 +67,7 @@ export default function SpotlightGallery() {
   const [actionStatus, setActionStatus] = useState("");
   const [showShareLink, setShowShareLink] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [capture, setCapture] = useState<{ file: File; title: string; url: string } | null>(null);
   const shareUrl = `${galleryUrl}#artwork-${selected.tokenId}`;
 
   useEffect(() => {
@@ -132,6 +132,7 @@ export default function SpotlightGallery() {
     }
 
     setTour(current => current === "playing" ? "paused" : current);
+    setCapture(null);
     setCapturing(true);
     setActionStatus("Choose this gallery tab. The PNG will contain only the 3D room.");
     let stream: MediaStream | undefined;
@@ -178,12 +179,14 @@ export default function SpotlightGallery() {
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       const png = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
       if (!png) throw new Error("PNG unavailable");
-      const url = URL.createObjectURL(png);
+      const file = new File([png], `aura-gallery-lumibot-${selected.tokenId}.png`, { type: "image/png" });
+      const url = URL.createObjectURL(file);
       const download = document.createElement("a");
       download.href = url;
-      download.download = `aura-gallery-lumibot-${selected.tokenId}.png`;
+      download.download = file.name;
       download.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setCapture({ file, title: selected.title, url: shareUrl });
       setActionStatus("Gallery image ready to save.");
     } catch (error) {
       const cancelled = error instanceof DOMException && ["AbortError", "NotAllowedError"].includes(error.name);
@@ -195,10 +198,25 @@ export default function SpotlightGallery() {
     }
   }
 
+  async function shareCapture() {
+    if (!capture) return;
+    try {
+      await navigator.share({
+        files: [capture.file],
+        text: `${capture.title} at the AURA Artist Spotlight ${capture.url} #thehouseofjoshi`,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setActionStatus("Open X and attach the downloaded PNG to your post.");
+    }
+  }
+
   function chooseArtwork(index: number) {
     setTour(current => current === "playing" ? "paused" : current);
-    const distance = (index - active + works.length) % works.length;
-    setTurn(current => current + (distance > works.length / 2 ? distance - works.length : distance));
+    setTurn(current => {
+      const distance = ((index - current) % works.length + works.length) % works.length;
+      return current + (distance > works.length / 2 ? distance - works.length : distance);
+    });
   }
 
   return (
@@ -251,9 +269,11 @@ export default function SpotlightGallery() {
                 <div className="spotlight-picture">
                   <div className="spotlight-light" aria-hidden="true" />
                   <div className="spotlight-frame">
-                    {isSelected
-                      ? <button type="button" onClick={openViewer} aria-label={`View ${work.title} full screen`}><GalleryArtwork work={work} selected /></button>
-                      : <button type="button" tabIndex={opposite ? -1 : undefined} onClick={() => chooseArtwork(index)} aria-label={`Show ${work.title} on the gallery wall`}><GalleryArtwork work={work} selected={false} /></button>}
+                    <button type="button" tabIndex={opposite ? -1 : undefined}
+                      onClick={isSelected ? openViewer : () => chooseArtwork(index)}
+                      aria-label={isSelected ? `View ${work.title} full screen` : `Show ${work.title} on the gallery wall`}>
+                      <GalleryArtwork work={work} selected />
+                    </button>
                   </div>
                   <span className="spotlight-plaque">{work.title} · Shibarium</span>
                 </div>
@@ -317,6 +337,20 @@ export default function SpotlightGallery() {
           </button>
         </div>
         <p role="status">{actionStatus}</p>
+        {capture && (
+          <div className="spotlight-capture-share">
+            <div className="spotlight-actions">
+              <a href={`https://x.com/intent/tweet?${new URLSearchParams({
+                text: `${capture.title} at the AURA Artist Spotlight`,
+                url: capture.url,
+                hashtags: "thehouseofjoshi",
+              })}`} target="_blank" rel="noopener noreferrer">Share on X</a>
+              {navigator.canShare?.({ files: [capture.file] }) &&
+                <button type="button" onClick={shareCapture}>Share PNG</button>}
+            </div>
+            <p>Attach the downloaded PNG to your post on X.</p>
+          </div>
+        )}
         {showShareLink && <input aria-label="Artwork link" readOnly value={shareUrl} onFocus={event => event.currentTarget.select()} />}
       </section>
       <nav className="spotlight-works" aria-label="Choose artwork">

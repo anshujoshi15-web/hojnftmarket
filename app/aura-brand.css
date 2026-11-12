@@ -573,7 +573,8 @@ body :is(main, .court-topbar) :is(input, select, textarea) {
   transform-style: preserve-3d;
   scale: 1;
   transform: translateZ(var(--room-radius)) rotateY(var(--room-turn));
-  transition: transform 720ms cubic-bezier(.45, 0, .22, 1), scale 1800ms ease-in-out;
+  will-change: transform;
+  transition: transform 980ms cubic-bezier(.32, .12, .24, 1), scale 1800ms ease-in-out;
 }
 .spotlight-room[data-zoomed="true"] { scale: 1.18; }
 .spotlight-floor {
@@ -652,7 +653,7 @@ body :is(main, .court-topbar) :is(input, select, textarea) {
   aspect-ratio: 1;
   border: 1px solid #b99355;
   border-radius: 50%;
-  background: url("/aura-mark.svg") center / 76% no-repeat,
+  background: url("/gallery/aura-mark.webp") center / 76% no-repeat,
     radial-gradient(ellipse at top, #49351d, #19130f);
 }
 .spotlight-panel::after {
@@ -959,3 +960,5 @@ body :is(main, .court-topbar) :is(input, select, textarea) {
   color: var(--aura-text);
   font-size: 12px;
 }
+
+.spotlight-capture-share p { margin-top: 6px; }
