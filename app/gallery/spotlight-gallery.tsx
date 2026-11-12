@@ -207,40 +207,6 @@ export default function SpotlightGallery() {
         <div><p>AURA BY JOSHI</p><h1>Artist Spotlight</h1></div>
 
       </header>
-      <section className="spotlight-artist" aria-labelledby="spotlight-artist-name">
-        <div className="spotlight-artist-portrait"><GalleryArtwork work={works[0]} selected /></div>
-        <div>
-          <h2 id="spotlight-artist-name">LumiBots Droid Army</h2>
-          <p>LumiBots Droid Army is a collection of pixel-art robots on Shibarium. This spotlight features four droids from AURA’s marketplace, each with its own combination of colors and accessories.</p>
-          <blockquote>
-            <p>“Illuminate The Future”</p>
-            <cite><Link href={works[0].href}>LumiBots Droid Army</Link></cite>
-          </blockquote>
-        </div>
-      </section>
-      <section className="spotlight-tour" aria-label="Guided tour">
-        <div className="spotlight-actions">
-          {tour === "idle" ? (
-            <button type="button" onClick={() => {
-              setTurn(current => current - active);
-              setTour("playing");
-            }}>Start tour</button>
-          ) : (
-            <>
-              <button type="button" onClick={() => setTour(tour === "playing" ? "paused" : "playing")}>
-                {tour === "playing" ? "Pause tour" : "Resume tour"}
-              </button>
-              <button type="button" onClick={() => setTour("idle")}>Exit tour</button>
-            </>
-          )}
-        </div>
-        {tour !== "idle" && (
-          <div className="spotlight-tour-note" role="status">
-            <strong>{selected.title} · Stop {active + 1} of {works.length}</strong>
-            <p>{selected.story}</p>
-          </div>
-        )}
-      </section>
       <section className="spotlight-gallery" aria-label="3D exhibition" tabIndex={0}
         onKeyDown={event => {
           if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -304,6 +270,29 @@ export default function SpotlightGallery() {
           <button type="button" onClick={() => moveArtwork(1)} aria-label="Next artwork"><ArrowRight size={18} /></button>
         </div>
       </section>
+      <section className="spotlight-tour" aria-label="Guided tour">
+        <div className="spotlight-actions">
+          {tour === "idle" ? (
+            <button type="button" onClick={() => {
+              setTurn(current => current - active);
+              setTour("playing");
+            }}>Start tour</button>
+          ) : (
+            <>
+              <button type="button" onClick={() => setTour(tour === "playing" ? "paused" : "playing")}>
+                {tour === "playing" ? "Pause tour" : "Resume tour"}
+              </button>
+              <button type="button" onClick={() => setTour("idle")}>Exit tour</button>
+            </>
+          )}
+        </div>
+        {tour !== "idle" && (
+          <div className="spotlight-tour-note" role="status">
+            <strong>{selected.title} · Stop {active + 1} of {works.length}</strong>
+            <p>{selected.story}</p>
+          </div>
+        )}
+      </section>
       <section className="spotlight-details" aria-label="Selected artwork details">
         <div>
           <h2>{selected.title}</h2>
@@ -338,6 +327,17 @@ export default function SpotlightGallery() {
           </button>
         ))}
       </nav>
+      <section className="spotlight-artist" aria-labelledby="spotlight-artist-name">
+        <div className="spotlight-artist-portrait"><GalleryArtwork work={works[0]} selected /></div>
+        <div>
+          <h2 id="spotlight-artist-name">LumiBots Droid Army</h2>
+          <p>LumiBots Droid Army is a collection of pixel-art robots on Shibarium. This spotlight features four droids from AURA’s marketplace, each with its own combination of colors and accessories.</p>
+          <blockquote>
+            <p>“Illuminate The Future”</p>
+            <cite><Link href={works[0].href}>LumiBots Droid Army</Link></cite>
+          </blockquote>
+        </div>
+      </section>
       <dialog className="spotlight-viewer" ref={viewer} aria-labelledby="spotlight-viewer-title">
         <div className="spotlight-viewer-header">
           <h2 id="spotlight-viewer-title">{selected.title}</h2>
