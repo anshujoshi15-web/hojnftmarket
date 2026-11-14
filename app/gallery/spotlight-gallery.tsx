@@ -6,43 +6,49 @@ import Link from "next/link";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { siteOrigin } from "@/lib/aura-discovery";
 
-const contract = "0xa992ae2d48ab978410d7a56f13344edafcde2f3f";
-const chainId = 109;
-const edition = "LumiBots Droid Army · Shibarium";
+const chainId = 137;
+const network = "Polygon";
 const galleryUrl = `${siteOrigin}/gallery`;
+const murMeow = { name: "MurMeow", contract: "0x9c75c7a017dafd3630e067f88f2be28e735e46bc" };
+const murMeowUnique = { name: "MurMeow Unique", contract: "0xc80989609ef4ad25e918970d331aed7b5a10f9c4" };
 const works = [
   {
-    title: "LumiBot #703",
-    tokenId: "703",
-    traits: ["Starry night", "Gold chain", "Star headwear"],
-    alt: "A rust-colored pixel droid with a gold star against a night sky",
-    story: "A gold star and yellow eyes light up the starry backdrop. A gold chain stands out against the droid’s rust-colored body.",
+    collection: murMeowUnique,
+    number: "1375",
+    tokenId: "1390",
+    traits: ["Blue hair", "Flower crown", "Sunglasses"],
+    alt: "A blue-haired character in black sunglasses and a purple flower crown",
+    story: "A purple flower crown and bright blue hair stand out against the lime-green backdrop.",
   },
   {
-    title: "LumiBot #1719",
-    tokenId: "1719",
-    traits: ["Halo", "Silver earrings", "Green eyes"],
-    alt: "A smiling gunmetal droid with a halo against a rose backdrop",
-    story: "A halo and silver earrings frame this smiling droid. Green eyes stand out against the rose backdrop.",
+    collection: murMeow,
+    number: "1286",
+    tokenId: "1288",
+    traits: ["Braided hair", "Blue lipstick", "Mint backdrop"],
+    alt: "A blonde character with braided hair and blue lipstick against a mint backdrop",
+    story: "A crown of blonde braids frames a portrait in cool mint, blue, and cream.",
   },
   {
-    title: "LumiBot #2790",
-    tokenId: "2790",
-    traits: ["Dollar-sign hat", "Diamond chain", "Orange eyes"],
-    alt: "A smirking droid with a diamond chain against red and black stripes",
-    story: "A dollar-sign hat and diamond chain give this droid a flash of shine. Orange eyes echo the warmth of the red stripes.",
+    collection: murMeowUnique,
+    number: "1367",
+    tokenId: "1382",
+    traits: ["Red hair", "Leaf crown", "Teal lipstick"],
+    alt: "A red-haired character with a leafy crown and teal lipstick",
+    story: "Bright red hair and teal lipstick bring out the softer greens of the leafy crown and background.",
   },
   {
-    title: "LumiBot #2789",
-    tokenId: "2789",
-    traits: ["Green Lumi hat", "Diamond eyes", "Rust finish"],
-    alt: "A rust-colored droid with diamond eyes and a green Lumi hat",
-    story: "Diamond eyes and a green Lumi hat give the rust-colored droid its character against a simple tan backdrop.",
+    collection: murMeow,
+    number: "1327",
+    tokenId: "1329",
+    traits: ["Tiger stripes", "Pink ruffles", "Lilac backdrop"],
+    alt: "A tiger-striped character in a pink ruffled outfit against a lilac backdrop",
+    story: "Bold tiger stripes and bright pink ruffles give this portrait its playful contrast.",
   },
 ].map(work => ({
   ...work,
-  image: `/gallery/lumibot-${work.tokenId}.webp`,
-  href: `/nft/${chainId}/${contract}/${work.tokenId}`,
+  title: `${work.collection.name} #${work.number}`,
+  image: `/gallery/murmeow-${work.tokenId}.webp`,
+  href: `/nft/${chainId}/${work.collection.contract}/${work.tokenId}`,
 }));
 
 function GalleryArtwork({ work, selected, fullSize = false }: { work: (typeof works)[number]; selected: boolean; fullSize?: boolean }) {
@@ -183,7 +189,7 @@ export default function SpotlightGallery() {
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       const png = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
       if (!png) throw new Error("PNG unavailable");
-      const file = new File([png], `aura-gallery-lumibot-${selected.tokenId}.png`, { type: "image/png" });
+      const file = new File([png], `aura-gallery-murmeow-${selected.tokenId}.png`, { type: "image/png" });
       const url = URL.createObjectURL(file);
       const download = document.createElement("a");
       download.href = url;
@@ -281,7 +287,7 @@ export default function SpotlightGallery() {
                       <GalleryArtwork work={work} selected />
                     </button>
                   </div>
-                  <span className="spotlight-plaque">{work.title} · Shibarium</span>
+                  <span className="spotlight-plaque">{work.title} · {network}</span>
                 </div>
               </div>;
             })}
@@ -322,7 +328,7 @@ export default function SpotlightGallery() {
       <section className="spotlight-details" aria-label="Selected artwork details">
         <div>
           <h2>{selected.title}</h2>
-          <p className="spotlight-edition">{edition}</p>
+          <p className="spotlight-edition">{selected.collection.name} · {network}</p>
           <p>{selected.story}</p>
           <ul className="spotlight-traits" aria-label="Artwork traits">
             {selected.traits.map(trait => <li key={trait}>{trait}</li>)}
@@ -370,20 +376,22 @@ export default function SpotlightGallery() {
       <section className="spotlight-artist" aria-labelledby="spotlight-artist-name">
         <div className="spotlight-artist-portrait"><GalleryArtwork work={works[0]} selected /></div>
         <div>
-          <h2 id="spotlight-artist-name">LumiBots Droid Army</h2>
-          <p>LumiBots Droid Army is a collection of pixel-art robots on Shibarium. This spotlight features four droids from AURA’s marketplace, each with its own combination of colors and accessories.</p>
-          <blockquote>
-            <p>“Illuminate The Future”</p>
-            <cite><Link href={works[0].href}>LumiBots Droid Army</Link></cite>
-          </blockquote>
+          <h2 id="spotlight-artist-name">Nastya</h2>
+          <p>Nastya brings a playful eye for color and character to each portrait. A leafy crown, a pair of sunglasses, or a flash of tiger stripes can give a face a completely different mood. Her MurMeow and MurMeow Unique collections are showcased here with four works listed on AURA on Polygon.</p>
+          <p>
+            Browse both collections on AURA{" "}
+            <Link href={`/collection/${chainId}/${murMeow.contract}`}>MurMeow</Link>
+            {" · "}
+            <Link href={`/collection/${chainId}/${murMeowUnique.contract}`}>MurMeow Unique</Link>
+          </p>
         </div>
       </section>
       <dialog className="spotlight-welcome" ref={welcome} aria-labelledby="spotlight-welcome-title">
         <div className="spotlight-welcome-card">
           <p className="spotlight-welcome-kicker">A note from AURA by Joshi</p>
           <h2 id="spotlight-welcome-title">Welcome to AURA Gallery</h2>
-          <p>We’re glad you’re here. The artist behind LumiBots gave each droid a personality with just a few pixels. Take your time and see which crooked grin, gold star, or glint in the eye makes you smile.</p>
-          <p>If you leave with a smile or a new idea, we’re happy we got to share this little world with you.</p>
+          <p>We’re glad you’re here. You can feel Nastya’s creative energy in the way each character comes to life. A flower crown feels dreamy, tiger stripes feel bold, and a pair of sunglasses can change the whole mood.</p>
+          <p>Take your time and follow whatever catches your eye. We hope Nastya’s work leaves you smiling and curious about what you might make or try next.</p>
           <form method="dialog"><button type="submit" autoFocus>Enter gallery <ArrowUpRight size={16} aria-hidden="true" /></button></form>
         </div>
       </dialog>
