@@ -548,6 +548,10 @@ body :is(main, .court-topbar) :is(input, select, textarea) {
 }
 .spotlight-heading p, .spotlight-details p { margin: 0; color: var(--aura-muted); font-size: 14px; }
 .spotlight-heading > div p { color: var(--aura-gold); font-size: 11px; font-weight: 700; letter-spacing: .19em; }
+.spotlight-heading .spotlight-rotate-tip { display: none; margin-top: 8px; }
+@media (max-width: 640px) and (orientation: portrait) {
+  .spotlight-heading .spotlight-rotate-tip { display: block; }
+}
 .spotlight-gallery {
   position: relative;
   overflow: hidden;

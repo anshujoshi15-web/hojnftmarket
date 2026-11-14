@@ -233,7 +233,7 @@ export default function SpotlightGallery() {
     <main className="spotlight-page">
       <header className="spotlight-heading">
         <div><p>AURA BY JOSHI</p><h1>Artist Spotlight</h1></div>
-
+        <p className="spotlight-rotate-tip">Rotate your phone sideways for a wider view of the gallery.</p>
       </header>
       <section className="spotlight-gallery" aria-label="3D exhibition" tabIndex={0}
         onKeyDown={event => {
