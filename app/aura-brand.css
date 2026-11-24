@@ -1025,3 +1025,139 @@ body :is(main, .court-topbar) :is(input, select, textarea) {
   font-weight: 650;
   cursor: pointer;
 }
+
+/* Consistent spacing and restrained gold details across the storefront. */
+:root {
+  --aura-panel: #111110;
+  --aura-control: #191816;
+  --aura-border: #665233;
+  --aura-muted: #c2b8a7;
+}
+.court-topbar {
+  min-height: 82px;
+  gap: 24px;
+  border-bottom: 1px solid #66523380;
+  background: #080808;
+}
+.court-topbar .aura-brand-lockup { height: 64px; }
+.hoj-primary-nav { gap: clamp(16px, 2.2vw, 32px); }
+.hoj-primary-nav a { padding-inline: 4px; }
+.hoj-primary-nav a[aria-current="page"] { color: var(--aura-gold); }
+.court-topbar-actions { flex-shrink: 0; gap: 8px; }
+:is(.court-topbar, .local-preview-header) .wallet-button {
+  min-height: 42px;
+  border-radius: 8px;
+  font-size: 13px;
+  letter-spacing: .02em;
+}
+.discover-page { --discover-gutter: clamp(18px, 4vw, 64px); }
+.discover-intro { padding-block: 28px; }
+.discover-intro-head { gap: 20px; align-items: center; }
+.discover-intro h1 { font-size: clamp(36px, 4.5vw, 60px); letter-spacing: -.035em; }
+.discover-nft-search { max-width: 440px; min-height: 44px; border-radius: 8px; }
+.discover-page .astrals-discover-drop {
+  margin-inline: var(--discover-gutter);
+  overflow: hidden;
+  border: 1px solid var(--aura-border);
+  border-radius: 16px;
+  background: #16110f;
+}
+.astrals-discover-copy { padding: clamp(24px, 4vw, 56px); }
+.astrals-discover-copy h2 { letter-spacing: -.035em; }
+.astrals-discover-copy p { max-width: 34ch; line-height: 1.6; }
+.discover-page .discover-featured-collections { padding-block: 32px; }
+.discover-collection-grid { gap: 20px; }
+.discover-collection-feature { border-radius: 12px; overflow: hidden; }
+.discover-listings-heading { align-items: center; gap: 16px; }
+.discover-page .discover-chain-pills { gap: 8px; padding-block: 18px; }
+.discover-page .discover-chain-pills button { min-height: 38px; padding: 7px 14px; font-size: 13px; }
+.discover-page .discover-network-section { padding-block: 28px; }
+.discover-page .royal-section-header { gap: 16px; align-items: center; }
+.discover-page .royal-nfts-grid { gap: 18px; }
+.discover-page .royal-nft-card { border-radius: 12px; overflow: hidden; background: var(--aura-panel); }
+.discover-page .royal-nft-image { aspect-ratio: 1; height: auto; }
+.discover-page .royal-nft-info { padding: 16px; }
+.discover-page .royal-nft-info h3 { font-size: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.discover-page .royal-nft-price { gap: 8px; flex-wrap: wrap; }
+.discover-page .royal-nft-price strong { font-size: 15px; }
+.discover-page .royal-section-label { letter-spacing: .12em; }
+.discover-shelf-note { font-size: 12px; }
+.royal-portal-market .market-toolbar {
+  position: static;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 0 0 24px;
+  background: transparent;
+  border-bottom: 1px solid var(--aura-border);
+  border-radius: 0;
+}
+.royal-portal-market .market-heading { flex: 1 1 260px; }
+.royal-portal-market .market-heading h1 { letter-spacing: -.035em; }
+.royal-portal-market .market-toolbar > label:not(.sort-control) { flex: 2 1 320px; min-width: 0; }
+.market-network-controls { width: 100%; gap: 8px; }
+.market-network-controls > * { min-height: 38px; }
+.royal-portal-market .market-browser { gap: 24px; align-items: start; }
+.royal-portal-market .market-filter-panel { padding-right: 20px; }
+.royal-portal-market .market-listings-grid:not(.market-list-view) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.royal-portal-market .market-listing { min-width: 0; border-radius: 12px; }
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-listing-art { aspect-ratio: 1; height: auto; }
+.royal-portal-market .market-listing-copy { padding: 14px; min-width: 0; }
+.royal-portal-market .market-listing h2 { font-size: 19px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.royal-portal-market .market-card-price { align-items: center; gap: 8px; min-height: 36px; }
+.royal-portal-market .market-card-price strong { font-size: 15px; }
+.royal-portal-market .market-listing-copy > p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.royal-portal-market .market-no-results { border-style: solid; border-radius: 12px; }
+.spotlight-page { max-width: 1440px; padding: clamp(20px, 3vw, 40px) clamp(16px, 3vw, 44px); }
+.spotlight-heading h1 { font-size: clamp(30px, 3.3vw, 46px); letter-spacing: -.025em; }
+.spotlight-gallery { border-radius: 14px; }
+.spotlight-details { background: var(--aura-panel); border-color: #66523380; padding: 18px 20px; }
+.spotlight-details h2 { font-size: 25px; }
+.spotlight-details p { line-height: 1.6; }
+.spotlight-details .spotlight-actions { flex-wrap: wrap; overflow: visible; gap: 8px; }
+.spotlight-details .spotlight-actions > :is(a, button) { min-height: 36px; border-radius: 7px; }
+.spotlight-artist { padding-block: 24px; }
+.spotlight-artist p { line-height: 1.7; }
+:is(.discover-page, .royal-portal-market, .spotlight-page) :is(button, a, input, select):focus-visible {
+  outline: 2px solid var(--aura-gold);
+  outline-offset: 3px;
+}
+@media (hover: hover) {
+  .discover-page .royal-nft-card:hover,
+  .royal-portal-market .market-listing:hover { border-color: var(--aura-gold); }
+}
+@media (min-width: 1000px) {
+  .discover-page .royal-nfts-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .court-topbar { min-height: 72px; padding-inline: 16px; gap: 12px; }
+  .court-topbar .aura-brand-lockup { height: 52px; }
+  .court-topbar-actions { gap: 4px; }
+  .discover-intro { padding-block: 20px; }
+  .discover-intro-head { flex-wrap: wrap; }
+  .discover-nft-search { flex-basis: 100%; width: 100%; max-width: none; }
+  .discover-page .astrals-discover-drop { border-radius: 12px; }
+  .discover-page .astrals-discover-copy { padding: 24px; }
+  .discover-page .discover-chain-pills { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 12px; }
+  .discover-page .discover-chain-pills > * { flex-shrink: 0; }
+  .discover-page .royal-nfts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .discover-page .royal-nft-info { padding: 12px; }
+  .discover-page .royal-nft-info h3 { font-size: 17px; }
+  .royal-portal-market .market-browser { grid-template-columns: 1fr; gap: 16px; }
+  .royal-portal-market .market-listings-grid:not(.market-list-view) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .royal-portal-market .market-filter-panel { padding: 16px; }
+  .royal-portal-market .market-listing-copy { padding: 12px; }
+  .royal-portal-market .market-listing h2 { font-size: 17px; }
+  .spotlight-details { padding: 16px; }
+  .spotlight-details .spotlight-actions > :is(a, button) { min-height: 40px; }
+}
+@media (max-width: 380px) {
+  .discover-page .royal-nfts-grid,
+  .royal-portal-market .market-listings-grid:not(.market-list-view) { grid-template-columns: 1fr; }
+}
