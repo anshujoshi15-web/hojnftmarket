@@ -244,7 +244,7 @@ export function MarketView({data,loading,account,advancedMarketplace,legacy,onBu
       <button className={`filter-toggle ${filtersOpen?"active":""}`} onClick={()=>setFiltersOpen(value=>!value)} aria-expanded={filtersOpen}>
         <SlidersHorizontal size={17}/> Filters
       </button>
-      <label><Search size={17}/><input value={search} onChange={event=>setSearch(event.target.value)} placeholder="Token ID or contract" aria-label="Search by token ID or contract"/></label>
+      <label className="market-item-search"><Search size={17}/><input value={search} onChange={event=>setSearch(event.target.value)} placeholder="Token ID or contract" aria-label="Search by token ID or contract"/></label>
       {onNetworkChange&&<div className="market-network-controls" role="group" aria-label="Browse network">
         {combined&&<button type="button" aria-pressed={allNetworks} onClick={()=>onNetworkChange("all")}>All</button>}
         {[137,8453,5042].map(id=>{const network=getMarketplaceChain(id as MarketplaceChainId);return <button type="button" key={id} aria-pressed={!allNetworks&&data.chainId===id} onClick={()=>onNetworkChange(network.id)}>{network.name}</button>;})}
@@ -253,6 +253,7 @@ export function MarketView({data,loading,account,advancedMarketplace,legacy,onBu
           <select value={allNetworks?"all":data.chainId} onChange={event=>onNetworkChange(event.target.value==="all"?"all":Number(event.target.value) as MarketplaceChainId)}>{combined&&<option value="all">All networks</option>}{Object.values(marketplaceChains).map(network=><option key={network.id} value={network.id}>{network.name} · {network.currency}</option>)}</select>
         </label>
       </div>}
+      <span className="market-result-count" role="status">{shown.length.toLocaleString()} items</span>
       <div className="market-view-toggle" role="group" aria-label="Results layout">
         <button type="button" aria-pressed={layout==="grid"} onClick={()=>setLayout("grid")}><Grid2X2 size={14} aria-hidden="true"/> Grid</button>
         <button type="button" aria-pressed={layout==="list"} onClick={()=>setLayout("list")}><List size={14} aria-hidden="true"/> List</button>

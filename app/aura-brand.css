@@ -1161,3 +1161,65 @@ body :is(main, .court-topbar) :is(input, select, textarea) {
   .discover-page .royal-nfts-grid,
   .royal-portal-market .market-listings-grid:not(.market-list-view) { grid-template-columns: 1fr; }
 }
+
+
+/* Compact marketplace: artwork-first browsing with restrained gold accents. */
+.royal-portal-market { font-size: 13px; }
+.royal-portal-market .royal-portal-content { max-width: none; padding: 18px 24px 40px; }
+.royal-portal-market .market-toolbar { gap: 10px; margin: 0 0 18px; padding: 0 0 16px; border-bottom: 1px solid #d3ac6226; }
+.royal-portal-market .market-heading { flex: 1 0 100%; }
+.royal-portal-market .market-heading h1 { font: 600 26px/1.25 var(--font-serif, Georgia), serif; }
+.royal-portal-market .market-heading p { margin-top: 4px; font-size: 12px; color: #aaa59b; }
+.royal-portal-market :is(button, input, select, summary) { font-size: 12px; letter-spacing: normal; }
+.royal-portal-market .market-toolbar > label.market-item-search { flex: 1 1 240px; height: 36px; min-height: 36px; padding: 0 12px; border-radius: 20px; }
+.royal-portal-market .market-item-search input { width: 100%; min-width: 0; padding: 0; height: 32px; border: 0; background: transparent; font-size: 13px; }
+.royal-portal-market .market-network-controls { width: auto; gap: 5px; }
+.royal-portal-market .market-network-controls > button { min-height: 34px; padding: 0 11px; }
+.royal-portal-market .market-network-picker { min-height: 34px; padding: 0 8px; gap: 6px; }
+.royal-portal-market .market-network-picker > span { font-size: 11px; }
+.royal-portal-market .market-network-picker select { height: 32px; padding: 0 5px; font-size: 12px; }
+.royal-portal-market .market-result-count { color: #aaa59b; font: 11px/1.4 monospace; text-transform: uppercase; white-space: nowrap; }
+.royal-portal-market .market-toolbar :is(.market-view-toggle button, .market-cart-button, .filter-toggle, .sort-control) { height: 36px; min-height: 36px; padding: 0 10px; }
+.royal-portal-market .market-toolbar .filter-toggle { display: inline-flex; }
+.royal-portal-market .market-toolbar .sort-control select { height: 34px; font-size: 12px; padding-block: 0; }
+.royal-portal-market .market-browser { grid-template-columns: 210px minmax(0, 1fr); gap: 20px; }
+.royal-portal-market .market-browser.filters-closed { grid-template-columns: minmax(0, 1fr); }
+.royal-portal-market .market-filter-panel { padding: 0 18px 16px 0; border-color: #d3ac6226; }
+.royal-portal-market .market-filter-panel h2 { font: 600 14px/1.4 Arial, sans-serif; }
+.royal-portal-market .market-filter-panel details { padding: 16px 0; border-color: #d3ac6226; }
+.royal-portal-market .market-filter-panel summary { font: 500 13px/1.5 Arial, sans-serif; }
+.royal-portal-market .market-filter-panel :is(input[type="search"], .market-price-bounds input) { height: 34px; min-height: 34px; padding: 7px 9px; font-size: 12px; }
+.royal-portal-market .market-filter-panel .market-collection-option { gap: 8px; padding: 7px 0; font-size: 12px; line-height: 1.5; }
+.royal-portal-market .market-collection-option input { width: 14px; height: 14px; }
+.royal-portal-market .market-collection-option span:last-child { margin-left: auto; font-size: 11px; color: #aaa59b; }
+.royal-portal-market .market-filter-panel .market-apply { min-height: 32px; padding: 6px; }
+.royal-portal-market .market-listings-grid:not(.market-list-view) { grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 12px; align-items: stretch; }
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-listing { max-width: none; border: 1px solid #d3ac6226; border-radius: 9px; background: #10100f; }
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-listing-art { height: auto; aspect-ratio: 1; margin: 0; }
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-listing-art :is(img, video) { object-fit: contain !important; }
+.royal-portal-market .market-listings-grid .market-listing-copy { padding: 10px; }
+.royal-portal-market .market-listings-grid .market-listing-copy h2 { margin: 0 24px 4px 0; font: 600 13px/20px Arial, sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.royal-portal-market .market-listing-copy > small { font: 10px/16px Arial, sans-serif; color: #aaa59b; letter-spacing: 0; text-transform: none; }
+.royal-portal-market .market-listings-grid:not(.market-list-view) .market-card-price { min-height: 58px; margin: 7px 0 0; padding-top: 7px; border-color: #d3ac621a; gap: 4px; }
+.royal-portal-market .market-listings-grid .market-card-price strong { font: 500 12px/18px Arial, sans-serif; }
+.royal-portal-market .market-card-price .market-chain-badge { font-size: 9px; padding: 2px 6px; letter-spacing: .3px; }
+.royal-portal-market .market-card-price .usd-estimate { font-size: 9px; }
+.royal-portal-market .market-listing-trade { margin-top: 5px; font-size: 11px; }
+.royal-portal-market .market-listing-trade summary { font-size: 11px; }
+.royal-portal-market .market-card-actions :is(a, button),
+.royal-portal-market .nft-card-buy-now { font-size: 11px; min-height: 30px; padding: 6px 8px; }
+.royal-portal-market .market-no-results h2 { font-size: 18px; }
+.royal-portal-market .market-no-results p { font-size: 13px; }
+@media (max-width: 900px) {
+  .royal-portal-market .market-browser { grid-template-columns: 175px minmax(0, 1fr); gap: 14px; }
+  .royal-portal-market .market-network-controls { flex: 1 0 100%; }
+}
+@media (max-width: 700px) {
+  .royal-portal-market .royal-portal-content { padding: 14px 12px 28px; }
+  .royal-portal-market .market-browser { grid-template-columns: minmax(0, 1fr); }
+  .royal-portal-market .market-filter-panel { padding: 12px; border: 1px solid #d3ac6226; border-radius: 8px; }
+  .royal-portal-market .market-listings-grid:not(.market-list-view) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .royal-portal-market .market-network-controls { flex-wrap: wrap; }
+  .royal-portal-market .market-listings-grid .market-listing-copy { padding: 8px; }
+  .royal-portal-market .market-item-search input { font-size: 16px; }
+}
