@@ -65,13 +65,14 @@ export function chainConfig(runtime: RuntimeEnv, chainId: MarketplaceChainId) {
   const chain = {...getMarketplaceChain(chainId),explorerApiKey:runtime.BLOCKSCOUT_API_KEY};
   const alchemyNetwork:Partial<Record<MarketplaceChainId,string>>={1:"eth-mainnet",137:"polygon-mainnet",8453:"base-mainnet"};
   const fallbackRpcUrl=runtime.ALCHEMY_API_KEY&&alchemyNetwork[chainId]?`https://${alchemyNetwork[chainId]}.g.alchemy.com/v2/${runtime.ALCHEMY_API_KEY}`:undefined;
-  if (chainId === 1) return {
-    fallbackRpcUrl,
-    chain,
-    address: runtime.ETHEREUM_MARKETPLACE_ADDRESS ?? chain.marketplaceAddress,
-    deployBlock: runtime.ETHEREUM_MARKETPLACE_DEPLOY_BLOCK ?? String(chain.marketplaceDeployBlock),
-    rpcUrl: runtime.ETHEREUM_RPC_URL ?? chain.rpcUrl,
-  };
+  if (chainId === 1 || chainId === 33139) {
+    const configuredAddress = chainId === 1 ? runtime.ETHEREUM_MARKETPLACE_ADDRESS : runtime.APECHAIN_MARKETPLACE_ADDRESS;
+    const configuredBlock = chainId === 1 ? runtime.ETHEREUM_MARKETPLACE_DEPLOY_BLOCK : runtime.APECHAIN_MARKETPLACE_DEPLOY_BLOCK;
+    const oldApeAddress = "0x6aCaf964bCf4551CC55Afaf12d6e6a8ef7138875";
+    const address = !configuredAddress?.trim() || (chainId === 33139 && configuredAddress.toLowerCase() === oldApeAddress.toLowerCase()) ? chain.marketplaceAddress : configuredAddress;
+    const deployBlock = address.toLowerCase() === chain.marketplaceAddress.toLowerCase() ? String(chain.marketplaceDeployBlock) : configuredBlock || String(chain.marketplaceDeployBlock);
+    return {fallbackRpcUrl, chain, address, deployBlock, rpcUrl: (chainId === 1 ? runtime.ETHEREUM_RPC_URL : runtime.APECHAIN_RPC_URL) || chain.rpcUrl};
+  }
   if (chainId === 25) {
     const configuredAddress=runtime.CRONOS_MARKETPLACE_ADDRESS;
     const address=!configuredAddress||configuredAddress.toLowerCase()===CRONOS_V7_ADDRESS.toLowerCase()?chain.marketplaceAddress:configuredAddress;
