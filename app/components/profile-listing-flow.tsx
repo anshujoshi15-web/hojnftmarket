@@ -60,6 +60,7 @@ export function ProfileListingFlow({chainId,collection,items,onRemove,onClear}:P
   },[open,transaction.pending]);
   if(!items.length)return null;
   function review(){
+    if((chainId===1||chainId===33139)&&items.length>1){setError("Ethereum and ApeChain currently support listing one NFT at a time. Select one NFT to continue.");return;}
     if(!total||total<=0n){setError("Enter a positive price for every selected NFT, up to 18 decimal places.");return;}
     setError("");setStep("review");
     if(client&&address)void client.readContract({address:collection as Address,abi:erc721Abi,functionName:"isApprovedForAll",args:[address,market]}).then(value=>setApprovalNeeded(!value)).catch(()=>setApprovalNeeded(null));
@@ -71,7 +72,7 @@ export function ProfileListingFlow({chainId,collection,items,onRemove,onClear}:P
     setError("");
     const success=await transaction.run("Listing",async send=>{
       const version=await client.readContract({address:market,abi:marketplaceAbi,functionName:"marketplaceVersion"});
-      if(version<8n)throw new Error("This network is not connected to a V8 marketplace contract.");
+      if(version<8n&&items.length>1)throw new Error("This marketplace supports listing one NFT at a time. Select one NFT to continue.");
       if(new Set(items.map(item=>item.tokenId)).size!==items.length||items.some(item=>item.contractAddress.toLowerCase()!==collection.toLowerCase()))throw new Error("Select unique NFTs from one collection.");
       for(const tokenId of tokenIds){
         const owner=await readErc721Owner(client,collection as Address,tokenId);
