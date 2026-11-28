@@ -175,7 +175,7 @@ export function GlobalHeader() {
     <header className="court-topbar">
       <Link href="/" className="court-topbar-brand" aria-label="Aura by Joshi home"><Image className="aura-brand-lockup" src="/aura-logo.webp" alt="" width={320} height={284} priority unoptimized/></Link>
       <nav className="hoj-primary-nav" aria-label="Primary navigation">
-        {[["/","Discover"],["/market","Market"],["/drops","Drops"],["/gallery","Gallery"],["/favorites","Saved"]].map(([href,label])=><Link key={href} href={href} aria-current={pathname===href?"page":undefined}>{label}</Link>)}
+        {[["/","Discover"],["/market","Market"],["/gallery","Gallery"],["/favorites","Saved"]].map(([href,label])=><Link key={href} href={href} aria-current={pathname===href?"page":undefined}>{label}</Link>)}
       </nav>
       <div className="court-topbar-actions">
         <Link href="/search" className="court-topbar-icon" aria-label="Search"><Search size={18}/></Link>

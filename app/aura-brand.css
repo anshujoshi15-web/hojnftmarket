@@ -1223,3 +1223,42 @@ body :is(main, .court-topbar) :is(input, select, textarea) {
   .royal-portal-market .market-listings-grid .market-listing-copy { padding: 8px; }
   .royal-portal-market .market-item-search input { font-size: 16px; }
 }
+
+
+/* Browsing tools: quiet controls, large artwork, and accessible mobile filters. */
+.market-filter-chips { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 14px; }
+.market-filter-chips:empty { display:none; }
+.market-filter-chips button { border:1px solid #d3ac6244; border-radius:20px; background:#191711; color:#e7c785; padding:7px 12px; }
+.market-filter-chips span { color:#aaa59b; font-size:12px; }
+.market-listing { position:relative; }
+.market-preview-button { display:block; width:100%; padding:8px; border:0; border-bottom:1px solid #d3ac6226; background:#191711; color:#e7c785; cursor:pointer; }
+.market-art-preview { position:fixed; inset:0; width:min(840px,92vw); max-height:90dvh; overflow:auto; padding:24px; border:1px solid #bd9655; border-radius:16px; background:#11110f; color:#f0e8d9; }
+.market-art-preview::backdrop { background:#000c; backdrop-filter:blur(6px); }
+.market-art-preview > img { display:block; width:100%; height:min(55vh,550px); object-fit:contain; }
+.market-art-preview > div { padding-top:20px; }
+.market-art-preview h2 { font-size:24px!important; white-space:normal!important; }
+.market-art-preview p { font-size:13px; color:#bcb5a9; }
+.market-art-preview a { display:inline-flex; gap:8px; align-items:center; padding:12px 18px; border-radius:8px; color:#17130c; background:#e0bb70; }
+.market-art-preview .market-preview-close { position:sticky; top:0; float:right; display:grid; place-items:center; width:40px; height:40px; border:1px solid #bd9655; border-radius:50%; color:#f0e8d9; background:#111; }
+.market-filter-close { display:none; }
+.discover-welcome { max-width:520px; color:#bcb5a9; font-size:14px; line-height:1.6; }
+.discover-gallery-link { display:flex; justify-content:space-between; align-items:center; gap:24px; margin:24px var(--discover-gutter,24px); padding:24px; border:1px solid #d3ac6244; border-radius:12px; background:linear-gradient(120deg,#201b12,#0c0c0b); }
+.discover-gallery-link small { color:#e0bb70; letter-spacing:2px; font-size:10px; }
+.discover-gallery-link h2 { margin:8px 0; font:500 26px/1.2 var(--font-serif,Georgia),serif; }
+.discover-gallery-link p { color:#bcb5a9; font-size:13px; line-height:1.6; }
+@media(max-width:700px) {
+ .royal-portal-market .market-filter-panel { position:fixed; inset:0 auto 0 0; z-index:1000; width:min(340px,90vw); overflow:auto; padding:24px; background:#11110f; box-shadow:0 0 0 100vmax #000b; }
+ .market-filter-close { display:block; }
+ .royal-portal-market .market-toolbar :is(button,.market-cart-button), .market-preview-button { min-height:44px; }
+ .market-filter-panel .market-collection-option { min-height:44px; }
+ .discover-gallery-link { flex-direction:column; align-items:flex-start; padding:20px; }
+ .market-art-preview { padding:16px; }
+ .hoj-primary-nav { gap:12px; }
+ .hoj-primary-nav a { min-height:44px; display:inline-flex; align-items:center; }
+}
+@media(prefers-reduced-motion:reduce) { .market-art-preview::backdrop { backdrop-filter:none; } }
+.market-skeleton-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px; }
+.market-skeleton-grid > div { border:1px solid #d3ac6226; border-radius:9px; overflow:hidden; background:#111; }
+.market-skeleton-grid span { display:block; aspect-ratio:1; background:linear-gradient(120deg,#181713,#242117,#181713); }
+.market-skeleton-grid p { padding:12px; color:#aaa59b; font-size:12px; }
+@media(max-width:700px) { .market-skeleton-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }

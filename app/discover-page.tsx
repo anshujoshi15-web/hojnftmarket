@@ -250,7 +250,7 @@ export default function Home() {
     <main className="royal-homepage discover-page">
       <section className="discover-intro">
         <div className="discover-intro-head">
-          <h1>Discover</h1>
+          <div><h1>Discover</h1><p className="discover-welcome">Find art that feels like you. Explore, save your favourites, and meet the artist behind the work.</p></div>
           <form action="/search" method="get" className="nft-inline-search discover-nft-search" role="search">
             <Search size={18} aria-hidden="true"/>
             <input type="search" name="q" aria-label={activeChain==="all"?"Search all NFTs":`Search ${getMarketplaceChain(activeChain).name} NFTs`} placeholder="Search collections or tokens…"/>
@@ -262,7 +262,7 @@ export default function Home() {
 
       <AstralsDiscoverDrop />
       <div className="discover-gallery-link">
-        <Link href="/gallery" className="royal-view-all">Enter the 3D Artist Spotlight <ArrowUpRight size={16} aria-hidden="true" /></Link>
+        <div><small>IN THE GALLERY</small><h2>The creative world of Nastya</h2><p>Step inside MurMeow: playful characters, vivid colour, and a little unexpected magic.</p></div><Link href="/gallery" className="royal-view-all">Explore the exhibition <ArrowUpRight size={16} aria-hidden="true" /></Link>
       </div>
 
       <section className="discover-listings" aria-labelledby="available-nfts">
